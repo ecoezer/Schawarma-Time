@@ -125,12 +125,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-3">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Menu size={20} />
           </button>
