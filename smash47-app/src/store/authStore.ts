@@ -53,6 +53,9 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             isInitialized: true 
           })
+          
+          // Clear any local storage used by Supabase just in case
+          localStorage.removeItem('smash47-auth')
         }
       },
 

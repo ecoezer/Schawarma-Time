@@ -32,7 +32,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const handleLogout = async () => {
     await signOut()
     toast.success('Erfolgreich abgemeldet')
-    navigate('/admin/login')
+    // Hard reload to clean up all stores and memory
+    window.location.href = '/admin/login'
   }
 
   const isActive = (path: string, exact?: boolean) => {
