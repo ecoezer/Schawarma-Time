@@ -12,25 +12,30 @@ const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the
 export function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
 
+  const fetchOrders = async () => {
+    setIsLoading(true)
+    setError(null)
+    const { data, error: sbError } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (sbError) {
+      console.error('Fetch orders error:', sbError)
+      setError(sbError.message)
+    } else if (data) {
+      setOrders(data as Order[])
+    }
+    setIsLoading(false)
+  }
+
   // Fetch initial orders
   useEffect(() => {
-    const fetchOrders = async () => {
-      setIsLoading(true)
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (!error && data) {
-        setOrders(data as Order[])
-      }
-      setIsLoading(false)
-    }
-
     fetchOrders()
 
     // Realtime subscription
@@ -164,6 +169,11 @@ export function AdminOrders() {
         <div className="space-y-3">
           {isLoading ? (
             <div className="text-center py-20 text-gray-400">Lädt...</div>
+          ) : error ? (
+            <div className="text-center py-20">
+              <p className="text-red-500 font-bold mb-2">Fehler: {error}</p>
+              <Button variant="outline" size="sm" onClick={() => fetchOrders()}>Erneut versuchen</Button>
+            </div>
           ) : (
             <AnimatePresence initial={false}>
               {filteredOrders.map((order) => (
