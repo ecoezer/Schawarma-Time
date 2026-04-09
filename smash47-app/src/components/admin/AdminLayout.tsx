@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings,
-  LogOut, Menu, X, Bell, Tag, Users
+  LogOut, Menu, X, Bell, Tag, Users, ChevronLeft, XCircle
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
+import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -35,6 +36,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     // Hard reload to clean up all stores and memory
     window.location.href = '/admin/login'
   }
+
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      const { count } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      if (count !== null) setPendingCount(count)
+    }
+    
+    fetchPendingCount()
+
+    // Realtime count
+    const channel = supabase.channel('pending-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPendingCount)
+      .subscribe()
+      
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const isActive = (path: string, exact?: boolean) => {
     if (exact) return location.pathname === path
@@ -95,9 +117,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               >
                 <item.icon size={18} />
                 {item.label}
-                {item.path === '/admin/bestellungen' && (
+                {item.path === '/admin/bestellungen' && pendingCount > 0 && (
                   <span className="ml-auto bg-[#06c167] text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-                    3
+                    {pendingCount}
                   </span>
                 )}
               </Link>
