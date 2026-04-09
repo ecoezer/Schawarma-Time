@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX } from 'lucide-react'
+import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
 import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -131,9 +132,12 @@ export function AdminOrders() {
   }
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 h-full relative">
       {/* Orders List */}
-      <div className="flex-1 min-w-0">
+      <div className={cn(
+        "flex-1 min-w-0 transition-all",
+        selectedOrder ? "hidden lg:block" : "block"
+      )}>
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-black text-gray-900">Bestellungen</h1>
           <div className="flex items-center gap-3">
@@ -154,7 +158,7 @@ export function AdminOrders() {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
           {(['all', 'pending', 'preparing', 'on_the_way', 'delivered', 'cancelled'] as const).map((s) => (
             <button
               key={s}
@@ -174,7 +178,7 @@ export function AdminOrders() {
         </div>
 
         {/* Order cards */}
-        <div className="space-y-3">
+        <div className="space-y-3 pb-20">
           {isLoading ? (
             <div className="text-center py-20 text-gray-400">Lädt...</div>
           ) : error ? (
@@ -192,9 +196,11 @@ export function AdminOrders() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   onClick={() => setSelectedOrder(order)}
-                  className={`bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${
-                    selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent'
-                  } ${order.status === 'pending' ? 'border-l-4 border-l-yellow-400' : ''}`}
+                  className={cn(
+                    "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md",
+                    selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent',
+                    order.status === 'pending' ? 'border-l-4 border-l-yellow-400' : ''
+                  )}
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
@@ -234,18 +240,25 @@ export function AdminOrders() {
         </div>
       </div>
 
-      {/* Order Detail Panel */}
+      {/* Order Detail Panel - Full screen overlay on mobile, sidebar on desktop */}
       <AnimatePresence>
         {selectedOrder && (
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="w-80 shrink-0 bg-white rounded-2xl shadow-sm border border-gray-200 p-5 h-fit sticky top-6"
+            initial={{ opacity: 0, x: 20, y: 0 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, x: 20, y: 0 }}
+            className="fixed inset-0 z-[60] bg-white lg:relative lg:inset-auto lg:z-0 lg:w-80 lg:shrink-0 lg:rounded-2xl lg:shadow-sm lg:border lg:border-gray-200 p-5 overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
+              <button 
+                onClick={() => setSelectedOrder(null)}
+                className="lg:hidden flex items-center gap-2 text-sm font-bold text-gray-500"
+              >
+                <ChevronLeft size={18} />
+                Zurück
+              </button>
               <h2 className="font-bold text-gray-900">{selectedOrder.order_number}</h2>
-              <button onClick={() => setSelectedOrder(null)} className="p-1 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setSelectedOrder(null)} className="hidden lg:block p-1 hover:bg-gray-100 rounded-lg">
                 <XCircle size={18} className="text-gray-400" />
               </button>
             </div>
