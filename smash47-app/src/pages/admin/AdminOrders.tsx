@@ -136,13 +136,21 @@ export function AdminOrders() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-black text-gray-900">Bestellungen</h1>
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title={soundEnabled ? 'Ton ausschalten' : 'Ton einschalten'}
-          >
-            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          </button>
+          <div className="flex items-center gap-3">
+            {!isLoading && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase">
+                <div className={`w-1.5 h-1.5 rounded-full ${orders.length > 0 || !error ? 'bg-green-500' : 'bg-red-500'}`} />
+                {import.meta.env.VITE_SUPABASE_URL?.split('.')[0].slice(-5)}...
+              </div>
+            )}
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title={soundEnabled ? 'Ton ausschalten' : 'Ton einschalten'}
+            >
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+          </div>
         </div>
 
         {/* Filter tabs */}
