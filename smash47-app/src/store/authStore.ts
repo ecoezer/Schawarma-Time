@@ -61,36 +61,45 @@ export const useAuthStore = create<AuthStore>()(
 
       refreshUser: async () => {
         try {
-          // If we don't have a session, checking once is enough
-          const { data: { session } } = await supabase.auth.getSession()
-          
-          if (!session) {
-            set({ user: null, session: null, isAdmin: false, isLoading: false, isInitialized: true })
-            return
+          // Add a 5s timeout for the entire refresh process
+          const refreshTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Auth Timeout')), 5000)
+          )
+
+          const process = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            
+            if (!session) {
+              set({ user: null, session: null, isAdmin: false, isLoading: false, isInitialized: true })
+              return
+            }
+
+            set({ session: session as any })
+
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+
+            if (error) {
+              console.error('Error fetching profile during refresh:', error)
+              // If profile fetch fails, we still have the session
+              set({ isLoading: false, isInitialized: true })
+              return
+            }
+
+            if (profile) {
+              get().setUser(profile as UserProfile)
+            }
+            
+            set({ isInitialized: true, isLoading: false })
           }
 
-          set({ session: session as any })
-
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-
-          if (error) {
-            // If profile doesn't exist yet but user is authenticated, we keep session
-            console.error('Error fetching profile during refresh:', error)
-            set({ isLoading: false, isInitialized: true })
-            return
-          }
-
-          if (profile) {
-            get().setUser(profile as UserProfile)
-          }
-          
-          set({ isInitialized: true, isLoading: false })
+          await Promise.race([process(), refreshTimeout])
         } catch (err) {
           console.error('Refresh user error:', err)
+          // Always mark as initialized to avoid white screen
           set({ isLoading: false, isInitialized: true })
         }
       },
