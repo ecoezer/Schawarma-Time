@@ -18,6 +18,7 @@ interface Customer {
 export function AdminCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -26,18 +27,26 @@ export function AdminCustomers() {
 
   const fetchCustomers = async () => {
     setIsLoading(true)
+    setError(null)
     try {
-      // In a real app, you might have a dedicated profiles table
-      // Here we fetch from profiles or handle the empty state
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
+      // Race: Supabase query vs 5-second timeout
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout: Keine Antwort von Supabase')), 5000)
+      )
 
-      if (error) throw error
+      const { data, error: sbError } = await Promise.race([
+        supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        timeoutPromise
+      ]) as any
+
+      if (sbError) throw sbError
       setCustomers(data || [])
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching customers:', err)
+      setError(err.message || 'Fehler beim Laden der Kunden')
     } finally {
       setIsLoading(false)
     }
@@ -83,6 +92,21 @@ export function AdminCustomers() {
                     <div className="flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-[#142328] border-t-transparent rounded-full animate-spin mb-4" />
                       Lädt Kunden...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-20 text-center">
+                    <div className="flex flex-col items-center text-red-500">
+                      <Mail size={32} className="mb-2 opacity-50" />
+                      <p className="font-bold">{error}</p>
+                      <button 
+                        onClick={() => fetchCustomers()} 
+                        className="mt-4 text-sm underline hover:text-red-600"
+                      >
+                        Erneut versuchen
+                      </button>
                     </div>
                   </td>
                 </tr>
