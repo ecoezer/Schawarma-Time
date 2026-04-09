@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -26,7 +27,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
+  const { signOut } = useAuthStore()
+
+  const handleLogout = async () => {
+    await signOut()
     toast.success('Erfolgreich abgemeldet')
     navigate('/admin/login')
   }

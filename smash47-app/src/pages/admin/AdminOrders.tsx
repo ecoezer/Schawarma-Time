@@ -2,67 +2,85 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
-import { formatPrice, formatDate, getStatusColor, getStatusLabel } from '@/lib/utils'
+import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
-
-const mockOrders: Order[] = [
-  {
-    id: '1', order_number: 'S47-ABC1', user_id: null,
-    customer_name: 'Max Mustermann', customer_phone: '+49 172 1234567',
-    customer_email: 'max@test.de', delivery_address: 'Musterstraße 1, 31134 Hildesheim',
-    delivery_lat: null, delivery_lng: null,
-    items: [
-      { product_id: 'p1', product_name: 'Smash Burger', quantity: 2, unit_price: 7.50, extras: [], note: '', subtotal: 15.00 },
-      { product_id: 'p12', product_name: 'Chili Cheese Pommes', quantity: 1, unit_price: 6.00, extras: [], note: '', subtotal: 6.00 },
-    ],
-    subtotal: 21.00, delivery_fee: 2.00, discount_amount: 0, coupon_code: null, total: 23.00,
-    status: 'pending', payment_method: 'cash', estimated_delivery_time: 35,
-    notes: 'Klingel defekt, bitte klopfen', rejection_reason: null,
-    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2', order_number: 'S47-ABC2', user_id: null,
-    customer_name: 'Anna Schmidt', customer_phone: '+49 172 9876543',
-    customer_email: 'anna@test.de', delivery_address: 'Hauptstraße 42, 31134 Hildesheim',
-    delivery_lat: null, delivery_lng: null,
-    items: [
-      { product_id: 'p4', product_name: 'Triple Smash Burger', quantity: 1, unit_price: 9.50, extras: [], note: '', subtotal: 9.50 },
-      { product_id: 'p18', product_name: 'Menü 1', quantity: 1, unit_price: 8.90, extras: [], note: '', subtotal: 8.90 },
-    ],
-    subtotal: 18.40, delivery_fee: 2.00, discount_amount: 0, coupon_code: null, total: 20.40,
-    status: 'preparing', payment_method: 'card_on_delivery', estimated_delivery_time: 25,
-    notes: null, rejection_reason: null,
-    created_at: new Date(Date.now() - 15 * 60000).toISOString(), updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3', order_number: 'S47-ABC3', user_id: null,
-    customer_name: 'Tom Müller', customer_phone: '+49 152 1111222',
-    customer_email: 'tom@test.de', delivery_address: 'Bahnhofstraße 7, 31134 Hildesheim',
-    delivery_lat: null, delivery_lng: null,
-    items: [
-      { product_id: 'p2', product_name: 'Smash 47 Spezial Burger', quantity: 2, unit_price: 8.50, extras: [], note: '', subtotal: 17.00 },
-    ],
-    subtotal: 17.00, delivery_fee: 2.00, discount_amount: 0, coupon_code: null, total: 19.00,
-    status: 'on_the_way', payment_method: 'cash', estimated_delivery_time: 10,
-    notes: null, rejection_reason: null,
-    created_at: new Date(Date.now() - 30 * 60000).toISOString(), updated_at: new Date().toISOString(),
-  },
-]
+import { supabase } from '@/lib/supabase'
+import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
 
 export function AdminOrders() {
-  const [orders, setOrders] = useState<Order[]>(mockOrders)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
-  const audioRef = useRef<HTMLAudioElement>(null)
+
+  // Fetch initial orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setIsLoading(true)
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (!error && data) {
+        setOrders(data as Order[])
+      }
+      setIsLoading(false)
+    }
+
+    fetchOrders()
+
+    // Realtime subscription
+    const channel = supabase
+      .channel('admin-orders')
+      .on(
+        'postgres_changes', 
+        { event: '*', schema: 'public', table: 'orders' }, 
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newOrder = payload.new as Order
+            setOrders(prev => [newOrder, ...prev])
+            if (soundEnabled) {
+              const audio = new Audio('/order-notification.mp3')
+              audio.play().catch(e => console.warn('Audio play failed:', e))
+            }
+            toast.success(`Neue Bestellung: ${newOrder.order_number}`)
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedOrder = payload.new as Order
+            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o))
+            if (selectedOrder?.id === updatedOrder.id) {
+              setSelectedOrder(updatedOrder)
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setOrders(prev => prev.filter(o => o.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [soundEnabled, selectedOrder?.id])
 
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
-  const updateStatus = (orderId: string, status: OrderStatus) => {
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o))
-    if (selectedOrder?.id === orderId) setSelectedOrder((prev) => prev ? { ...prev, status } : prev)
+  const updateStatus = async (orderId: string, status: OrderStatus) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+
+      if (error) throw error
+      
+      toast.success(`Status aktualisiert: ${getStatusLabel(status)}`)
+    } catch (err: any) {
+      toast.error('Fehler beim Aktualisieren: ' + err.message)
+    }
   }
 
   const cancelOrder = (orderId: string) => {
@@ -87,7 +105,17 @@ export function AdminOrders() {
       <p><b>Tel:</b> ${order.customer_phone}</p>
       <p><b>Adresse:</b> ${order.delivery_address}</p>
       <hr/><table>
-      ${order.items.map((i) => `<tr><td>${i.quantity}x ${i.product_name}</td><td style="text-align:right">€${i.subtotal.toFixed(2)}</td></tr>`).join('')}
+      ${order.items.map((i) => `
+        <tr>
+          <td>
+            ${i.quantity}x ${i.product_name}
+            ${i.extras && i.extras.length > 0 ? 
+              `<br/><small style="color:#666;margin-left:10px">+ ${i.extras.map(e => `${e.name}${e.price > 0 ? ` (€${(e.price * i.quantity).toFixed(2)})` : ''}`).join(', ')}</small>` 
+              : ''}
+          </td>
+          <td style="text-align:right" valign="top">€${i.subtotal.toFixed(2)}</td>
+        </tr>
+      `).join('')}
       </table><hr/>
       <p style="text-align:right"><b>Gesamt: €${order.total.toFixed(2)}</b></p>
       <p>Zahlung: ${order.payment_method === 'cash' ? 'Bar' : 'Karte'}</p>
@@ -134,48 +162,52 @@ export function AdminOrders() {
 
         {/* Order cards */}
         <div className="space-y-3">
-          <AnimatePresence initial={false}>
-            {filteredOrders.map((order) => (
-              <motion.div
-                key={order.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                onClick={() => setSelectedOrder(order)}
-                className={`bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${
-                  selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent'
-                } ${order.status === 'pending' ? 'border-l-4 border-l-yellow-400' : ''}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
-                    <ShoppingBag size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-bold text-sm">{order.order_number}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusLabel(order.status)}
-                      </span>
+          {isLoading ? (
+            <div className="text-center py-20 text-gray-400">Lädt...</div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {filteredOrders.map((order) => (
+                <motion.div
+                  key={order.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  onClick={() => setSelectedOrder(order)}
+                  className={`bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${
+                    selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent'
+                  } ${order.status === 'pending' ? 'border-l-4 border-l-yellow-400' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
+                      <ShoppingBag size={16} />
                     </div>
-                    <p className="text-sm text-gray-700 mt-0.5">{order.customer_name}</p>
-                    <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-sm font-black">{formatPrice(order.total)}</span>
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <Clock size={11} />
-                        {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className="text-xs text-gray-400">{order.items.length} Artikel</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold text-sm">{order.order_number}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-0.5">{order.customer_name}</p>
+                      <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-sm font-black">{formatPrice(order.total)}</span>
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Clock size={11} />
+                          {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-xs text-gray-400">{order.items.length} Artikel</span>
+                      </div>
                     </div>
+                    <ChevronRight size={16} className="text-gray-400 shrink-0 mt-1" />
                   </div>
-                  <ChevronRight size={16} className="text-gray-400 shrink-0 mt-1" />
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
 
-          {filteredOrders.length === 0 && (
+          {!isLoading && filteredOrders.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <ShoppingBag size={40} className="mx-auto mb-3 opacity-30" />
               <p>Keine Bestellungen</p>
@@ -212,12 +244,28 @@ export function AdminOrders() {
               )}
             </div>
 
-            {/* Items */}
-            <div className="space-y-2 mb-4">
+            <div className="space-y-3 mb-4">
               {selectedOrder.items.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span>{item.quantity}× {item.product_name}</span>
-                  <span className="font-semibold">{formatPrice(item.subtotal)}</span>
+                <div key={i} className="space-y-1">
+                  <div className="flex justify-between text-sm font-bold text-gray-900 leading-tight">
+                    <span>{item.quantity}× {item.product_name}</span>
+                    <span>{formatPrice(item.subtotal)}</span>
+                  </div>
+                  {item.extras && item.extras.length > 0 && (
+                    <div className="pl-4 space-y-0.5">
+                      {item.extras.map((extra, idx) => (
+                        <div key={idx} className="flex justify-between text-[11px] text-gray-500 font-medium">
+                          <span>+ {extra.name}</span>
+                          {extra.price > 0 && <span>{formatPrice(extra.price * item.quantity)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {item.note && (
+                    <p className="text-[11px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md italic">
+                      "{item.note}"
+                    </p>
+                  )}
                 </div>
               ))}
               <div className="border-t pt-2 flex justify-between font-black">

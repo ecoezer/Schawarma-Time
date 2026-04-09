@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem, CartExtra } from '@/types'
-import { generateId } from '@/lib/utils'
+import { generateId, isRestaurantOpen } from '@/lib/utils'
+import { useRestaurantStore } from './restaurantStore'
+import toast from 'react-hot-toast'
 
 interface CartStore {
   items: CartItem[]
@@ -9,7 +11,8 @@ interface CartStore {
   globalNote: string
 
   // Actions
-  addItem: (item: Omit<CartItem, 'id' | 'total'>) => void
+  addItem: (item: Omit<CartItem, 'id' | 'total'>) => boolean
+  addItems: (items: Omit<CartItem, 'id' | 'total'>[]) => boolean
   removeItem: (cartItemId: string) => void
   updateQuantity: (cartItemId: string, quantity: number) => void
   clearCart: () => void
@@ -37,12 +40,38 @@ export const useCartStore = create<CartStore>()(
       globalNote: '',
 
       addItem: (item) => {
+        const settings = useRestaurantStore.getState().settings
+        if (settings && (!isRestaurantOpen(settings.hours) || !settings.is_delivery_active)) {
+          toast.error('Wir haben aktuell geschlossen oder nehmen keine Bestellungen an.')
+          return false
+        }
+
         const id = generateId()
         const total = calculateItemTotal(item.price, item.selected_extras, item.quantity)
         set((state) => ({
           items: [...state.items, { ...item, id, total }],
           isOpen: true,
         }))
+        return true
+      },
+
+      addItems: (newItems) => {
+        const settings = useRestaurantStore.getState().settings
+        if (settings && (!isRestaurantOpen(settings.hours) || !settings.is_delivery_active)) {
+          toast.error('Wir haben aktuell geschlossen oder nehmen keine Bestellungen an.')
+          return false
+        }
+
+        const itemsWithIds = newItems.map(item => ({
+          ...item,
+          id: generateId(),
+          total: calculateItemTotal(item.price, item.selected_extras, item.quantity)
+        }))
+        set((state) => ({
+          items: [...state.items, ...itemsWithIds],
+          isOpen: true,
+        }))
+        return true
       },
 
       removeItem: (cartItemId) => {

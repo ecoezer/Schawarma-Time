@@ -10,7 +10,7 @@
 
 | Katman | Teknoloji |
 |---|---|
-| Frontend | Next.js 14 (App Router) + TypeScript |
+| Frontend | Vite + React 19 + TypeScript |
 | Stil | Tailwind CSS + Framer Motion |
 | State | Zustand (sepet yönetimi) |
 | Backend / DB | Supabase (PostgreSQL + Auth + Realtime + Storage) |

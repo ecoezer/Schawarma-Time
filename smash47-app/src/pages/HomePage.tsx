@@ -8,47 +8,21 @@ import { ProductCard } from '@/components/menu/ProductCard'
 import { ProductModal } from '@/components/menu/ProductModal'
 import { MapSection } from '@/components/menu/MapSection'
 import { useRestaurantStore } from '@/store/restaurantStore'
-import { supabase } from '@/lib/supabase'
+import { useMenuStore } from '@/store/menuStore'
 
 export function HomePage() {
   const [activeCategory, setActiveCategory] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
-  const [products, setProducts] = useState<Product[]>(mockProducts)
   const sectionRefs = useRef<Record<string, HTMLElement>>({})
-  const { settings } = useRestaurantStore()
+  
+  const { settings, fetchSettings } = useRestaurantStore()
+  const { categories, products, fetchMenu, isLoading } = useMenuStore()
 
-  // Fetch categories and products from Supabase
   useEffect(() => {
-    const fetchMenu = async () => {
-      try {
-        const { data: cats, error: catErr } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('is_active', true)
-          .order('position')
-
-        if (!catErr && cats && cats.length > 0) {
-          setCategories(cats as Category[])
-        }
-
-        const { data: prods, error: prodErr } = await supabase
-          .from('products')
-          .select('*')
-          .order('position')
-
-        if (!prodErr && prods && prods.length > 0) {
-          setProducts(prods as Product[])
-        }
-      } catch {
-        // Supabase bağlantısı yoksa mock data kullan
-        console.info('Mock data kullanılıyor')
-      }
-    }
-
+    fetchSettings()
     fetchMenu()
-  }, [])
+  }, [fetchSettings, fetchMenu])
 
   // Set initial active category
   useEffect(() => {
@@ -101,6 +75,31 @@ export function HomePage() {
 
   const displaySettings = settings || mockRestaurantSettings
 
+  // Skeleton card component for loading state
+  const SkeletonCard = () => (
+    <div className="flex flex-row items-stretch bg-white rounded-xl border border-[#e8e8e8] overflow-hidden h-[120px] md:h-[140px] w-full">
+      <div className="flex-1 flex flex-col min-w-0 p-4 justify-center gap-2">
+        <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-1/4 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="relative shrink-0 bg-gray-100 h-full animate-pulse" style={{ aspectRatio: '1.25' }} />
+    </div>
+  )
+
+  const SkeletonSection = () => (
+    <div className="space-y-10">
+      {[1, 2].map((section) => (
+        <div key={section}>
+          <div className="h-7 w-40 bg-gray-200 rounded animate-pulse mb-4" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-white">
       <div className="bg-white border-b border-gray-100">
@@ -123,7 +122,9 @@ export function HomePage() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {searchQuery ? (
+        {isLoading ? (
+          <SkeletonSection />
+        ) : searchQuery ? (
           <div>
             <p className="text-sm text-gray-500 mb-4">
               {filteredProducts.length} Ergebnisse für „{searchQuery}"

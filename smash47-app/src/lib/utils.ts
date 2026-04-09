@@ -29,7 +29,11 @@ export function generateOrderNumber(): string {
 }
 
 export function generateId(): string {
-  return crypto.randomUUID()
+  try {
+    return crypto.randomUUID()
+  } catch (e) {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  }
 }
 
 export function getStatusLabel(status: string): string {

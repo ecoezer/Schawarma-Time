@@ -96,7 +96,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
 
   const handleAddToCart = () => {
     if (!isValid) return
-    addItem({
+    const success = addItem({
       product_id: product.id,
       name: product.name,
       price: product.price,
@@ -105,8 +105,11 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       selected_extras: selectedExtras,
       note,
     })
-    toast.success(`${product.name} wurde hinzugefügt!`)
-    onClose()
+
+    if (success) {
+      toast.success(`${product.name} wurde hinzugefügt!`)
+      onClose()
+    }
   }
 
   const isDrink = product?.category_id === 'cat6' || product?.category_id === 'cat7' || product?.name.toLowerCase().includes('drink')

@@ -159,34 +159,38 @@ CREATE POLICY "Admin write settings" ON restaurant_settings FOR ALL
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read categories" ON categories FOR SELECT USING (TRUE);
 CREATE POLICY "Admin write categories" ON categories FOR ALL
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role IN ('manager', 'cashier')));
+  USING (public.has_role(ARRAY['manager', 'cashier']));
 
 -- Products: read by all, write by managers
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read products" ON products FOR SELECT USING (TRUE);
 CREATE POLICY "Admin write products" ON products FOR ALL
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role IN ('manager', 'cashier')));
+  USING (public.has_role(ARRAY['manager', 'cashier']));
 
 -- Orders: customers read their own, admins read all
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Customers read own orders" ON orders FOR SELECT
-  USING (user_id = auth.uid() OR auth.uid() IN (SELECT id FROM profiles WHERE role IN ('manager', 'cashier', 'kitchen')));
+  USING (user_id = auth.uid() OR public.has_role(ARRAY['manager', 'cashier', 'kitchen']));
 CREATE POLICY "Anyone can insert orders" ON orders FOR INSERT WITH CHECK (TRUE);
 CREATE POLICY "Admins update orders" ON orders FOR UPDATE
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role IN ('manager', 'cashier', 'kitchen')));
+  USING (public.has_role(ARRAY['manager', 'cashier', 'kitchen']));
 
 -- Profiles: users read/update their own, managers read all
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own profile" ON profiles;
+DROP POLICY IF EXISTS "Users update own profile" ON profiles;
+DROP POLICY IF EXISTS "Managers read all profiles" ON profiles;
+
 CREATE POLICY "Users read own profile" ON profiles FOR SELECT USING (id = auth.uid());
 CREATE POLICY "Users update own profile" ON profiles FOR UPDATE USING (id = auth.uid());
 CREATE POLICY "Managers read all profiles" ON profiles FOR SELECT
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'manager'));
+  USING (public.has_role(ARRAY['manager']));
 
 -- Coupons: read by all (for validation), write by managers
 ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read active coupons" ON coupons FOR SELECT USING (is_active = TRUE);
 CREATE POLICY "Admins write coupons" ON coupons FOR ALL
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'manager'));
+  USING (public.has_role(ARRAY['manager']));
 
 -- =============================================
 -- TRIGGER: auto-create profile on signup
@@ -194,8 +198,13 @@ CREATE POLICY "Admins write coupons" ON coupons FOR ALL
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name)
-  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+  INSERT INTO public.profiles (id, email, full_name, phone)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'phone'
+  );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

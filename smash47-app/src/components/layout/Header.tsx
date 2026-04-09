@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingCart, Menu, ChevronDown, MapPin, Search, Phone } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
+import { useAuthStore } from '@/store/authStore'
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { totalItems, toggleCart } = useCartStore()
+  const { user, isLoading, isInitialized } = useAuthStore()
   const itemCount = totalItems()
 
   return (
@@ -54,12 +56,30 @@ export function Header() {
             </span>
           </button>
           
-          <Link to="/login" className="hidden sm:block px-2 py-2 text-base font-medium text-black hover:opacity-75 transition-opacity whitespace-nowrap">
-            Anmelden
-          </Link>
-          <Link to="/register" className="hidden sm:block px-5 py-2.5 text-[15px] font-medium bg-[#f6f6f6] text-black hover:bg-[#e2e2e2] rounded-full transition-colors whitespace-nowrap">
-            Registrieren
-          </Link>
+          <div className="min-w-[140px] flex justify-end">
+            {!isInitialized || isLoading ? (
+              <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-full" />
+            ) : user ? (
+              <Link to="/profil" className="flex items-center gap-4 hover:opacity-75 transition-opacity group">
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-sm font-bold text-gray-900 group-hover:text-black">{user.full_name}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Mein Profil</span>
+                </div>
+                <div className="w-10 h-10 bg-[#142328] rounded-2xl flex items-center justify-center text-white font-bold shadow-lg shadow-[#142328]/10 group-hover:scale-105 transition-transform">
+                  {user.full_name?.charAt(0) || 'U'}
+                </div>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-4 lg:gap-6">
+                <Link to="/login" className="hidden sm:block px-2 py-2 text-base font-medium text-black hover:opacity-75 transition-opacity whitespace-nowrap">
+                  Anmelden
+                </Link>
+                <Link to="/register" className="hidden sm:block px-5 py-2.5 text-[15px] font-medium bg-[#f6f6f6] text-black hover:bg-[#e2e2e2] rounded-full transition-colors whitespace-nowrap">
+                  Registrieren
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

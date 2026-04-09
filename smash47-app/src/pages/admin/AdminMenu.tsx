@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Plus, Edit2, Trash2, GripVertical, Eye, EyeOff, Star, Upload, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Edit2, Trash2, GripVertical, Star, Upload, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Product, Category } from '@/types'
-import { mockProducts, mockCategories } from '@/data/mockData'
+import type { Product } from '@/types'
+import { useMenuStore } from '@/store/menuStore'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Toggle } from '@/components/ui/Toggle'
@@ -12,15 +13,25 @@ import { formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 export function AdminMenu() {
-  const [products, setProducts] = useState<Product[]>(mockProducts)
-  const [categories] = useState<Category[]>(mockCategories)
-  const [activeCategory, setActiveCategory] = useState(mockCategories[0]?.id || '')
+  const { categories, products, isLoading, fetchMenu, updateProduct } = useMenuStore()
+  const [activeCategory, setActiveCategory] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
+  useEffect(() => {
+    fetchMenu()
+  }, [fetchMenu])
+
+  useEffect(() => {
+    if (categories.length > 0 && !activeCategory) {
+      setActiveCategory(categories[0].id)
+    }
+  }, [categories, activeCategory])
+
   const [form, setForm] = useState({
-    name: '', description: '', price: '', category_id: mockCategories[0]?.id || '',
+    name: '', description: '', price: '', category_id: '',
     calories: '', is_most_liked: false, is_vegetarian: false, is_vegan: false, is_halal: true,
     image_url: '',
   })
@@ -33,7 +44,11 @@ export function AdminMenu() {
 
   const openAddModal = () => {
     setEditProduct(null)
-    setForm({ name: '', description: '', price: '', category_id: activeCategory, calories: '', is_most_liked: false, is_vegetarian: false, is_vegan: false, is_halal: true, image_url: '' })
+    setForm({ 
+      name: '', description: '', price: '', category_id: activeCategory, 
+      calories: '', is_most_liked: false, is_vegetarian: false, 
+      is_vegan: false, is_halal: true, image_url: '' 
+    })
     setIsModalOpen(true)
   }
 
@@ -48,39 +63,66 @@ export function AdminMenu() {
     setIsModalOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name || !form.price) { toast.error('Name und Preis sind erforderlich'); return }
+    setIsSubmitting(true)
 
-    if (editProduct) {
-      setProducts((prev) => prev.map((p) => p.id === editProduct.id ? {
-        ...p, ...form, price: parseFloat(form.price), calories: form.calories ? parseInt(form.calories) : null,
-      } : p))
-      toast.success('Produkt aktualisiert!')
-    } else {
-      const newProduct: Product = {
-        id: crypto.randomUUID(), ...form, price: parseFloat(form.price),
+    try {
+      const productData = {
+        name: form.name,
+        description: form.description || null,
+        price: parseFloat(form.price),
+        category_id: form.category_id,
         calories: form.calories ? parseInt(form.calories) : null,
-        allergens: [], extra_groups: [], is_active: true, position: products.length + 1,
-        created_at: new Date().toISOString(),
+        is_most_liked: form.is_most_liked,
+        is_vegetarian: form.is_vegetarian,
+        is_vegan: form.is_vegan,
+        is_halal: form.is_halal,
+        image_url: form.image_url || null,
       }
-      setProducts((prev) => [...prev, newProduct])
-      toast.success('Produkt hinzugefügt!')
+
+      if (editProduct) {
+        const { error } = await supabase
+          .from('products')
+          .update(productData)
+          .eq('id', editProduct.id)
+        if (error) throw error
+        toast.success('Produkt aktualisiert!')
+      } else {
+        const { error } = await supabase
+          .from('products')
+          .insert([{ ...productData, is_active: true, position: products.length + 1 }])
+        if (error) throw error
+        toast.success('Produkt hinzugefügt!')
+      }
+      
+      await fetchMenu() // Refresh list
+      setIsModalOpen(false)
+    } catch (err: any) {
+      toast.error('Fehler beim Speichern: ' + err.message)
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsModalOpen(false)
   }
 
-  const toggleActive = (productId: string) => {
-    setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, is_active: !p.is_active } : p))
+  const toggleActive = async (productId: string, current: boolean) => {
+    await updateProduct(productId, { is_active: !current })
   }
 
-  const toggleMostLiked = (productId: string) => {
-    setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, is_most_liked: !p.is_most_liked } : p))
+  const toggleMostLiked = async (productId: string, current: boolean) => {
+    await updateProduct(productId, { is_most_liked: !current })
   }
 
-  const deleteProduct = (productId: string) => {
+  const deleteProduct = async (productId: string) => {
     if (confirm('Produkt wirklich löschen?')) {
-      setProducts((prev) => prev.filter((p) => p.id !== productId))
-      toast.success('Produkt gelöscht')
+      try {
+        const { error } = await supabase.from('products').delete().eq('id', productId)
+        if (error) throw error
+        toast.success('Produkt gelöscht')
+        fetchMenu()
+      } catch (err: any) {
+        toast.error('Fehler beim Löschen: ' + err.message)
+      }
     }
   }
 
@@ -130,82 +172,87 @@ export function AdminMenu() {
           </div>
 
           <div className="space-y-2">
-            <AnimatePresence initial={false}>
-              {filteredProducts.map((product) => (
-                <motion.div
-                  key={product.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className={`bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-4 ${!product.is_active ? 'opacity-60' : ''}`}
-                >
-                  {/* Drag handle */}
-                  <div className="text-gray-300 cursor-grab shrink-0">
-                    <GripVertical size={18} />
-                  </div>
-
-                  {/* Image */}
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">🍔</div>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm truncate">{product.name}</p>
-                      {product.is_most_liked && <Badge variant="mostLiked">⭐ Beliebt</Badge>}
-                      {product.is_vegan && <Badge variant="vegan">Vegan</Badge>}
-                      {product.is_halal && <Badge variant="halal">Halal</Badge>}
+            {isLoading ? (
+              <div className="text-center py-12 text-gray-400">Lädt...</div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {filteredProducts.map((product) => (
+                  <motion.div
+                    key={product.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className={`bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-4 ${!product.is_active ? 'opacity-60' : ''}`}
+                  >
+                    {/* Drag handle */}
+                    <div className="text-gray-300 cursor-grab shrink-0">
+                      <GripVertical size={18} />
                     </div>
-                    {product.description && (
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{product.description}</p>
-                    )}
-                    <p className="text-sm font-black text-[#142328] mt-1">{formatPrice(product.price)}</p>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Active toggle */}
-                    <Toggle
-                      checked={product.is_active}
-                      onChange={() => toggleActive(product.id)}
-                      size="sm"
-                    />
+                    {/* Image */}
+                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl">🍔</div>
+                      )}
+                    </div>
 
-                    {/* Star (most liked) */}
-                    <button
-                      onClick={() => toggleMostLiked(product.id)}
-                      className={`p-1.5 rounded-lg transition-colors ${product.is_most_liked ? 'text-yellow-500 bg-yellow-50' : 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-50'}`}
-                    >
-                      <Star size={16} fill={product.is_most_liked ? 'currentColor' : 'none'} />
-                    </button>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm truncate">{product.name}</p>
+                        {product.is_most_liked && <Badge variant="mostLiked">⭐ Beliebt</Badge>}
+                        {product.is_vegetarian && <Badge variant="vegetarian">Vegy</Badge>}
+                        {product.is_vegan && <Badge variant="vegan">Vegan</Badge>}
+                        {product.is_halal && <Badge variant="halal">Halal</Badge>}
+                      </div>
+                      {product.description && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{product.description}</p>
+                      )}
+                      <p className="text-sm font-black text-[#142328] mt-1">{formatPrice(product.price)}</p>
+                    </div>
 
-                    {/* Edit */}
-                    <button
-                      onClick={() => openEditModal(product)}
-                      className="p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={16} />
-                    </button>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Active toggle */}
+                      <Toggle
+                        checked={product.is_active}
+                        onChange={() => toggleActive(product.id, product.is_active)}
+                        size="sm"
+                      />
 
-                    {/* Delete */}
-                    <button
-                      onClick={() => deleteProduct(product.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                      {/* Star (most liked) */}
+                      <button
+                        onClick={() => toggleMostLiked(product.id, product.is_most_liked)}
+                        className={`p-1.5 rounded-lg transition-colors ${product.is_most_liked ? 'text-yellow-500 bg-yellow-50' : 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-50'}`}
+                      >
+                        <Star size={16} fill={product.is_most_liked ? 'currentColor' : 'none'} />
+                      </button>
 
-            {filteredProducts.length === 0 && (
+                      {/* Edit */}
+                      <button
+                        onClick={() => openEditModal(product)}
+                        className="p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+
+                      {/* Delete */}
+                      <button
+                        onClick={() => deleteProduct(product.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
+
+            {!isLoading && filteredProducts.length === 0 && (
               <div className="text-center py-16 text-gray-400">
                 <p className="text-4xl mb-3">🍔</p>
                 <p>Keine Produkte in dieser Kategorie</p>
@@ -294,7 +341,7 @@ export function AdminMenu() {
 
           <div className="flex gap-3 pt-2">
             <Button variant="ghost" fullWidth onClick={() => setIsModalOpen(false)}>Abbrechen</Button>
-            <Button variant="primary" fullWidth onClick={handleSave}>
+            <Button variant="primary" fullWidth onClick={handleSave} isLoading={isSubmitting}>
               {editProduct ? 'Speichern' : 'Hinzufügen'}
             </Button>
           </div>
