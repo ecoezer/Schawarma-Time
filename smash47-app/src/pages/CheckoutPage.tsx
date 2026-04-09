@@ -87,7 +87,13 @@ export function CheckoutPage() {
   const validate = () => {
     const errs: Partial<typeof form> = {}
     if (!form.name.trim()) errs.name = 'Name ist erforderlich'
-    if (!form.phone.trim()) errs.phone = 'Telefon ist erforderlich'
+    if (!form.phone.trim()) {
+      errs.phone = 'Telefon ist erforderlich'
+    } else if (!form.phone.startsWith('+49 01')) {
+      errs.phone = 'Nummer muss mit +49 01 beginnen'
+    } else if (form.phone.length < 10) {
+      errs.phone = 'Ungültige Nummer'
+    }
     if (!form.email.trim()) errs.email = 'E-Mail ist erforderlich'
     if (!form.street.trim()) errs.street = 'Straße ist erforderlich'
     if (!form.city.trim()) errs.city = 'Stadt ist erforderlich'
