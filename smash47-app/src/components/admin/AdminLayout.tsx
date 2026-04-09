@@ -140,9 +140,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#06c167] rounded-full" />
           </button>
           <div className="w-8 h-8 bg-[#142328] rounded-full flex items-center justify-center text-white text-sm font-bold">
-            A
+            {useAuthStore.getState().user?.full_name?.charAt(0) || 'A'}
           </div>
         </header>
+
+        {/* Diagnostic Panel for Debugging */}
+        <div className="bg-blue-50 border-b border-blue-100 px-6 py-2 flex items-center justify-between text-[10px] text-blue-600 font-mono">
+          <span>UID: {useAuthStore.getState().user?.id}</span>
+          <span className="font-bold bg-blue-100 px-1.5 py-0.5 rounded uppercase">Role: {useAuthStore.getState().user?.role}</span>
+        </div>
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
