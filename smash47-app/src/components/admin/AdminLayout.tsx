@@ -168,8 +168,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Diagnostic Panel for Debugging */}
         <div className="bg-blue-50 border-b border-blue-100 px-6 py-2 flex items-center justify-between text-[10px] text-blue-600 font-mono">
-          <span>UID: {useAuthStore.getState().user?.id}</span>
-          <span className="font-bold bg-blue-100 px-1.5 py-0.5 rounded uppercase">Role: {useAuthStore.getState().user?.role}</span>
+          <div className="flex gap-4">
+            <span>UID: {useAuthStore.getState().user?.id?.slice(0, 8)}...</span>
+            <span className="font-bold bg-blue-100 px-1.5 py-0.5 rounded uppercase">Role: {useAuthStore.getState().user?.role}</span>
+          </div>
+          <div className="flex gap-2">
+            <span>DB: {import.meta.env.VITE_SUPABASE_URL?.replace('https://', '').split('.')[0]}</span>
+            <span className={`w-2 h-2 rounded-full self-center ${useAuthStore.getState().user ? 'bg-green-500' : 'bg-red-400'}`}></span>
+          </div>
         </div>
 
         {/* Content */}
