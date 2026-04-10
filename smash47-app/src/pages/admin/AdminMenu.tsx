@@ -13,7 +13,7 @@ import { formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 export function AdminMenu() {
-  const { categories, products, isLoading, fetchMenu, updateProduct } = useMenuStore()
+  const { categories, products, isLoading, fetchMenu, patchProductLocally, updateProduct } = useMenuStore()
   const [activeCategory, setActiveCategory] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -112,6 +112,9 @@ export function AdminMenu() {
     setIsSubmitting(true)
 
     try {
+      const imageUrl = form.image_url === '__KEIN_BILD__' || !form.image_url ? null : form.image_url
+      console.log('[Smash47] Saving product, image_url:', imageUrl)
+
       const productData = {
         name: form.name,
         description: form.description || null,
@@ -122,8 +125,7 @@ export function AdminMenu() {
         is_vegetarian: form.is_vegetarian,
         is_vegan: form.is_vegan,
         is_halal: form.is_halal,
-        // __KEIN_BILD__ is our internal sentinel for "explicitly no image"
-        image_url: form.image_url === '__KEIN_BILD__' || !form.image_url ? null : form.image_url,
+        image_url: imageUrl,
       }
 
       if (editProduct) {
@@ -132,22 +134,19 @@ export function AdminMenu() {
           .update(productData)
           .eq('id', editProduct.id)
         if (error) throw error
-        // Optimistic update in store so image appears instantly without full refetch
-        updateProduct(editProduct.id, productData)
+        // Local-only patch — avoids second Supabase write that could revert on RLS failure
+        patchProductLocally(editProduct.id, productData)
         toast.success('Produkt aktualisiert!')
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('products')
           .insert([{ ...productData, is_active: true, position: products.length + 1 }])
-          .select()
-          .single()
         if (error) throw error
         toast.success('Produkt hinzugefügt!')
       }
 
       setIsModalOpen(false)
-      // Refresh in background after close to sync any server-side changes
-      fetchMenu()
+      fetchMenu() // background sync
     } catch (err: any) {
       toast.error('Fehler beim Speichern: ' + err.message)
     } finally {

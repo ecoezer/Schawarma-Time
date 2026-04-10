@@ -10,6 +10,7 @@ interface MenuStore {
 
   fetchMenu: () => Promise<void>
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>
+  patchProductLocally: (productId: string, updates: Partial<Product>) => void
 }
 
 export const useMenuStore = create<MenuStore>((set, get) => ({
@@ -69,5 +70,13 @@ export const useMenuStore = create<MenuStore>((set, get) => ({
       // Revert if Supabase call fails
       set({ products: currentProds, error: (err as Error).message })
     }
-  }
+  },
+
+  // Local-only patch — no Supabase call, no revert risk
+  // Use this when the Supabase write was already done separately (e.g. in handleSave)
+  patchProductLocally: (productId, updates) => {
+    set({
+      products: get().products.map((p) => p.id === productId ? { ...p, ...updates } : p)
+    })
+  },
 }))
