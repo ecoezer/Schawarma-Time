@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { X, Monitor, Smartphone, Image as ImageIcon, RotateCcw, RotateCw, Check, RectangleHorizontal, Square, Ratio } from 'lucide-react'
+import { X, Monitor, Smartphone, Image as ImageIcon, RotateCcw, RotateCw, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { cn, formatPrice } from '@/lib/utils'
@@ -20,100 +20,62 @@ interface ImageCropModalProps {
   productInfo?: ProductInfo
 }
 
-// Aspect ratio presets
+// The ProductCard image container uses aspectRatio: 1.25 (5:4)
+// This is the EXACT ratio we need to match for pixel-perfect previews
+const CARD_ASPECT = 5 / 4
+
+// Aspect ratio presets — "Produktkarte" matches the actual card
 const ASPECT_PRESETS = [
-  { label: 'Frei', value: undefined, icon: '✂️' },
-  { label: '4:3', value: 4 / 3, icon: '🖼️' },
-  { label: '1:1', value: 1, icon: '⬜' },
-  { label: '16:9', value: 16 / 9, icon: '🎬' },
+  { label: 'Produktkarte', value: CARD_ASPECT, desc: '5:4 — empfohlen' },
+  { label: 'Quadrat', value: 1, desc: '1:1' },
+  { label: 'Breit', value: 16 / 9, desc: '16:9' },
+  { label: 'Frei', value: undefined, desc: 'beliebig' },
 ] as const
 
-// Helper: draw a rotated image to a canvas
-function drawRotatedImage(image: HTMLImageElement, rotation: number): HTMLCanvasElement {
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')!
-  const rad = (rotation * Math.PI) / 180
-
-  if (rotation === 90 || rotation === 270 || rotation === -90 || rotation === -270) {
-    canvas.width = image.naturalHeight
-    canvas.height = image.naturalWidth
-  } else {
-    canvas.width = image.naturalWidth
-    canvas.height = image.naturalHeight
-  }
-
-  ctx.translate(canvas.width / 2, canvas.height / 2)
-  ctx.rotate(rad)
-  ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2)
-
-  return canvas
-}
-
-// Helper: generate a cropped image via canvas (with rotation support)
+// Helper: generate a cropped canvas from image + crop area
 function getCroppedCanvas(
   image: HTMLImageElement,
   crop: PixelCrop,
   rotation: number
 ): HTMLCanvasElement {
-  // First apply rotation if needed
-  let sourceCanvas: HTMLCanvasElement | HTMLImageElement = image
-  if (rotation !== 0) {
-    sourceCanvas = drawRotatedImage(image, rotation)
-  }
-
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')!
 
-  const sourceWidth = sourceCanvas instanceof HTMLCanvasElement ? sourceCanvas.width : sourceCanvas.naturalWidth
-  const sourceHeight = sourceCanvas instanceof HTMLCanvasElement ? sourceCanvas.height : sourceCanvas.naturalHeight
+  // For rotation, we draw the rotated image onto a temp canvas first
+  let source: HTMLCanvasElement | HTMLImageElement = image
+  if (rotation !== 0) {
+    const tempCanvas = document.createElement('canvas')
+    const tempCtx = tempCanvas.getContext('2d')!
+    const rad = (rotation * Math.PI) / 180
+    const isSwapped = Math.abs(rotation % 180) === 90
 
-  // The displayed image dimensions (what ReactCrop uses)
-  const displayWidth = image.width
-  const displayHeight = image.height
+    tempCanvas.width = isSwapped ? image.naturalHeight : image.naturalWidth
+    tempCanvas.height = isSwapped ? image.naturalWidth : image.naturalHeight
 
-  // If rotated, the display dimensions swap
-  let effectiveDisplayWidth = displayWidth
-  let effectiveDisplayHeight = displayHeight
-  if (rotation === 90 || rotation === 270 || rotation === -90 || rotation === -270) {
-    // After rotation the displayed image has swapped dimensions
-    // But ReactCrop still uses the img element dimensions
-    // We need to account for the CSS transform
+    tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2)
+    tempCtx.rotate(rad)
+    tempCtx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2)
+    source = tempCanvas
   }
 
-  const scaleX = sourceWidth / displayWidth
-  const scaleY = sourceHeight / displayHeight
+  const sourceW = source instanceof HTMLCanvasElement ? source.width : source.naturalWidth
+  const sourceH = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight
 
-  canvas.width = crop.width * scaleX
-  canvas.height = crop.height * scaleY
+  // Scale from display coords to natural coords
+  const scaleX = sourceW / image.width
+  const scaleY = sourceH / image.height
 
-  ctx.drawImage(
-    sourceCanvas,
-    crop.x * scaleX,
-    crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  )
+  const cropX = crop.x * scaleX
+  const cropY = crop.y * scaleY
+  const cropW = crop.width * scaleX
+  const cropH = crop.height * scaleY
+
+  canvas.width = cropW
+  canvas.height = cropH
+
+  ctx.drawImage(source, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH)
 
   return canvas
-}
-
-// Generate a preview URL from a crop
-function getPreviewUrl(
-  image: HTMLImageElement | null,
-  crop: PixelCrop | null,
-  rotation: number
-): string | null {
-  if (!image || !crop || !crop.width || !crop.height) return null
-  try {
-    const canvas = getCroppedCanvas(image, crop, rotation)
-    return canvas.toDataURL('image/jpeg', 0.92)
-  } catch {
-    return null
-  }
 }
 
 export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productInfo }: ImageCropModalProps) {
@@ -122,68 +84,68 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [rotation, setRotation] = useState(0)
-  const [activeAspect, setActiveAspect] = useState<number | undefined>(undefined)
+  const [activePreset, setActivePreset] = useState(0) // Default to "Produktkarte" (index 0)
   const [imageSrc, setImageSrc] = useState('')
-  const [corsError, setCorsError] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
   const imgRef = useRef<HTMLImageElement | null>(null)
 
-  // Handle CORS: if the image is external (Cloudinary), proxy it through a data URL
+  const activeAspect = ASPECT_PRESETS[activePreset].value
+
+  // Handle CORS: convert external URLs to data URLs for canvas access
   useEffect(() => {
     if (!isOpen || !imageUrl) return
+    setImageLoaded(false)
 
-    setCorsError(false)
-
-    // Local blob URLs don't need CORS handling
     if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
       setImageSrc(imageUrl)
       return
     }
 
-    // For external URLs, try to fetch and convert to data URL
+    // Fetch external image and convert to data URL to avoid CORS
     const fetchImage = async () => {
       try {
         const response = await fetch(imageUrl)
         const blob = await response.blob()
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result as string)
-          reader.readAsDataURL(blob)
-        })
-        setImageSrc(dataUrl)
+        const reader = new FileReader()
+        reader.onloadend = () => setImageSrc(reader.result as string)
+        reader.readAsDataURL(blob)
       } catch {
-        // Fallback: use original URL (canvas operations may fail)
-        setCorsError(true)
+        // Fallback: use URL directly
         setImageSrc(imageUrl)
       }
     }
-
     fetchImage()
   }, [imageUrl, isOpen])
 
-  // When image loads, set a default centered crop
+  // When image loads, set default crop with ProductCard aspect ratio
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget
     imgRef.current = img
-    const { width, height } = img
+    setImageLoaded(true)
 
-    const aspect = activeAspect || 4 / 3
+    const { width, height } = img
+    const aspect = activeAspect || CARD_ASPECT
     const defaultCrop = centerCrop(
-      makeAspectCrop({ unit: '%', width: 80 }, aspect, width, height),
-      width,
-      height
+      makeAspectCrop({ unit: '%', width: 85 }, aspect, width, height),
+      width, height
     )
     setCrop(defaultCrop)
   }, [activeAspect])
 
-  // Update preview when crop changes
+  // Update preview whenever crop or rotation changes
   useEffect(() => {
-    if (completedCrop && imgRef.current && !corsError) {
-      const url = getPreviewUrl(imgRef.current, completedCrop, rotation)
-      setPreviewUrl(url)
-    }
-  }, [completedCrop, rotation, corsError])
+    if (!completedCrop || !imgRef.current || !imageLoaded) return
+    if (!completedCrop.width || !completedCrop.height) return
 
-  // Reset on open
+    try {
+      const canvas = getCroppedCanvas(imgRef.current, completedCrop, rotation)
+      setPreviewUrl(canvas.toDataURL('image/jpeg', 0.9))
+    } catch {
+      setPreviewUrl(null)
+    }
+  }, [completedCrop, rotation, imageLoaded])
+
+  // Reset state on open
   useEffect(() => {
     if (isOpen) {
       setCrop(undefined)
@@ -191,45 +153,39 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
       setPreviewUrl(null)
       setIsProcessing(false)
       setRotation(0)
-      setActiveAspect(undefined)
+      setActivePreset(0) // Default: Produktkarte
+      setImageLoaded(false)
       imgRef.current = null
     }
   }, [isOpen])
 
-  const handleAspectChange = (aspect: number | undefined) => {
-    setActiveAspect(aspect)
+  const handlePresetChange = (idx: number) => {
+    setActivePreset(idx)
     if (!imgRef.current) return
     const { width, height } = imgRef.current
+    const aspect = ASPECT_PRESETS[idx].value
 
     if (aspect) {
-      const newCrop = centerCrop(
-        makeAspectCrop({ unit: '%', width: 80 }, aspect, width, height),
-        width,
-        height
-      )
-      setCrop(newCrop)
+      setCrop(centerCrop(
+        makeAspectCrop({ unit: '%', width: 85 }, aspect, width, height),
+        width, height
+      ))
     }
-    // If undefined (free), keep current crop but remove aspect lock
   }
 
-  const handleRotate = (direction: 'cw' | 'ccw') => {
-    setRotation(prev => {
-      const next = direction === 'cw' ? prev + 90 : prev - 90
-      return next % 360
-    })
+  const handleRotate = (dir: 'cw' | 'ccw') => {
+    setRotation(prev => (dir === 'cw' ? prev + 90 : prev - 90) % 360)
   }
 
   const handleReset = () => {
     setRotation(0)
-    setActiveAspect(undefined)
+    setActivePreset(0)
     if (!imgRef.current) return
     const { width, height } = imgRef.current
-    const defaultCrop = centerCrop(
-      makeAspectCrop({ unit: '%', width: 80 }, 4 / 3, width, height),
-      width,
-      height
-    )
-    setCrop(defaultCrop)
+    setCrop(centerCrop(
+      makeAspectCrop({ unit: '%', width: 85 }, CARD_ASPECT, width, height),
+      width, height
+    ))
   }
 
   const handleConfirm = async () => {
@@ -238,14 +194,9 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
     try {
       const canvas = getCroppedCanvas(imgRef.current, completedCrop, rotation)
       const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('Canvas to blob failed'))),
-          'image/jpeg',
-          0.92
-        )
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob failed')), 'image/jpeg', 0.92)
       })
 
-      // Upload cropped image to Cloudinary
       const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
       const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
@@ -254,19 +205,16 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
         formData.append('file', blob, 'cropped.jpg')
         formData.append('upload_preset', uploadPreset)
 
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-          { method: 'POST', body: formData }
-        )
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST', body: formData,
+        })
+        if (!res.ok) throw new Error('Upload fehlgeschlagen')
+        const data = await res.json()
 
-        if (!response.ok) throw new Error('Upload fehlgeschlagen')
-        const data = await response.json()
-
-        const urlParts = data.secure_url.split('/upload/')
-        const finalUrl = urlParts.length === 2
-          ? `${urlParts[0]}/upload/f_auto,q_auto,w_800/${urlParts[1]}`
+        const parts = data.secure_url.split('/upload/')
+        const finalUrl = parts.length === 2
+          ? `${parts[0]}/upload/f_auto,q_auto,w_800/${parts[1]}`
           : data.secure_url
-
         onConfirm(finalUrl)
       } else {
         onConfirm(canvas.toDataURL('image/jpeg', 0.92))
@@ -281,21 +229,18 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
 
   if (!isOpen) return null
 
-  const displayPreview = previewUrl || imageSrc || imageUrl
+  // The preview image: use cropped version if available, otherwise original
+  const preview = previewUrl || imageSrc || imageUrl
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-        {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={onClose}
           className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         />
 
-        {/* Modal */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -311,7 +256,7 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
               <div>
                 <h2 className="font-bold text-gray-900">Bild zuschneiden</h2>
                 <p className="text-xs text-gray-500">
-                  {productInfo ? `${productInfo.name} — Bildausschnitt anpassen` : 'Wähle den Bildausschnitt für die Produktkarte'}
+                  {productInfo ? `${productInfo.name} — Bildausschnitt anpassen` : 'Bildausschnitt für die Produktkarte wählen'}
                 </p>
               </div>
             </div>
@@ -322,47 +267,43 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
 
           {/* Content */}
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            {/* Left: Crop Area */}
+            {/* LEFT: Crop Area */}
             <div className="flex-1 min-w-0 flex flex-col bg-gray-50 overflow-hidden">
               {/* Toolbar */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-white shrink-0 gap-2 flex-wrap">
                 {/* Aspect Ratio Presets */}
                 <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2 hidden sm:inline">Format:</span>
-                  {ASPECT_PRESETS.map((preset) => (
+                  {ASPECT_PRESETS.map((preset, idx) => (
                     <button
                       key={preset.label}
-                      onClick={() => handleAspectChange(preset.value)}
+                      onClick={() => handlePresetChange(idx)}
                       className={cn(
-                        'px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all',
-                        activeAspect === preset.value
+                        'px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap',
+                        activePreset === idx
                           ? 'bg-[#142328] text-white'
-                          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                          : 'text-gray-500 hover:bg-gray-100'
                       )}
                     >
-                      {preset.icon} {preset.label}
+                      {preset.label}
+                      <span className="opacity-60 ml-1 font-normal">{preset.desc}</span>
                     </button>
                   ))}
                 </div>
 
-                {/* Rotation */}
+                {/* Rotation controls */}
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleRotate('ccw')}
+                  <button onClick={() => handleRotate('ccw')}
                     className="p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
-                    title="90° gegen Uhrzeigersinn"
-                  >
+                    title="90° gegen Uhrzeigersinn">
                     <RotateCcw size={16} />
                   </button>
-                  <button
-                    onClick={() => handleRotate('cw')}
+                  <button onClick={() => handleRotate('cw')}
                     className="p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
-                    title="90° im Uhrzeigersinn"
-                  >
+                    title="90° im Uhrzeigersinn">
                     <RotateCw size={16} />
                   </button>
                   {rotation !== 0 && (
-                    <span className="text-[10px] font-mono text-gray-400 ml-1">{rotation}°</span>
+                    <span className="text-[10px] font-mono text-gray-400 ml-0.5">{rotation}°</span>
                   )}
                 </div>
               </div>
@@ -376,98 +317,100 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                       onChange={(c) => setCrop(c)}
                       onComplete={(c) => setCompletedCrop(c)}
                       aspect={activeAspect}
-                      className="max-w-full rounded-xl overflow-hidden shadow-lg"
+                      className="max-w-full rounded-xl overflow-hidden shadow-lg [&_.ReactCrop__crop-selection]:!border-[#142328] [&_.ReactCrop__crop-selection]:!border-2"
                     >
                       <img
                         src={imageSrc}
                         alt="Zuschneiden"
                         onLoad={onImageLoad}
                         className="max-w-full max-h-[45vh] block"
-                        style={{ transform: `rotate(${rotation}deg)` }}
+                        style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined}
                         crossOrigin="anonymous"
                       />
                     </ReactCrop>
                   ) : (
                     <div className="flex items-center justify-center h-48 text-gray-400">
                       <div className="text-center">
-                        <div className="w-8 h-8 border-3 border-[#142328] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <div className="w-8 h-8 border-4 border-[#142328] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                         <p className="text-sm">Bild wird geladen...</p>
                       </div>
                     </div>
                   )}
                   <div className="flex items-center justify-center mt-3">
-                    <button
-                      onClick={handleReset}
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-white"
-                    >
+                    <button onClick={handleReset}
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-white">
                       <RotateCcw size={13} />
-                      Alles zurücksetzen
+                      Zurücksetzen
                     </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Right: Live Previews */}
-            <div className="w-full lg:w-[340px] shrink-0 border-t lg:border-t-0 lg:border-l border-gray-100 p-6 overflow-y-auto bg-white">
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Vorschau</h3>
+            {/* RIGHT: Live Previews — PIXEL-PERFECT match to actual ProductCard */}
+            <div className="w-full lg:w-[340px] shrink-0 border-t lg:border-t-0 lg:border-l border-gray-100 p-5 overflow-y-auto bg-white">
+              <h3 className="text-sm font-bold text-gray-900 mb-4">So wird es aussehen</h3>
 
-              {/* Desktop ProductCard Preview */}
-              <div className="mb-6">
+              {/* Desktop ProductCard — EXACT match to ProductCard.tsx */}
+              <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
                   <Monitor size={14} className="text-gray-400" />
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Desktop — Produktkarte</span>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Desktop</span>
                 </div>
+                {/* 
+                  This is an EXACT replica of ProductCard.tsx:
+                  - Container: h-[140px], rounded-xl, border, overflow-hidden
+                  - Image container: shrink-0, h-full, aspectRatio 1.25, bg-[#f3f3f3]
+                  - Image: object-cover, w-full, h-full
+                */}
                 <div className="flex flex-row items-stretch bg-white rounded-xl border border-[#e8e8e8] overflow-hidden h-[140px] w-full shadow-sm">
-                  <div className="flex-1 flex flex-col min-w-0 p-3 justify-center">
-                    <h4 className="text-[13px] font-bold text-black leading-tight truncate">
+                  <div className="flex-1 flex flex-col min-w-0 p-4 justify-center">
+                    <h4 className="text-[16px] font-bold text-black leading-tight tracking-tight truncate">
                       {productInfo?.name || 'Produktname'}
                     </h4>
-                    <div className="text-[12px] font-medium text-black mt-1">
+                    <div className="text-[14px] font-medium text-black mt-1">
                       {productInfo ? formatPrice(productInfo.price) : '€ 0,00'}
                     </div>
-                    {productInfo?.description && (
-                      <div className="mt-1 text-[11px] text-[#545454] line-clamp-2 leading-snug">
+                    {productInfo?.description ? (
+                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug">
                         {productInfo.description}
                       </div>
-                    )}
-                    {!productInfo?.description && (
-                      <div className="h-2 w-2/3 bg-gray-100 rounded mt-1.5" />
+                    ) : (
+                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug opacity-40">
+                        Beschreibung...
+                      </div>
                     )}
                   </div>
                   <div
                     className="relative shrink-0 bg-[#f3f3f3] h-full overflow-hidden"
                     style={{ aspectRatio: '1.25' }}
                   >
-                    <img
-                      src={displayPreview}
-                      alt="Desktop preview"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={preview} alt="" className="w-full h-full object-cover" />
                   </div>
                 </div>
               </div>
 
-              {/* Mobile ProductCard Preview */}
-              <div className="mb-6">
+              {/* Mobile ProductCard — EXACT match to ProductCard.tsx mobile */}
+              <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
                   <Smartphone size={14} className="text-gray-400" />
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mobil — Produktkarte</span>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Mobil</span>
                 </div>
                 <div className="flex flex-row items-stretch bg-white rounded-xl border border-[#e8e8e8] overflow-hidden h-[120px] w-full shadow-sm">
-                  <div className="flex-1 flex flex-col min-w-0 p-3 justify-center">
-                    <h4 className="text-[12px] font-bold text-black leading-tight truncate">
+                  <div className="flex-1 flex flex-col min-w-0 p-4 justify-center">
+                    <h4 className="text-[16px] font-bold text-black leading-tight tracking-tight truncate">
                       {productInfo?.name || 'Produktname'}
                     </h4>
-                    <div className="text-[11px] font-medium text-black mt-0.5">
+                    <div className="text-[14px] font-medium text-black mt-1">
                       {productInfo ? formatPrice(productInfo.price) : '€ 0,00'}
                     </div>
-                    {!productInfo?.description && (
-                      <div className="h-2 w-1/2 bg-gray-100 rounded mt-1" />
-                    )}
-                    {productInfo?.description && (
-                      <div className="mt-0.5 text-[10px] text-[#545454] line-clamp-1 leading-snug">
+                    {productInfo?.description ? (
+                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug">
                         {productInfo.description}
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug opacity-40">
+                        Beschreibung...
                       </div>
                     )}
                   </div>
@@ -475,46 +418,31 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                     className="relative shrink-0 bg-[#f3f3f3] h-full overflow-hidden"
                     style={{ aspectRatio: '1.25' }}
                   >
-                    <img
-                      src={displayPreview}
-                      alt="Mobile preview"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={preview} alt="" className="w-full h-full object-cover" />
                   </div>
                 </div>
               </div>
 
-              {/* Modal Detail Preview */}
+              {/* ProductModal Detail Preview */}
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ImageIcon size={14} className="text-gray-400" />
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Produktdetail</span>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Produktdetail (Modal)</span>
                 </div>
                 <div className="bg-[#f3f3f3] rounded-xl overflow-hidden aspect-square shadow-sm">
-                  <img
-                    src={displayPreview}
-                    alt="Detail preview"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={preview} alt="" className="w-full h-full object-cover" />
                 </div>
                 {productInfo && (
-                  <div className="mt-2 px-1">
-                    <p className="text-sm font-bold text-black">{productInfo.name}</p>
-                    <p className="text-xs text-gray-500">{formatPrice(productInfo.price)}</p>
+                  <div className="mt-2 px-0.5">
+                    <p className="text-[15px] font-bold text-black">{productInfo.name}</p>
+                    <p className="text-[13px] text-gray-500">{formatPrice(productInfo.price)}</p>
                   </div>
                 )}
               </div>
 
-              {/* CORS Warning */}
-              {corsError && (
-                <div className="bg-amber-50 rounded-xl p-3 text-xs text-amber-700 leading-relaxed mb-4">
-                  <span className="font-bold">⚠️ Hinweis:</span> Das Bild konnte nicht für die Vorschau geladen werden (CORS). Der Zuschnitt wird trotzdem beim Speichern angewendet.
-                </div>
-              )}
-
-              {/* Hint */}
-              <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700 leading-relaxed">
-                <span className="font-bold">Tipp:</span> Ziehe den Rahmen im Bild, um den sichtbaren Bereich festzulegen. Mit den Format-Buttons oben kannst du feste Seitenverhältnisse verwenden.
+              {/* Help text */}
+              <div className="bg-[#f0f8f4] rounded-xl p-3 text-xs text-[#1a6b3d] leading-relaxed">
+                <span className="font-bold">💡 Empfehlung:</span> Verwende das Format „Produktkarte (5:4)" für die beste Darstellung. So sieht das Bild exakt so aus wie auf der Website.
               </div>
             </div>
           </div>
