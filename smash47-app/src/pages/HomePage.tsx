@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import type { Product, Category } from '@/types'
-import { mockCategories, mockProducts, mockRestaurantSettings } from '@/data/mockData'
+import type { Product } from '@/types'
 import { HeroSection } from '@/components/menu/HeroSection'
 import { CategoryNav } from '@/components/menu/CategoryNav'
 import { RecommendedItems } from '@/components/menu/RecommendedItems'
@@ -73,8 +72,6 @@ export function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [activeCategories, searchQuery])
 
-  const displaySettings = settings || mockRestaurantSettings
-
   // Skeleton card component for loading state
   const SkeletonCard = () => (
     <div className="flex flex-row items-stretch bg-white rounded-xl border border-[#e8e8e8] overflow-hidden h-[120px] md:h-[140px] w-full">
@@ -89,22 +86,29 @@ export function HomePage() {
 
   const SkeletonSection = () => (
     <div className="space-y-10">
-      {[1, 2].map((section) => (
-        <div key={section}>
-          <div className="h-7 w-40 bg-gray-200 rounded animate-pulse mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
+      <div className="h-40 w-full bg-gray-200 animate-pulse" />
+      <div className="px-4">
+        {[1, 2].map((section) => (
+          <div key={section} className="mb-10">
+            <div className="h-7 w-40 bg-gray-200 rounded animate-pulse mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
+
+  if (!settings) {
+    return <SkeletonSection />
+  }
 
   return (
     <div className="min-h-screen bg-white">
       <div className="bg-white border-b border-gray-100">
-        <HeroSection settings={displaySettings} />
-        <MapSection settings={displaySettings} />
+        <HeroSection settings={settings} />
+        <MapSection settings={settings} />
       </div>
 
       <div className="bg-white">

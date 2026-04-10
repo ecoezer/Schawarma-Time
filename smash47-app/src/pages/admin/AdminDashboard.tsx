@@ -1,34 +1,109 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrendingUp, ShoppingBag, Users, Euro, Clock, AlertCircle, CheckCircle, Truck } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from 'framer-motion'
 import { Toggle } from '@/components/ui/Toggle'
-import { mockRestaurantSettings } from '@/data/mockData'
+import { supabase } from '@/lib/supabase'
+import { useRestaurantStore } from '@/store/restaurantStore'
 import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
-
-const revenueData = [
-  { day: 'Mo', revenue: 320 }, { day: 'Di', revenue: 410 }, { day: 'Mi', revenue: 280 },
-  { day: 'Do', revenue: 540 }, { day: 'Fr', revenue: 620 }, { day: 'Sa', revenue: 780 },
-  { day: 'So', revenue: 450 },
-]
-
-const recentOrders = [
-  { id: 'S47-ABC1', customer: 'Max Mustermann', total: 18.50, status: 'preparing', items: 3, time: '14:32' },
-  { id: 'S47-ABC2', customer: 'Anna Schmidt', total: 24.90, status: 'on_the_way', items: 4, time: '14:15' },
-  { id: 'S47-ABC3', customer: 'Tom Müller', total: 12.00, status: 'pending', items: 2, time: '14:45' },
-  { id: 'S47-ABC4', customer: 'Lisa Weber', total: 31.50, status: 'delivered', items: 5, time: '13:55' },
-]
+import type { Order } from '@/types'
 
 export function AdminDashboard() {
-  const [deliveryActive, setDeliveryActive] = useState(mockRestaurantSettings.is_delivery_active)
-  const goal = mockRestaurantSettings.revenue_goal_daily
-  const todayRevenue = 412
+  const { settings, toggleDelivery } = useRestaurantStore()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [totalCustomers, setTotalCustomers] = useState(0)
+  const [revenueData, setRevenueData] = useState<{ day: string; revenue: number }[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const DAY_LABELS: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' }
+
+  useEffect(() => {
+    fetchDashboardData()
+
+    // Real-time for new orders
+    const channel = supabase
+      .channel('dashboard-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchDashboardData()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true)
+    try {
+      // Today's range
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+
+      // Fetch today's orders
+      const { data: todayOrders } = await supabase
+        .from('orders')
+        .select('*')
+        .gte('created_at', todayStart.toISOString())
+        .order('created_at', { ascending: false })
+
+      setOrders((todayOrders || []) as Order[])
+
+      // Fetch total customer count
+      const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+      setTotalCustomers(count || 0)
+
+      // Fetch last 7 days orders for chart
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+      sevenDaysAgo.setHours(0, 0, 0, 0)
+
+      const { data: weekOrders } = await supabase
+        .from('orders')
+        .select('created_at, total, status')
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .neq('status', 'cancelled')
+
+      // Group by day
+      const revenueMap: Record<string, number> = {}
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        revenueMap[DAY_LABELS[d.getDay()]] = 0
+      }
+
+      ;(weekOrders || []).forEach((o) => {
+        const day = DAY_LABELS[new Date(o.created_at).getDay()]
+        if (day in revenueMap) {
+          revenueMap[day] = (revenueMap[day] || 0) + (o.total || 0)
+        }
+      })
+
+      setRevenueData(Object.entries(revenueMap).map(([day, revenue]) => ({ day, revenue })))
+    } catch (err) {
+      console.error('Dashboard fetch error:', err)
+    }
+    setIsLoading(false)
+  }
+
+  const activeOrders = orders.filter((o) => !['cancelled', 'delivered'].includes(o.status))
+  const todayRevenue = orders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + (o.total || 0), 0)
+  const avgOrderValue = orders.length > 0 ? todayRevenue / orders.filter((o) => o.status !== 'cancelled').length : 0
+  const goal = settings?.revenue_goal_daily || 500
+
+  const pendingCount = orders.filter((o) => o.status === 'pending').length
+  const preparingCount = orders.filter((o) => o.status === 'preparing' || o.status === 'confirmed').length
+  const deliveredCount = orders.filter((o) => o.status === 'delivered').length
+
+  const recentOrders = orders.slice(0, 4)
 
   const stats = [
-    { label: 'Heutige Einnahmen', value: formatPrice(todayRevenue), icon: Euro, color: 'bg-green-50 text-green-600', change: '+12%' },
-    { label: 'Bestellungen heute', value: '24', icon: ShoppingBag, color: 'bg-blue-50 text-blue-600', change: '+4' },
-    { label: 'Aktive Kunden', value: '18', icon: Users, color: 'bg-purple-50 text-purple-600', change: 'Aktuell' },
-    { label: 'Ø Bestellwert', value: formatPrice(17.20), icon: TrendingUp, color: 'bg-orange-50 text-orange-600', change: '+€1.30' },
+    { label: 'Heutige Einnahmen', value: formatPrice(todayRevenue), icon: Euro, color: 'bg-green-50 text-green-600', change: `${orders.filter(o => o.status !== 'cancelled').length} Bestellungen` },
+    { label: 'Bestellungen heute', value: orders.length.toString(), icon: ShoppingBag, color: 'bg-blue-50 text-blue-600', change: `${activeOrders.length} aktiv` },
+    { label: 'Kunden gesamt', value: totalCustomers.toString(), icon: Users, color: 'bg-purple-50 text-purple-600', change: 'Registriert' },
+    { label: 'Ø Bestellwert', value: isNaN(avgOrderValue) ? '—' : formatPrice(avgOrderValue), icon: TrendingUp, color: 'bg-orange-50 text-orange-600', change: 'Heute' },
   ]
 
   return (
@@ -40,16 +115,16 @@ export function AdminDashboard() {
           <p className="text-sm text-gray-500 mt-0.5">Guten Tag! Hier ist die Übersicht von heute.</p>
         </div>
 
-        {/* Delivery Toggle */}
+        {/* Delivery Toggle – connected to Supabase via restaurantStore */}
         <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
-          <Truck size={18} className={deliveryActive ? 'text-[#06c167]' : 'text-gray-400'} />
+          <Truck size={18} className={settings?.is_delivery_active ? 'text-[#06c167]' : 'text-gray-400'} />
           <div>
             <p className="text-sm font-semibold text-gray-900">Lieferung</p>
-            <p className="text-xs text-gray-500">{deliveryActive ? 'Aktiv' : 'Inaktiv'}</p>
+            <p className="text-xs text-gray-500">{settings?.is_delivery_active ? 'Aktiv' : 'Inaktiv'}</p>
           </div>
           <Toggle
-            checked={deliveryActive}
-            onChange={setDeliveryActive}
+            checked={!!settings?.is_delivery_active}
+            onChange={toggleDelivery}
             size="md"
           />
         </div>
@@ -68,9 +143,13 @@ export function AdminDashboard() {
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.color}`}>
               <stat.icon size={20} />
             </div>
-            <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse mb-1" />
+            ) : (
+              <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+            )}
             <p className="text-xs text-gray-500 mt-0.5">{stat.label}</p>
-            <p className="text-xs text-green-600 font-semibold mt-1">{stat.change}</p>
+            <p className="text-xs text-[#142328] font-semibold mt-1">{stat.change}</p>
           </motion.div>
         ))}
       </div>
@@ -109,7 +188,7 @@ export function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v) => [`€${v}`, 'Einnahmen']} />
+              <Tooltip formatter={(v) => [`€${Number(v).toFixed(2)}`, 'Einnahmen']} />
               <Area type="monotone" dataKey="revenue" stroke="#142328" strokeWidth={2} fill="url(#revenueGrad)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -122,23 +201,34 @@ export function AdminDashboard() {
             <a href="/admin/bestellungen" className="text-xs text-[#06c167] font-semibold hover:underline">Alle ansehen</a>
           </div>
           <div className="space-y-3">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <div className="w-9 h-9 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
-                  <ShoppingBag size={15} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{order.customer}</p>
-                  <p className="text-xs text-gray-500">{order.items} Artikel · {order.time} Uhr</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-bold">{formatPrice(order.total)}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(order.status)}`}>
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+              ))
+            ) : recentOrders.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <ShoppingBag size={32} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Noch keine Bestellungen heute</p>
               </div>
-            ))}
+            ) : (
+              recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-9 h-9 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
+                    <ShoppingBag size={15} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{order.customer_name}</p>
+                    <p className="text-xs text-gray-500">{order.items.length} Artikel · {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold">{formatPrice(order.total)}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(order.status)}`}>
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -146,15 +236,19 @@ export function AdminDashboard() {
       {/* Status summary */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Ausstehend', count: 3, icon: AlertCircle, color: 'text-yellow-500 bg-yellow-50' },
-          { label: 'In Zubereitung', count: 5, icon: Clock, color: 'text-orange-500 bg-orange-50' },
-          { label: 'Geliefert heute', count: 16, icon: CheckCircle, color: 'text-green-500 bg-green-50' },
+          { label: 'Ausstehend', count: pendingCount, icon: AlertCircle, color: 'text-yellow-500 bg-yellow-50' },
+          { label: 'In Zubereitung', count: preparingCount, icon: Clock, color: 'text-orange-500 bg-orange-50' },
+          { label: 'Geliefert heute', count: deliveredCount, icon: CheckCircle, color: 'text-green-500 bg-green-50' },
         ].map((item) => (
           <div key={item.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${item.color}`}>
               <item.icon size={20} />
             </div>
-            <p className="text-2xl font-black text-gray-900">{item.count}</p>
+            {isLoading ? (
+              <div className="h-8 w-12 bg-gray-200 rounded animate-pulse mx-auto mb-1" />
+            ) : (
+              <p className="text-2xl font-black text-gray-900">{item.count}</p>
+            )}
             <p className="text-xs text-gray-500 mt-0.5">{item.label}</p>
           </div>
         ))}

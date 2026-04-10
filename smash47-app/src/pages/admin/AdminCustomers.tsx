@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Search, Mail, Phone, Calendar, ShoppingBag, User as UserIcon } from 'lucide-react'
+import { Search, Mail, Phone, Calendar, ShoppingBag, User as UserIcon, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { mockCustomers } from '@/data/mockData'
 
 interface Customer {
   id: string
@@ -30,29 +30,16 @@ export function AdminCustomers() {
     setIsLoading(true)
     setError(null)
     try {
-      // Race: Supabase query vs 5-second timeout
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout: Keine Antwort von Supabase')), 5000)
-      )
+      const { data, error: sbError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-      const { data, error: sbError } = await Promise.race([
-        supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        timeoutPromise
-      ]) as any
-
-      if (sbError || !data || data.length === 0) {
-        // Fallback to mock data if RLS restricts fetching profiles or no data exists
-        setCustomers(mockCustomers)
-      } else {
-        setCustomers(data)
-      }
+      if (sbError) throw sbError
+      setCustomers(data || [])
     } catch (err: any) {
-      console.error('Error fetching customers, using fallback:', err)
-      setCustomers(mockCustomers)
-      setError(null) // Clear error since we show fallback
+      console.error('Error fetching customers:', err)
+      setError(err.message || 'Unbekannter Fehler')
     } finally {
       setIsLoading(false)
     }

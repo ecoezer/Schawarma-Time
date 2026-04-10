@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { Clock, Truck, Euro, MapPin, Bell, Tag, Save } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Clock, Truck, Euro, Bell, Tag, Save, RefreshCw } from 'lucide-react'
 import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { mockRestaurantSettings } from '@/data/mockData'
+import { useRestaurantStore } from '@/store/restaurantStore'
+import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 const DAYS = [
@@ -16,13 +17,41 @@ const DAYS = [
   { key: 'sunday', label: 'Sonntag' },
 ]
 
-export function AdminSettings() {
-  const [settings, setSettings] = useState(mockRestaurantSettings)
-  const [hours, setHours] = useState(mockRestaurantSettings.hours)
-  const [isSaving, setIsSaving] = useState(false)
+interface Coupon {
+  id: string
+  code: string
+  discount_type: string
+  discount_value: number
+  is_active: boolean
+  used_count: number
+  max_uses: number | null
+}
 
-  const update = <K extends keyof typeof settings>(key: K, value: typeof settings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }))
+export function AdminSettings() {
+  const { settings, fetchSettings, updateSettings } = useRestaurantStore()
+  const [localSettings, setLocalSettings] = useState(settings)
+  const [hours, setHours] = useState(settings?.hours || {})
+  const [isSaving, setIsSaving] = useState(false)
+  const [coupons, setCoupons] = useState<Coupon[]>([])
+
+  useEffect(() => {
+    if (settings) {
+      setLocalSettings(settings)
+      setHours(settings.hours)
+    }
+  }, [settings])
+
+  useEffect(() => {
+    fetchCoupons()
+  }, [])
+
+  const fetchCoupons = async () => {
+    const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false })
+    if (data) setCoupons(data)
+  }
+
+  const update = <K extends keyof typeof localSettings>(key: K, value: any) => {
+    setLocalSettings((prev: any) => ({ ...prev, [key]: value }))
   }
 
   const updateHours = (day: string, field: 'open' | 'close' | 'is_closed', value: string | boolean) => {
@@ -30,10 +59,35 @@ export function AdminSettings() {
   }
 
   const handleSave = async () => {
+    if (!localSettings) return
     setIsSaving(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setIsSaving(false)
-    toast.success('Einstellungen gespeichert!')
+    try {
+      await updateSettings({ ...localSettings, hours })
+      toast.success('Einstellungen gespeichert!')
+    } catch (err: any) {
+      toast.error('Fehler beim Speichern: ' + err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const toggleCoupon = async (coupon: Coupon) => {
+    const { error } = await supabase
+      .from('coupons')
+      .update({ is_active: !coupon.is_active })
+      .eq('id', coupon.id)
+    if (!error) {
+      setCoupons((prev) => prev.map((c) => c.id === coupon.id ? { ...c, is_active: !c.is_active } : c))
+    }
+  }
+
+  if (!localSettings) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+        <RefreshCw size={32} className="animate-spin" />
+        <p>Einstellungen werden geladen...</p>
+      </div>
+    )
   }
 
   return (
@@ -48,10 +102,10 @@ export function AdminSettings() {
         </h2>
         <div className="space-y-4">
           <Toggle
-            checked={settings.is_delivery_active}
+            checked={localSettings.is_delivery_active}
             onChange={(v) => update('is_delivery_active', v)}
             label="Lieferung aktiv"
-            description={settings.is_delivery_active ? 'Kunden können Bestellungen aufgeben' : 'Keine Bestellungen möglich'}
+            description={localSettings.is_delivery_active ? 'Kunden können Bestellungen aufgeben' : 'Keine Bestellungen möglich'}
             colorOn="bg-[#06c167]"
           />
           <div className="grid grid-cols-2 gap-4">
@@ -59,7 +113,7 @@ export function AdminSettings() {
               label="Liefergebühr (€)"
               type="number"
               step="0.50"
-              value={settings.delivery_fee}
+              value={localSettings.delivery_fee}
               onChange={(e) => update('delivery_fee', parseFloat(e.target.value))}
               leftIcon={<Euro size={14} />}
             />
@@ -67,7 +121,7 @@ export function AdminSettings() {
               label="Mindestbestellung (€)"
               type="number"
               step="1"
-              value={settings.min_order_amount}
+              value={localSettings.min_order_amount}
               onChange={(e) => update('min_order_amount', parseFloat(e.target.value))}
               leftIcon={<Euro size={14} />}
             />
@@ -75,7 +129,7 @@ export function AdminSettings() {
           <Input
             label="Geschätzte Lieferzeit (Min.)"
             type="number"
-            value={settings.estimated_delivery_time}
+            value={localSettings.estimated_delivery_time}
             onChange={(e) => update('estimated_delivery_time', parseInt(e.target.value))}
             leftIcon={<Clock size={14} />}
           />
@@ -132,48 +186,49 @@ export function AdminSettings() {
         </h2>
         <div className="space-y-3">
           <Toggle
-            checked={settings.is_announcement_active}
+            checked={localSettings.is_announcement_active}
             onChange={(v) => update('is_announcement_active', v)}
             label="Ankündigung anzeigen"
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Nachricht</label>
             <textarea
-              value={settings.announcement || ''}
+              value={localSettings.announcement || ''}
               onChange={(e) => update('announcement', e.target.value)}
               placeholder="z.B. Heute Abend: Happy Hour von 17–19 Uhr!"
               rows={2}
-              disabled={!settings.is_announcement_active}
+              disabled={!localSettings.is_announcement_active}
               className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#142328] disabled:opacity-50"
             />
           </div>
         </div>
       </div>
 
-      {/* Coupons */}
+      {/* Coupons - real data from DB */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Tag size={18} className="text-[#142328]" />
           Gutscheincodes
         </h2>
         <div className="space-y-2">
-          {[
-            { code: 'SMASH10', type: '10% Rabatt', uses: '12/∞', active: true },
-            { code: 'WILLKOMMEN', type: '€3,00 Rabatt', uses: '5/100', active: true },
-            { code: 'SOMMER24', type: '€5,00 Rabatt', uses: '100/100', active: false },
-          ].map((coupon) => (
-            <div key={coupon.code} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <div>
-                <p className="text-sm font-bold font-mono">{coupon.code}</p>
-                <p className="text-xs text-gray-500">{coupon.type} · {coupon.uses} verwendet</p>
+          {coupons.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">Keine Gutscheincodes vorhanden.</p>
+          ) : (
+            coupons.map((coupon) => (
+              <div key={coupon.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <div>
+                  <p className="text-sm font-bold font-mono">{coupon.code}</p>
+                  <p className="text-xs text-gray-500">
+                    {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% Rabatt` : `€${coupon.discount_value.toFixed(2)} Rabatt`}
+                    {' · '}
+                    {coupon.used_count}/{coupon.max_uses ?? '∞'} verwendet
+                  </p>
+                </div>
+                <Toggle checked={coupon.is_active} onChange={() => toggleCoupon(coupon)} size="sm" />
               </div>
-              <Toggle checked={coupon.active} onChange={() => {}} size="sm" />
-            </div>
-          ))}
+            ))
+          )}
         </div>
-        <Button variant="ghost" className="mt-3 w-full border border-dashed border-gray-200">
-          + Neuen Code erstellen
-        </Button>
       </div>
 
       {/* Save */}

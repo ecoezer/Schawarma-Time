@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { RestaurantSettings } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { mockRestaurantSettings } from '@/data/mockData'
 
 interface RestaurantStore {
   settings: RestaurantSettings | null
@@ -28,9 +27,8 @@ export const useRestaurantStore = create<RestaurantStore>((set, get) => ({
 
       if (error) throw error
       set({ settings: data as RestaurantSettings, isLoading: false })
-    } catch {
-      // Supabase bağlantısı yoksa mock data kullan
-      set({ settings: mockRestaurantSettings, isLoading: false })
+    } catch (err: any) {
+      set({ settings: null, error: err.message, isLoading: false })
     }
   },
 
