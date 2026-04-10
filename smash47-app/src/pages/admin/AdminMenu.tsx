@@ -458,6 +458,11 @@ export function AdminMenu() {
         imageUrl={tempImageForCrop}
         onClose={() => { setIsCropModalOpen(false); setTempImageForCrop('') }}
         onConfirm={handleCropConfirm}
+        productInfo={form.name ? {
+          name: form.name,
+          price: parseFloat(form.price) || 0,
+          description: form.description,
+        } : undefined}
       />
     </div>
   )
