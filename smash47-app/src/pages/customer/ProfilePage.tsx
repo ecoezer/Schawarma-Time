@@ -26,7 +26,6 @@ export function ProfilePage() {
   const [profileForm, setProfileForm] = useState({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
-    birth_date: user?.birth_date || '',
   })
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
 
@@ -210,15 +209,7 @@ export function ProfilePage() {
                     value={profileForm.phone}
                     onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                   />
-                  <div className="col-span-1">
-                    <Input 
-                      label="Geburtsdatum" 
-                      type="date"
-                      value={profileForm.birth_date}
-                      onChange={(e) => setProfileForm({ ...profileForm, birth_date: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-1">
+                  <div className="col-span-1 md:col-span-2">
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">E-Mail (Nicht änderbar)</label>
                     <div className="px-4 py-3 bg-gray-50 rounded-xl text-gray-400 text-sm font-medium border border-gray-100">
                       {user.email}

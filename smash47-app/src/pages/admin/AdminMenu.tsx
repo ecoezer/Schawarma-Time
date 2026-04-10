@@ -17,6 +17,7 @@ export function AdminMenu() {
   const [activeCategory, setActiveCategory] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -41,6 +42,47 @@ export function AdminMenu() {
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchCategory && matchSearch
   })
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+
+    if (!cloudName || !uploadPreset) {
+      toast.error('Cloudinary konfigürasyonu eksik (.env kontrol edin)')
+      return
+    }
+
+    setIsUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('upload_preset', uploadPreset)
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error('Resim yüklenemedi')
+
+      const data = await response.json()
+      const urlParts = data.secure_url.split('/upload/')
+      if (urlParts.length === 2) {
+        const optimizedUrl = `${urlParts[0]}/upload/f_auto,q_auto,w_800,h_800,c_fill/${urlParts[1]}`
+        setForm({ ...form, image_url: optimizedUrl })
+      } else {
+        setForm({ ...form, image_url: data.secure_url })
+      }
+      toast.success('Resim başarıyla yüklendi!')
+    } catch (error: any) {
+      toast.error(error.message || 'Resim yükleme hatası')
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
 
   const openAddModal = () => {
     setEditProduct(null)
@@ -277,21 +319,37 @@ export function AdminMenu() {
           {/* Image upload placeholder */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Produktbild</label>
-            <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-[#142328] transition-colors cursor-pointer">
-              {form.image_url ? (
+            <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-[#142328] transition-colors cursor-pointer block relative">
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleImageUpload} 
+                disabled={isUploadingImage}
+              />
+              {isUploadingImage ? (
+                <div className="py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#142328] mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Wird hochgeladen...</p>
+                </div>
+              ) : form.image_url ? (
                 <div className="relative">
                   <img src={form.image_url} alt="Preview" className="h-32 mx-auto rounded-lg object-cover" />
-                  <button onClick={() => setForm({ ...form, image_url: '' })} className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow">
+                  <button 
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setForm({ ...form, image_url: '' }) }} 
+                    className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow"
+                  >
                     <X size={14} />
                   </button>
                 </div>
               ) : (
-                <div>
+                <div className="py-4">
                   <Upload size={24} className="mx-auto text-gray-400 mb-2" />
                   <p className="text-sm text-gray-500">Bild hochladen oder URL eingeben</p>
                 </div>
               )}
-            </div>
+            </label>
             <Input
               placeholder="Bild-URL (optional)"
               value={form.image_url}
