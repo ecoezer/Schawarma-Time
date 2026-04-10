@@ -12,7 +12,9 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
   const [imgError, setImgError] = useState(false)
   
   // Detect if product is a drink or sauce to use object-contain (prevents cropping bottles/cups)
-  const isDrink = product.category_id === 'cat6' || product.category_id === 'cat7' || product.name.toLowerCase().includes('drink')
+  const isDrink = product.name.toLowerCase().includes('drink') || product.name.toLowerCase().includes('getränk')
+  
+  const hasImage = !imgError && !!product.image_url
 
   return (
     <motion.div
@@ -40,15 +42,15 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
         </div>
       </div>
 
-      {/* Right: Image (Flush and 5:4 ratio relative to card height) */}
-      <div
-        className="relative shrink-0 bg-[#f3f3f3] h-full overflow-hidden flex items-center justify-center"
-        style={{ aspectRatio: '1.25' }} 
-      >
-        <div className="w-full h-full relative">
-          {!imgError && product.image_url ? (
+      {/* Right: Image — only shown when image exists */}
+      {hasImage && (
+        <div
+          className="relative shrink-0 bg-[#f3f3f3] h-full overflow-hidden flex items-center justify-center"
+          style={{ aspectRatio: '1.25' }}
+        >
+          <div className="w-full h-full relative">
             <img
-              src={product.image_url}
+              src={product.image_url!}
               alt={product.name}
               onError={() => setImgError(true)}
               className={cn(
@@ -57,21 +59,26 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
               )}
               loading="lazy"
             />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center opacity-20">
-              <span className="text-2xl">🍔</span>
-            </div>
-          )}
-          
-          {!product.is_active && (
-            <div className="absolute inset-0 bg-black/5 flex items-center justify-center z-10">
-              <span className="bg-white/90 text-[10px] font-bold px-2 py-0.5 rounded text-black uppercase">
-                Offline
-              </span>
-            </div>
-          )}
+            {!product.is_active && (
+              <div className="absolute inset-0 bg-black/5 flex items-center justify-center z-10">
+                <span className="bg-white/90 text-[10px] font-bold px-2 py-0.5 rounded text-black uppercase">
+                  Offline
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Offline badge when no image */}
+      {!hasImage && !product.is_active && (
+        <div className="shrink-0 flex items-center pr-4">
+          <span className="bg-gray-100 text-[10px] font-bold px-2 py-0.5 rounded text-black uppercase">
+            Offline
+          </span>
+        </div>
+      )}
     </motion.div>
   )
 }
+

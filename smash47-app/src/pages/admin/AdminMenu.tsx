@@ -100,7 +100,9 @@ export function AdminMenu() {
       name: product.name, description: product.description || '', price: product.price.toString(),
       category_id: product.category_id, calories: product.calories?.toString() || '',
       is_most_liked: product.is_most_liked, is_vegetarian: product.is_vegetarian,
-      is_vegan: product.is_vegan, is_halal: product.is_halal, image_url: product.image_url || '',
+      is_vegan: product.is_vegan, is_halal: product.is_halal,
+      // If no image, use sentinel so Kein Bild checkbox is pre-checked
+      image_url: product.image_url ?? '__KEIN_BILD__',
     })
     setIsModalOpen(true)
   }
@@ -120,7 +122,8 @@ export function AdminMenu() {
         is_vegetarian: form.is_vegetarian,
         is_vegan: form.is_vegan,
         is_halal: form.is_halal,
-        image_url: form.image_url || null,
+        // __KEIN_BILD__ is our internal sentinel for "explicitly no image"
+        image_url: form.image_url === '__KEIN_BILD__' || !form.image_url ? null : form.image_url,
       }
 
       if (editProduct) {
@@ -316,47 +319,74 @@ export function AdminMenu() {
         size="lg"
       >
         <div className="p-5 space-y-4">
-          {/* Image upload placeholder */}
+          {/* Image upload section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Produktbild</label>
-            <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-[#142328] transition-colors cursor-pointer block relative">
-              <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleImageUpload} 
-                disabled={isUploadingImage}
-              />
-              {isUploadingImage ? (
-                <div className="py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#142328] mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-500">Wird hochgeladen...</p>
-                </div>
-              ) : form.image_url ? (
-                <div className="relative">
-                  <img src={form.image_url} alt="Preview" className="h-32 mx-auto rounded-lg object-cover" />
-                  <button 
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setForm({ ...form, image_url: '' }) }} 
-                    className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : (
-                <div className="py-4">
-                  <Upload size={24} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">Bild hochladen oder URL eingeben</p>
-                </div>
-              )}
-            </label>
-            <Input
-              placeholder="Bild-URL (optional)"
-              value={form.image_url}
-              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-              className="mt-2"
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-700">Produktbild</label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.image_url === '__KEIN_BILD__'}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setForm({ ...form, image_url: '__KEIN_BILD__' })
+                    } else {
+                      setForm({ ...form, image_url: '' })
+                    }
+                  }}
+                  className="w-4 h-4 accent-[#142328] rounded"
+                />
+                <span className="text-sm text-gray-500">Kein Bild (Text-only Karte)</span>
+              </label>
+            </div>
+
+            {form.image_url !== '__KEIN_BILD__' ? (
+              <>
+                <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-[#142328] transition-colors cursor-pointer block relative">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={isUploadingImage}
+                  />
+                  {isUploadingImage ? (
+                    <div className="py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#142328] mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-500">Wird hochgeladen...</p>
+                    </div>
+                  ) : form.image_url ? (
+                    <div className="relative">
+                      <img src={form.image_url} alt="Preview" className="h-32 mx-auto rounded-lg object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setForm({ ...form, image_url: '' }) }}
+                        className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="py-4">
+                      <Upload size={24} className="mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">Bild hochladen oder URL eingeben</p>
+                    </div>
+                  )}
+                </label>
+                <Input
+                  placeholder="Bild-URL (optional)"
+                  value={form.image_url}
+                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                  className="mt-2"
+                />
+              </>
+            ) : (
+              <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center bg-gray-50">
+                <p className="text-sm text-gray-400">Die Produktkarte wird ohne Bild angezeigt (volle Breite, nur Text).</p>
+              </div>
+            )}
           </div>
+
 
           <Input label="Produktname" placeholder="z.B. Smash Burger" required
             value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
