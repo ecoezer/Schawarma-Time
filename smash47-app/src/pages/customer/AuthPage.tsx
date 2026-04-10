@@ -16,7 +16,7 @@ export function AuthPage() {
 
   const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -34,8 +34,8 @@ export function AuthPage() {
       if (!formData.fullName) errs.fullName = 'Name ist erforderlich'
       if (!formData.phone) {
         errs.phone = 'Telefon ist erforderlich'
-      } else if (!formData.phone.startsWith('+49 01')) {
-        errs.phone = 'Nummer muss mit +49 01 beginnen'
+      } else if (!formData.phone.startsWith('+491')) {
+        errs.phone = 'Nummer muss mit +491 beginnen'
       } else if (formData.phone.length < 10) {
         errs.phone = 'Ungültige Nummer'
       }
@@ -56,14 +56,14 @@ export function AuthPage() {
           password: formData.password,
         })
         if (error) throw error
-        
+
         // Fetch profile
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single()
-        
+
         setSession(data as any)
         setUser(profile)
         toast.success('Willkommen zurück!')
@@ -80,7 +80,7 @@ export function AuthPage() {
           }
         })
         if (error) throw error
-        
+
         if (data.user) {
           // Check if session was created (if email confirm is disabled)
           if (data.session) {
@@ -136,8 +136,8 @@ export function AuthPage() {
             {isLogin ? 'Willkommen zurück' : 'Konto erstellen'}
           </h1>
           <p className="text-gray-500 mt-2">
-            {isLogin 
-              ? 'Melde dich an, um mit deiner Bestellung fortzufahren.' 
+            {isLogin
+              ? 'Melde dich an, um mit deiner Bestellung fortzufahren.'
               : 'Erstelle ein Konto für ein schnelleres Bestellerlebnis.'}
           </p>
         </div>
@@ -184,7 +184,7 @@ export function AuthPage() {
             error={errors.email}
             required
           />
-          
+
           <Input
             label="Passwort"
             type="password"
@@ -196,11 +196,11 @@ export function AuthPage() {
             required
           />
 
-          <Button 
-            type="submit" 
-            variant="primary" 
-            fullWidth 
-            size="lg" 
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            size="lg"
             isLoading={isLoading}
             className="mt-2"
           >
@@ -223,10 +223,10 @@ export function AuthPage() {
 
         {isLogin && (
           <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 gap-3">
-             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl text-green-700 text-xs">
-                <CheckCircle size={14} className="shrink-0" />
-                <p>Spare Zeit beim Checkout durch gespeicherte Adressen.</p>
-             </div>
+            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl text-green-700 text-xs">
+              <CheckCircle size={14} className="shrink-0" />
+              <p>Spare Zeit beim Checkout durch gespeicherte Adressen.</p>
+            </div>
           </div>
         )}
       </motion.div>

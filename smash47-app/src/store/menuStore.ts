@@ -25,7 +25,7 @@ export const useMenuStore = create<MenuStore>((set, get) => ({
     try {
       // Race: Supabase queries vs 5-second timeout
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Supabase timeout (5s) — using mock data')), 5000)
+        setTimeout(() => reject(new Error('Supabase timeout (1s) — using mock data')), 1000)
       )
 
       console.time('[Smash47] supabase queries')

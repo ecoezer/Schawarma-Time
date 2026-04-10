@@ -34,6 +34,41 @@ export const mockRestaurantSettings: RestaurantSettings = {
   revenue_goal_daily: 500,
 }
 
+export const mockCustomers = [
+  {
+    id: 'c1-abc',
+    full_name: 'Max Mustermann',
+    email: 'max@beispiel.de',
+    phone: '+49 172 1234567',
+    total_orders: 12,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'c2-def',
+    full_name: 'Anna Schmidt',
+    email: 'anna.s@beispiel.de',
+    phone: '+49 152 9876543',
+    total_orders: 5,
+    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'c3-ghi',
+    full_name: 'Tom Müller',
+    email: 'tom.mueller@web.de',
+    phone: '+49 160 5551234',
+    total_orders: 2,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'c4-jkl',
+    full_name: 'Lisa Weber',
+    email: 'lisa.w@googlemail.com',
+    phone: null,
+    total_orders: 8,
+    created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
+  }
+];
+
 // Sauce extra group shared across burgers/beilage
 const sauceGroup = {
   id: 'eg-sauce',
