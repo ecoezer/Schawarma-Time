@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, GripVertical, Star, Upload, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, GripVertical, Star, Upload, X, Scissors } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product } from '@/types'
 import { useMenuStore } from '@/store/menuStore'
@@ -10,6 +10,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { formatPrice } from '@/lib/utils'
+import { ImageCropModal } from '@/components/admin/ImageCropModal'
 import toast from 'react-hot-toast'
 
 export function AdminMenu() {
@@ -20,6 +21,8 @@ export function AdminMenu() {
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false)
+  const [tempImageForCrop, setTempImageForCrop] = useState('')
 
   useEffect(() => {
     fetchMenu()
@@ -47,41 +50,17 @@ export function AdminMenu() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+    // Create a local preview URL and open crop modal
+    const localUrl = URL.createObjectURL(file)
+    setTempImageForCrop(localUrl)
+    setIsCropModalOpen(true)
+  }
 
-    if (!cloudName || !uploadPreset) {
-      toast.error('Cloudinary konfigürasyonu eksik (.env kontrol edin)')
-      return
-    }
-
-    setIsUploadingImage(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('upload_preset', uploadPreset)
-
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) throw new Error('Resim yüklenemedi')
-
-      const data = await response.json()
-      const urlParts = data.secure_url.split('/upload/')
-      if (urlParts.length === 2) {
-        const optimizedUrl = `${urlParts[0]}/upload/f_auto,q_auto,w_800,h_800,c_fill/${urlParts[1]}`
-        setForm({ ...form, image_url: optimizedUrl })
-      } else {
-        setForm({ ...form, image_url: data.secure_url })
-      }
-      toast.success('Resim başarıyla yüklendi!')
-    } catch (error: any) {
-      toast.error(error.message || 'Resim yükleme hatası')
-    } finally {
-      setIsUploadingImage(false)
-    }
+  const handleCropConfirm = (croppedUrl: string) => {
+    setForm({ ...form, image_url: croppedUrl })
+    setIsCropModalOpen(false)
+    setTempImageForCrop('')
+    toast.success('Bild zugeschnitten und gespeichert!')
   }
 
   const openAddModal = () => {
@@ -284,6 +263,22 @@ export function AdminMenu() {
                         <Star size={16} fill={product.is_most_liked ? 'currentColor' : 'none'} />
                       </button>
 
+                      {/* Crop existing image */}
+                      {product.image_url && (
+                        <button
+                          onClick={() => {
+                            setTempImageForCrop(product.image_url!)
+                            setIsCropModalOpen(true)
+                            // Pre-fill form so crop result is saved to the right product
+                            openEditModal(product)
+                          }}
+                          className="p-1.5 text-gray-300 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Bild zuschneiden"
+                        >
+                          <Scissors size={16} />
+                        </button>
+                      )}
+
                       {/* Edit */}
                       <button
                         onClick={() => openEditModal(product)}
@@ -366,13 +361,26 @@ export function AdminMenu() {
                   ) : form.image_url ? (
                     <div className="relative">
                       <img src={form.image_url} alt="Preview" className="h-32 mx-auto rounded-lg object-cover" />
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); setForm({ ...form, image_url: '' }) }}
-                        className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow"
-                      >
-                        <X size={14} />
-                      </button>
+                      <div className="absolute top-1 right-1 flex gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setTempImageForCrop(form.image_url)
+                            setIsCropModalOpen(true)
+                          }}
+                          className="bg-white rounded-full px-2 py-0.5 shadow text-xs font-bold text-[#142328] hover:bg-gray-50 transition-colors flex items-center gap-1"
+                        >
+                          ✂️ Zuschneiden
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); setForm({ ...form, image_url: '' }) }}
+                          className="bg-white rounded-full p-0.5 shadow hover:bg-gray-50 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="py-4">
@@ -443,6 +451,14 @@ export function AdminMenu() {
           </div>
         </div>
       </Modal>
+
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        isOpen={isCropModalOpen}
+        imageUrl={tempImageForCrop}
+        onClose={() => { setIsCropModalOpen(false); setTempImageForCrop('') }}
+        onConfirm={handleCropConfirm}
+      />
     </div>
   )
 }

@@ -34,10 +34,6 @@ export function AuthPage() {
       if (!formData.fullName) errs.fullName = 'Name ist erforderlich'
       if (!formData.phone) {
         errs.phone = 'Telefon ist erforderlich'
-      } else if (!formData.phone.startsWith('+491')) {
-        errs.phone = 'Nummer muss mit +491 beginnen'
-      } else if (formData.phone.length < 10) {
-        errs.phone = 'Ungültige Nummer'
       }
     }
     setErrors(errs)

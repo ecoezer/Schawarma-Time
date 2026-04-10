@@ -89,10 +89,6 @@ export function CheckoutPage() {
     if (!form.name.trim()) errs.name = 'Name ist erforderlich'
     if (!form.phone.trim()) {
       errs.phone = 'Telefon ist erforderlich'
-    } else if (!form.phone.startsWith('+49 01')) {
-      errs.phone = 'Nummer muss mit +49 01 beginnen'
-    } else if (form.phone.length < 10) {
-      errs.phone = 'Ungültige Nummer'
     }
     if (!form.email.trim()) errs.email = 'E-Mail ist erforderlich'
     if (!form.street.trim()) errs.street = 'Straße ist erforderlich'
@@ -128,6 +124,28 @@ export function CheckoutPage() {
         toast.error('Dieser Gutschein ist abgelaufen')
         setDiscount(0)
         return
+      }
+
+      // Check max usage limit
+      if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
+        toast.error('Dieser Gutschein wurde bereits zu oft eingelöst')
+        setDiscount(0)
+        return
+      }
+
+      // Check first-order-only restriction
+      if (coupon.is_first_order_only && user) {
+        const { count } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .neq('status', 'cancelled')
+
+        if (count && count > 0) {
+          toast.error('Dieser Gutschein gilt nur für die erste Bestellung')
+          setDiscount(0)
+          return
+        }
       }
 
       if (subtotal < coupon.min_order_amount) {
@@ -196,6 +214,21 @@ export function CheckoutPage() {
         .insert([orderData])
 
       if (error) throw error
+
+      // Increment coupon used_count if a coupon was applied
+      if (couponCode && discount > 0) {
+        const { data: currentCoupon } = await supabase
+          .from('coupons')
+          .select('used_count')
+          .eq('code', couponCode.toUpperCase())
+          .single()
+        if (currentCoupon) {
+          await supabase
+            .from('coupons')
+            .update({ used_count: (currentCoupon.used_count || 0) + 1 })
+            .eq('code', couponCode.toUpperCase())
+        }
+      }
 
       clearCart()
       setStatus('success')
@@ -457,7 +490,7 @@ export function CheckoutPage() {
                 
                 <p className="text-[10px] text-center text-gray-400 font-medium leading-relaxed">
                   Mit der Bestellung stimmst du unseren{' '}
-                  <a href="/agb" className="underline hover:text-gray-600">AGB</a> ve{' '}
+                  <a href="/agb" className="underline hover:text-gray-600">AGB</a> und{' '}
                   <a href="/datenschutz" className="underline hover:text-gray-600">Datenschutzbestimmungen</a> zu.
                 </p>
               </div>

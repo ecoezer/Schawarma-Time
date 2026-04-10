@@ -7,7 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('[Smash47] FATAL: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in env variables!')
 }
 
-// Supabase bağlantısı — .env dosyasına gerçek değerleri ekle
+// Supabase-Verbindung — echte Werte in .env eintragen
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
