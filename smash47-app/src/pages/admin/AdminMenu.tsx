@@ -129,13 +129,17 @@ export function AdminMenu() {
       }
 
       if (editProduct) {
-        const { error } = await supabase
+        const { data: updatedRows, error } = await supabase
           .from('products')
           .update(productData)
           .eq('id', editProduct.id)
+          .select()
         if (error) throw error
-        // Local-only patch — avoids second Supabase write that could revert on RLS failure
-        patchProductLocally(editProduct.id, productData)
+        if (!updatedRows || updatedRows.length === 0) {
+          throw new Error('Keine Zeilen aktualisiert — Supabase RLS blockiert die Änderung. Prüfe die Richtlinien (Policies).')
+        }
+        // Use the server-confirmed data so image_url is guaranteed correct
+        patchProductLocally(editProduct.id, updatedRows[0])
         toast.success('Produkt aktualisiert!')
       } else {
         const { error } = await supabase
@@ -143,10 +147,10 @@ export function AdminMenu() {
           .insert([{ ...productData, is_active: true, position: products.length + 1 }])
         if (error) throw error
         toast.success('Produkt hinzugefügt!')
+        fetchMenu() // Only fetch for new products to get the generated ID
       }
 
       setIsModalOpen(false)
-      fetchMenu() // background sync
     } catch (err: any) {
       toast.error('Fehler beim Speichern: ' + err.message)
     } finally {
