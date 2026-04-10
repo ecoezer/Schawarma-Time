@@ -132,17 +132,22 @@ export function AdminMenu() {
           .update(productData)
           .eq('id', editProduct.id)
         if (error) throw error
+        // Optimistic update in store so image appears instantly without full refetch
+        updateProduct(editProduct.id, productData)
         toast.success('Produkt aktualisiert!')
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('products')
           .insert([{ ...productData, is_active: true, position: products.length + 1 }])
+          .select()
+          .single()
         if (error) throw error
         toast.success('Produkt hinzugefügt!')
       }
-      
-      await fetchMenu() // Refresh list
+
       setIsModalOpen(false)
+      // Refresh in background after close to sync any server-side changes
+      fetchMenu()
     } catch (err: any) {
       toast.error('Fehler beim Speichern: ' + err.message)
     } finally {

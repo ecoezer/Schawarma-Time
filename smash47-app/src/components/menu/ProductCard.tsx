@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import type { Product } from '@/types'
 import { formatPrice, cn } from '@/lib/utils'
@@ -10,7 +10,12 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onClick }: ProductCardProps) {
   const [imgError, setImgError] = useState(false)
-  
+
+  // Reset error state whenever the image URL changes (e.g. after admin uploads a new image)
+  useEffect(() => {
+    setImgError(false)
+  }, [product.image_url])
+
   // Detect if product is a drink or sauce to use object-contain (prevents cropping bottles/cups)
   const isDrink = product.name.toLowerCase().includes('drink') || product.name.toLowerCase().includes('getränk')
   
