@@ -177,10 +177,10 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
           {/* Main Content Area (Two Columns) */}
           <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden relative">
             {/* LEFT COLUMN: Image Segment */}
-            <div className="w-full h-[40vw] md:h-auto md:w-[42%] lg:w-[45%] flex-shrink-0 relative overflow-y-auto hidden-scrollbar bg-white md:bg-transparent p-0 md:pt-14 md:pl-2 md:pr-1 lg:pl-3 lg:pr-2">
+            <div className="w-full h-[56vw] min-h-[220px] max-h-[320px] md:h-auto md:w-[42%] lg:w-[45%] flex-shrink-0 relative overflow-y-auto hidden-scrollbar bg-white md:bg-transparent p-0 md:pt-14 md:pl-2 md:pr-1 lg:pl-3 lg:pr-2">
               <div 
                 ref={imageContainerRef}
-                className="w-full aspect-square md:sticky md:top-14 bg-[#f3f3f3] md:rounded-lg overflow-hidden flex items-center justify-center group"
+                className="w-full h-full md:aspect-square md:sticky md:top-14 bg-[#f3f3f3] md:rounded-lg overflow-hidden flex items-center justify-center group"
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
