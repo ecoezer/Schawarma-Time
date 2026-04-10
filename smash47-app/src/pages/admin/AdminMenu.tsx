@@ -18,7 +18,6 @@ export function AdminMenu() {
   const [activeCategory, setActiveCategory] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isCropModalOpen, setIsCropModalOpen] = useState(false)
@@ -92,7 +91,6 @@ export function AdminMenu() {
 
     try {
       const imageUrl = form.image_url === '__KEIN_BILD__' || !form.image_url ? null : form.image_url
-      console.log('[Smash47] Saving product, image_url:', imageUrl)
 
       const productData = {
         name: form.name,

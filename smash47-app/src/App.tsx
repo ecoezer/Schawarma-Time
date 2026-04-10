@@ -55,8 +55,6 @@ function App() {
     
     // Global Auth Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event, !!session)
-      
       if (session) {
         useAuthStore.getState().setSession(session as any)
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {

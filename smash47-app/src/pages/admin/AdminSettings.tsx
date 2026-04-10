@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Clock, Truck, Euro, Bell, Tag, Save, RefreshCw } from 'lucide-react'
+import { Clock, Truck, Euro, Bell, Save, RefreshCw } from 'lucide-react'
 import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import type { RestaurantSettings } from '@/types'
-import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 const DAYS = [
@@ -18,22 +17,11 @@ const DAYS = [
   { key: 'sunday', label: 'Sonntag' },
 ]
 
-interface Coupon {
-  id: string
-  code: string
-  discount_type: string
-  discount_value: number
-  is_active: boolean
-  used_count: number
-  max_uses: number | null
-}
-
 export function AdminSettings() {
   const { settings, fetchSettings, updateSettings } = useRestaurantStore()
   const [localSettings, setLocalSettings] = useState(settings)
   const [hours, setHours] = useState(settings?.hours || {})
   const [isSaving, setIsSaving] = useState(false)
-  const [coupons, setCoupons] = useState<Coupon[]>([])
 
   useEffect(() => {
     if (settings) {
@@ -41,15 +29,6 @@ export function AdminSettings() {
       setHours(settings.hours)
     }
   }, [settings])
-
-  useEffect(() => {
-    fetchCoupons()
-  }, [])
-
-  const fetchCoupons = async () => {
-    const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false })
-    if (data) setCoupons(data)
-  }
 
   const update = <K extends keyof RestaurantSettings>(key: K, value: RestaurantSettings[K]) => {
     setLocalSettings((prev) => prev ? ({ ...prev, [key]: value }) : prev)
@@ -72,15 +51,7 @@ export function AdminSettings() {
     }
   }
 
-  const toggleCoupon = async (coupon: Coupon) => {
-    const { error } = await supabase
-      .from('coupons')
-      .update({ is_active: !coupon.is_active })
-      .eq('id', coupon.id)
-    if (!error) {
-      setCoupons((prev) => prev.map((c) => c.id === coupon.id ? { ...c, is_active: !c.is_active } : c))
-    }
-  }
+
 
   if (!localSettings) {
     return (
@@ -205,31 +176,11 @@ export function AdminSettings() {
         </div>
       </div>
 
-      {/* Coupons - real data from DB */}
+      {/* Coupons — managed in Kampagnen */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Tag size={18} className="text-[#142328]" />
-          Gutscheincodes
-        </h2>
-        <div className="space-y-2">
-          {coupons.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">Keine Gutscheincodes vorhanden.</p>
-          ) : (
-            coupons.map((coupon) => (
-              <div key={coupon.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                <div>
-                  <p className="text-sm font-bold font-mono">{coupon.code}</p>
-                  <p className="text-xs text-gray-500">
-                    {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% Rabatt` : `€${coupon.discount_value.toFixed(2)} Rabatt`}
-                    {' · '}
-                    {coupon.used_count}/{coupon.max_uses ?? '∞'} verwendet
-                  </p>
-                </div>
-                <Toggle checked={coupon.is_active} onChange={() => toggleCoupon(coupon)} size="sm" />
-              </div>
-            ))
-          )}
-        </div>
+        <h2 className="font-bold text-gray-900 mb-2">Gutscheincodes</h2>
+        <p className="text-sm text-gray-500 mb-3">Gutscheincodes werden über die Kampagnen-Seite verwaltet.</p>
+        <a href="/admin/kampagnen" className="text-sm font-bold text-[#06c167] hover:underline">→ Zu Kampagnen</a>
       </div>
 
       {/* Save */}
