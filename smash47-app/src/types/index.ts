@@ -227,6 +227,22 @@ export interface HourlyOrders {
 }
 
 // =====================
+// CUSTOMER (Admin View)
+// =====================
+
+export interface Customer {
+  id: string
+  full_name: string
+  email: string
+  phone: string | null
+  role: UserRole
+  total_orders: number
+  loyalty_points: number
+  addresses: UserAddress[]
+  created_at: string
+}
+
+// =====================
 // NOTIFICATION
 // =====================
 

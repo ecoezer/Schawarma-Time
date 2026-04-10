@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { supabase } from '@/lib/supabase'
+import * as authService from '@/services/authService'
 import type { UserProfile, UserAddress } from '@/types'
 
 interface AuthStore {
@@ -41,11 +41,11 @@ export const useAuthStore = create<AuthStore>()(
 
       signOut: async () => {
         try {
-          await supabase.auth.signOut()
+          await authService.signOut()
         } catch (err) {
-          console.error('Supabase sign out error:', err)
+          console.error('Sign out error:', err)
         } finally {
-          // Always clear local state even if supabase call fails
+          // Always clear local state even if service call fails
           set({ 
             user: null, 
             session: null, 
@@ -67,7 +67,7 @@ export const useAuthStore = create<AuthStore>()(
           )
 
           const process = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
+            const session = await authService.getSession()
             
             if (!session) {
               set({ user: null, session: null, isAdmin: false, isLoading: false, isInitialized: true })
@@ -76,21 +76,14 @@ export const useAuthStore = create<AuthStore>()(
 
             set({ session: session as any })
 
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single()
+            const profile = await authService.fetchProfile(session.user.id)
 
-            if (error) {
-              console.error('Error fetching profile during refresh:', error)
+            if (profile) {
+              get().setUser(profile)
+            } else {
               // If profile fetch fails, we still have the session
               set({ isLoading: false, isInitialized: true })
               return
-            }
-
-            if (profile) {
-              get().setUser(profile as UserProfile)
             }
             
             set({ isInitialized: true, isLoading: false })
@@ -109,13 +102,7 @@ export const useAuthStore = create<AuthStore>()(
         if (!user) return
 
         try {
-          const { error } = await supabase
-            .from('profiles')
-            .update(updates)
-            .eq('id', user.id)
-
-          if (error) throw error
-
+          await authService.updateProfile(user.id, updates)
           set({ user: { ...user, ...updates } })
         } catch (err) {
           console.error('Update profile error:', err)

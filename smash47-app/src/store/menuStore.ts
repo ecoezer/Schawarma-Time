@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Category, Product } from '@/types'
-import { supabase } from '@/lib/supabase'
+import * as productService from '@/services/productService'
 
 interface MenuStore {
   categories: Category[]
@@ -22,33 +22,14 @@ export const useMenuStore = create<MenuStore>((set, get) => ({
   fetchMenu: async () => {
     set({ isLoading: true, error: null })
     try {
-      const [catResult, prodResult] = await Promise.all([
-        supabase
-          .from('categories')
-          .select('*')
-          .eq('is_active', true)
-          .order('position'),
-        supabase
-          .from('products')
-          .select('*')
-          .order('position')
+      const [categories, products] = await Promise.all([
+        productService.fetchCategories(),
+        productService.fetchProducts(),
       ])
-
-      if (catResult.error) throw catResult.error
-      if (prodResult.error) throw prodResult.error
-
-      set({
-        categories: (catResult.data || []) as Category[],
-        products: (prodResult.data || []) as Product[],
-        isLoading: false,
-        error: null,
-      })
+      set({ categories, products, isLoading: false, error: null })
     } catch (err: any) {
-      console.error('[Smash47] fetchMenu error:', err)
-      set({
-        isLoading: false,
-        error: err.message || 'Unbekannter Fehler',
-      })
+      console.error('[menuStore] fetchMenu error:', err)
+      set({ isLoading: false, error: err.message || 'Unbekannter Fehler' })
     }
   },
 
@@ -56,27 +37,21 @@ export const useMenuStore = create<MenuStore>((set, get) => ({
     const currentProds = get().products
     // Optimistic update
     set({
-      products: currentProds.map((p) => p.id === productId ? { ...p, ...updates } : p)
+      products: currentProds.map(p => p.id === productId ? { ...p, ...updates } : p)
     })
 
     try {
-      const { error } = await supabase
-        .from('products')
-        .update(updates)
-        .eq('id', productId)
-
-      if (error) throw error
+      await productService.updateProduct(productId, updates)
     } catch (err) {
-      // Revert if Supabase call fails
+      // Revert if service call fails
       set({ products: currentProds, error: (err as Error).message })
     }
   },
 
-  // Local-only patch — no Supabase call, no revert risk
-  // Use this when the Supabase write was already done separately (e.g. in handleSave)
+  // Local-only patch — no DB call, no revert risk
   patchProductLocally: (productId, updates) => {
     set({
-      products: get().products.map((p) => p.id === productId ? { ...p, ...updates } : p)
+      products: get().products.map(p => p.id === productId ? { ...p, ...updates } : p)
     })
   },
 }))

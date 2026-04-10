@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { supabase } from '@/lib/supabase'
+import * as authService from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 
@@ -47,46 +47,25 @@ export function AuthPage() {
     setIsLoading(true)
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        })
-        if (error) throw error
+        const data = await authService.signIn(formData.email, formData.password)
 
         // Fetch profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single()
+        const profile = await authService.fetchProfile(data.user.id)
 
         setSession(data as any)
         setUser(profile)
         toast.success('Willkommen zurück!')
         navigate(redirect)
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              full_name: formData.fullName,
-              phone: formData.phone,
-            }
-          }
+        const data = await authService.signUp(formData.email, formData.password, {
+          full_name: formData.fullName,
+          phone: formData.phone,
         })
-        if (error) throw error
 
         if (data.user) {
-          // Check if session was created (if email confirm is disabled)
           if (data.session) {
             setSession(data as any)
-            // Profile should be created by trigger, so fetch it
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .single()
+            const profile = await authService.fetchProfile(data.user.id)
             setUser(profile)
             toast.success('Konto erfolgreich erstellt!')
             navigate(redirect)

@@ -1,25 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Search, Mail, Phone, Calendar, ShoppingBag, User as UserIcon, X, MapPin, Clock, Euro } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import * as customerService from '@/services/customerService'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { formatPrice, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils'
+import { handleError } from '@/lib/errorHandler'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import type { Order } from '@/types'
-
-interface Customer {
-  id: string
-  full_name: string
-  email: string
-  phone: string | null
-  total_orders: number
-  loyalty_points: number
-  addresses: { id: string; label: string; street: string; city: string; postal_code: string }[]
-  created_at: string
-}
+import type { Order, Customer } from '@/types'
 
 export function AdminCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -31,23 +21,18 @@ export function AdminCustomers() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
 
   useEffect(() => {
-    fetchCustomers()
+    fetchCustomersData()
   }, [])
 
-  const fetchCustomers = async () => {
+  const fetchCustomersData = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const { data, error: sbError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (sbError) throw sbError
-      setCustomers(data || [])
-    } catch (err: any) {
-      console.error('Error fetching customers:', err)
-      setError(err.message || 'Unbekannter Fehler')
+      const data = await customerService.fetchCustomers()
+      setCustomers(data)
+    } catch (err) {
+      const msg = handleError(err, 'Kunden laden')
+      setError(msg)
     } finally {
       setIsLoading(false)
     }
@@ -57,17 +42,10 @@ export function AdminCustomers() {
     setSelectedCustomer(customer)
     setIsLoadingOrders(true)
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', customer.id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setCustomerOrders((data || []) as Order[])
+      const data = await customerService.fetchCustomerOrders(customer.id)
+      setCustomerOrders(data)
     } catch (err) {
-      console.error('Error fetching customer orders:', err)
+      handleError(err, 'Kundenbestellungen laden')
       setCustomerOrders([])
     } finally {
       setIsLoadingOrders(false)

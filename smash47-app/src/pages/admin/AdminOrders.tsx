@@ -4,87 +4,40 @@ import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume
 import type { Order, OrderStatus } from '@/types'
 import { formatPrice, getStatusColor, getStatusLabel, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
-import { supabase } from '@/lib/supabase'
+import { useOrderStore } from '@/store/orderStore'
+import * as orderService from '@/services/orderService'
+import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
 
 export function AdminOrders() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const orders = useOrderStore(state => state.orders)
+  const isLoading = useOrderStore(state => state.isLoading)
+  const { soundEnabled, setSoundEnabled, fetchOrders } = useOrderStore()
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [soundEnabled, setSoundEnabled] = useState(true)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
 
-  const fetchOrders = async () => {
-    setIsLoading(true)
-    setError(null)
-    const { data, error: sbError } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (sbError) {
-      console.error('Fetch orders error:', sbError)
-      setError(sbError.message)
-    } else if (data) {
-      setOrders(data as Order[])
-    }
-    setIsLoading(false)
-  }
-
-  // Fetch initial orders
   useEffect(() => {
     fetchOrders()
+  }, [])
 
-    // Realtime subscription
-    const channel = supabase
-      .channel('admin-orders')
-      .on(
-        'postgres_changes', 
-        { event: '*', schema: 'public', table: 'orders' }, 
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newOrder = payload.new as Order
-            setOrders(prev => [newOrder, ...prev])
-            if (soundEnabled) {
-              const audio = new Audio('/order-notification.mp3')
-              audio.play().catch(e => console.warn('Audio play failed:', e))
-            }
-            toast.success(`Neue Bestellung: ${newOrder.order_number}`)
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedOrder = payload.new as Order
-            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o))
-            if (selectedOrder?.id === updatedOrder.id) {
-              setSelectedOrder(updatedOrder)
-            }
-          } else if (payload.eventType === 'DELETE') {
-            setOrders(prev => prev.filter(o => o.id !== payload.old.id))
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
+  // Keep selectedOrder in sync with store updates
+  useEffect(() => {
+    if (selectedOrder) {
+      const updated = orders.find(o => o.id === selectedOrder.id)
+      if (updated && updated !== selectedOrder) setSelectedOrder(updated)
     }
-  }, [soundEnabled, selectedOrder?.id])
+  }, [orders])
 
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
   const updateStatus = async (orderId: string, status: OrderStatus) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', orderId)
-
-      if (error) throw error
-      
+      await orderService.updateOrderStatus(orderId, status)
       toast.success(`Status aktualisiert: ${getStatusLabel(status)}`)
-    } catch (err: any) {
-      toast.error('Fehler beim Aktualisieren: ' + err.message)
+    } catch (err) {
+      handleError(err, 'Status aktualisieren')
     }
   }
 

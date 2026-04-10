@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, ChevronRight, Clock, Map as MapIcon, CheckCircle, Package, Truck } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
-import { supabase } from '@/lib/supabase'
+import { useRestaurantStore } from '@/store/restaurantStore'
+import { useOrderStore } from '@/store/orderStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -18,9 +19,10 @@ export function ProfilePage() {
   const navigate = useNavigate()
   const { user, updateProfile, addAddress, deleteAddress, signOut } = useAuthStore()
   const { addItems } = useCartStore()
+  const { settings } = useRestaurantStore()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
+  const allOrders = useOrderStore(state => state.orders)
+  const orders = allOrders.filter(o => o.user_id === user?.id)
   
   // Profile Form
   const [profileForm, setProfileForm] = useState({
@@ -43,56 +45,8 @@ export function ProfilePage() {
   useEffect(() => {
     if (!user) {
       navigate('/login')
-      return
-    }
-    fetchOrders()
-
-    // Realtime subscription for user's orders
-    const channel = supabase
-      .channel(`user-orders-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setOrders(prev => [payload.new as Order, ...prev])
-          } else if (payload.eventType === 'UPDATE') {
-            setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new as Order : o))
-          } else if (payload.eventType === 'DELETE') {
-            setOrders(prev => prev.filter(o => o.id !== payload.old.id))
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
     }
   }, [user])
-
-  const fetchOrders = async () => {
-    if (!user) return
-    setIsLoadingOrders(true)
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      setOrders(data as Order[])
-    } catch (err) {
-      console.error('Fetch orders error:', err)
-    } finally {
-      setIsLoadingOrders(false)
-    }
-  }
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -129,7 +83,7 @@ export function ProfilePage() {
       image_url: null, // Since image_url isn't stored in OrderItem
       note: item.note,
     }))
-    addItems(cartItems)
+    addItems(cartItems, settings)
     toast.success('Produkte zum Warenkorb hinzugefügt!')
   }
 
@@ -291,9 +245,7 @@ export function ProfilePage() {
             >
               <h2 className="text-xl font-black mb-2 px-2">Deine Bestellungen</h2>
 
-              {isLoadingOrders ? (
-                <div className="py-20 text-center text-gray-400">Lädt...</div>
-              ) : orders.length === 0 ? (
+              {orders.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-gray-100">
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
                     <ShoppingBag size={32} />

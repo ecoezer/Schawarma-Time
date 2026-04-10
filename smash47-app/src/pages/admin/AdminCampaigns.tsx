@@ -7,23 +7,11 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { supabase } from '@/lib/supabase'
+import * as couponService from '@/services/couponService'
+import type { Coupon } from '@/types'
 import { formatPrice } from '@/lib/utils'
+import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
-
-interface Coupon {
-  id: string
-  code: string
-  discount_type: 'percentage' | 'fixed'
-  discount_value: number
-  min_order_amount: number
-  max_uses: number | null
-  used_count: number
-  is_first_order_only: boolean
-  is_active: boolean
-  expires_at: string | null
-  created_at: string
-}
 
 const emptyCouponForm = {
   code: '',
@@ -46,22 +34,16 @@ export function AdminCampaigns() {
   const [form, setForm] = useState(emptyCouponForm)
 
   useEffect(() => {
-    fetchCoupons()
+    fetchCouponsData()
   }, [])
 
-  const fetchCoupons = async () => {
+  const fetchCouponsData = async () => {
     setIsLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setCoupons(data || [])
-    } catch (err: any) {
-      console.error('Fetch coupons error:', err)
-      toast.error('Fehler beim Laden der Gutscheine')
+      const data = await couponService.fetchCoupons()
+      setCoupons(data)
+    } catch (err) {
+      handleError(err, 'Gutscheine laden')
     } finally {
       setIsLoading(false)
     }
@@ -112,20 +94,12 @@ export function AdminCampaigns() {
       }
 
       if (editCoupon) {
-        const { error } = await supabase
-          .from('coupons')
-          .update(couponData)
-          .eq('id', editCoupon.id)
-        if (error) throw error
+        await couponService.updateCoupon(editCoupon.id, couponData)
         setCoupons(prev => prev.map(c => c.id === editCoupon.id ? { ...c, ...couponData } : c))
         toast.success('Gutschein aktualisiert!')
       } else {
-        const { data, error } = await supabase
-          .from('coupons')
-          .insert([couponData])
-          .select()
-        if (error) throw error
-        if (data) setCoupons(prev => [data[0], ...prev])
+        const created = await couponService.createCoupon(couponData as any)
+        setCoupons(prev => [created, ...prev])
         toast.success('Gutschein erstellt!')
       }
 
@@ -134,7 +108,7 @@ export function AdminCampaigns() {
       if (err.message?.includes('duplicate') || err.code === '23505') {
         toast.error('Dieser Gutscheincode existiert bereits')
       } else {
-        toast.error('Fehler beim Speichern: ' + (err.message || 'Unbekannter Fehler'))
+        handleError(err, 'Gutschein speichern')
       }
     } finally {
       setIsSubmitting(false)
@@ -144,27 +118,21 @@ export function AdminCampaigns() {
   const toggleCoupon = async (coupon: Coupon) => {
     const newActive = !coupon.is_active
     setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, is_active: newActive } : c))
-    const { error } = await supabase
-      .from('coupons')
-      .update({ is_active: newActive })
-      .eq('id', coupon.id)
-    if (error) {
+    try {
+      await couponService.toggleCouponActive(coupon.id, newActive)
+    } catch (err) {
       setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, is_active: coupon.is_active } : c))
-      toast.error('Fehler beim Aktualisieren')
+      handleError(err, 'Gutschein aktualisieren')
     }
   }
 
-  const deleteCoupon = async (coupon: Coupon) => {
+  const deleteCouponItem = async (coupon: Coupon) => {
     try {
-      const { error } = await supabase
-        .from('coupons')
-        .delete()
-        .eq('id', coupon.id)
-      if (error) throw error
+      await couponService.deleteCoupon(coupon.id)
       setCoupons(prev => prev.filter(c => c.id !== coupon.id))
       toast.success('Gutschein gelöscht')
-    } catch (err: any) {
-      toast.error('Fehler beim Löschen: ' + err.message)
+    } catch (err) {
+      handleError(err, 'Gutschein löschen')
     }
     setDeleteTarget(null)
   }
@@ -417,7 +385,7 @@ export function AdminCampaigns() {
       <ConfirmModal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteCoupon(deleteTarget)}
+        onConfirm={() => deleteTarget && deleteCouponItem(deleteTarget)}
         title="Gutschein löschen?"
         message={`Möchtest du den Gutschein "${deleteTarget?.code}" wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.`}
         confirmText="Löschen"

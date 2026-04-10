@@ -1,8 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CartItem, CartExtra } from '@/types'
+import type { CartItem, CartExtra, RestaurantSettings } from '@/types'
 import { generateId, isRestaurantOpen } from '@/lib/utils'
-import { useRestaurantStore } from './restaurantStore'
 import toast from 'react-hot-toast'
 
 interface CartStore {
@@ -10,9 +9,9 @@ interface CartStore {
   isOpen: boolean
   globalNote: string
 
-  // Actions
-  addItem: (item: Omit<CartItem, 'id' | 'total'>) => boolean
-  addItems: (items: Omit<CartItem, 'id' | 'total'>[]) => boolean
+  // Actions — settings passed as parameter, no cross-store coupling
+  addItem: (item: Omit<CartItem, 'id' | 'total'>, settings?: RestaurantSettings | null) => boolean
+  addItems: (items: Omit<CartItem, 'id' | 'total'>[], settings?: RestaurantSettings | null) => boolean
   removeItem: (cartItemId: string) => void
   updateQuantity: (cartItemId: string, quantity: number) => void
   clearCart: () => void
@@ -32,6 +31,11 @@ const calculateItemTotal = (price: number, extras: CartExtra[], quantity: number
   return (price + extrasTotal) * quantity
 }
 
+function isStoreOpen(settings?: RestaurantSettings | null): boolean {
+  if (!settings) return true // If no settings loaded yet, allow
+  return isRestaurantOpen(settings.hours) && settings.is_delivery_active
+}
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
@@ -39,9 +43,8 @@ export const useCartStore = create<CartStore>()(
       isOpen: false,
       globalNote: '',
 
-      addItem: (item) => {
-        const settings = useRestaurantStore.getState().settings
-        if (settings && (!isRestaurantOpen(settings.hours) || !settings.is_delivery_active)) {
+      addItem: (item, settings) => {
+        if (!isStoreOpen(settings)) {
           toast.error('Wir haben aktuell geschlossen oder nehmen keine Bestellungen an.')
           return false
         }
@@ -55,9 +58,8 @@ export const useCartStore = create<CartStore>()(
         return true
       },
 
-      addItems: (newItems) => {
-        const settings = useRestaurantStore.getState().settings
-        if (settings && (!isRestaurantOpen(settings.hours) || !settings.is_delivery_active)) {
+      addItems: (newItems, settings) => {
+        if (!isStoreOpen(settings)) {
           toast.error('Wir haben aktuell geschlossen oder nehmen keine Bestellungen an.')
           return false
         }

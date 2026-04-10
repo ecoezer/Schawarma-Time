@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartSidebar } from '@/components/cart/CartSidebar'
 import { AdminLayout } from '@/components/admin/AdminLayout'
-import { supabase } from '@/lib/supabase'
+import * as authService from '@/services/authService'
 import { HomePage } from '@/pages/HomePage'
 import { CheckoutPage } from '@/pages/CheckoutPage'
 import { AuthPage } from '@/pages/customer/AuthPage'
@@ -22,6 +22,7 @@ import { AdminCustomers } from '@/pages/admin/AdminCustomers'
 import { AdminCampaigns } from '@/pages/admin/AdminCampaigns'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useAuthStore } from '@/store/authStore'
+import { useOrderStore } from '@/store/orderStore'
 
 // Customer layout with header, footer and cart sidebar
 function CustomerLayout() {
@@ -49,12 +50,14 @@ function AdminRoute() {
 function App() {
   const { fetchSettings } = useRestaurantStore()
   const { refreshUser } = useAuthStore()
+  const { fetchOrders, initRealtime } = useOrderStore()
 
   useEffect(() => {
     fetchSettings()
+    fetchOrders()
     
     // Global Auth Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const subscription = authService.onAuthStateChange(async (event, session) => {
       if (session) {
         useAuthStore.getState().setSession(session as any)
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
@@ -65,13 +68,17 @@ function App() {
       }
     })
 
-    // Initial check
+    // Centralized realtime for orders
+    const unsubOrders = initRealtime()
+
+    // Initial auth check
     refreshUser()
 
     return () => {
       subscription.unsubscribe()
+      unsubOrders()
     }
-  }, [fetchSettings, refreshUser])
+  }, [fetchSettings, refreshUser, fetchOrders, initRealtime])
 
   return (
     <BrowserRouter>

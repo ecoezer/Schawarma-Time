@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
-import { supabase } from '@/lib/supabase'
+import { useOrderStore } from '@/store/orderStore'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -28,35 +28,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
 
+  const user = useAuthStore(state => state.user)
   const { signOut } = useAuthStore()
 
   const handleLogout = async () => {
     await signOut()
     toast.success('Erfolgreich abgemeldet')
-    // Hard reload to clean up all stores and memory
     window.location.href = '/admin/login'
   }
 
-  const [pendingCount, setPendingCount] = useState(0)
-
-  useEffect(() => {
-    const fetchPendingCount = async () => {
-      const { count } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
-      if (count !== null) setPendingCount(count)
-    }
-    
-    fetchPendingCount()
-
-    // Realtime count
-    const channel = supabase.channel('pending-count')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPendingCount)
-      .subscribe()
-      
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+  // Use centralized orderStore for pending count
+  const pendingCount = useOrderStore(state => state.orders.filter(o => o.status === 'pending').length)
 
   const isActive = (path: string, exact?: boolean) => {
     if (exact) return location.pathname === path
@@ -162,21 +144,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#06c167] rounded-full" />
           </button>
           <div className="w-8 h-8 bg-[#142328] rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {useAuthStore.getState().user?.full_name?.charAt(0) || 'A'}
+            {user?.full_name?.charAt(0) || 'A'}
           </div>
         </header>
 
-        {/* Diagnostic Panel for Debugging */}
-        <div className="bg-blue-50 border-b border-blue-100 px-6 py-2 flex items-center justify-between text-[10px] text-blue-600 font-mono">
-          <div className="flex gap-4">
-            <span>UID: {useAuthStore.getState().user?.id?.slice(0, 8)}...</span>
-            <span className="font-bold bg-blue-100 px-1.5 py-0.5 rounded uppercase">Role: {useAuthStore.getState().user?.role}</span>
+        {/* Diagnostic Panel — only in development */}
+        {import.meta.env.DEV && (
+          <div className="bg-blue-50 border-b border-blue-100 px-6 py-2 flex items-center justify-between text-[10px] text-blue-600 font-mono">
+            <div className="flex gap-4">
+              <span>UID: {user?.id?.slice(0, 8)}...</span>
+              <span className="font-bold bg-blue-100 px-1.5 py-0.5 rounded uppercase">Role: {user?.role}</span>
+            </div>
+            <div className="flex gap-2">
+              <span>DB: {import.meta.env.VITE_SUPABASE_URL?.replace('https://', '').split('.')[0]}</span>
+              <span className={`w-2 h-2 rounded-full self-center ${user ? 'bg-green-500' : 'bg-red-400'}`}></span>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <span>DB: {import.meta.env.VITE_SUPABASE_URL?.replace('https://', '').split('.')[0]}</span>
-            <span className={`w-2 h-2 rounded-full self-center ${useAuthStore.getState().user ? 'bg-green-500' : 'bg-red-400'}`}></span>
-          </div>
-        </div>
+        )}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">

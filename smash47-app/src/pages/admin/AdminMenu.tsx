@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, GripVertical, Star, Upload, X, Scissors } from 'lu
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product } from '@/types'
 import { useMenuStore } from '@/store/menuStore'
-import { supabase } from '@/lib/supabase'
+import * as productService from '@/services/productService'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Toggle } from '@/components/ui/Toggle'
@@ -106,23 +106,12 @@ export function AdminMenu() {
       }
 
       if (editProduct) {
-        const { data: updatedRows, error } = await supabase
-          .from('products')
-          .update(productData)
-          .eq('id', editProduct.id)
-          .select()
-        if (error) throw error
-        if (!updatedRows || updatedRows.length === 0) {
-          throw new Error('Keine Zeilen aktualisiert — Supabase RLS blockiert die Änderung. Prüfe die Richtlinien (Policies).')
-        }
+        const updatedProduct = await productService.updateProduct(editProduct.id, productData)
         // Use the server-confirmed data so image_url is guaranteed correct
-        patchProductLocally(editProduct.id, updatedRows[0])
+        patchProductLocally(editProduct.id, updatedProduct)
         toast.success('Produkt aktualisiert!')
       } else {
-        const { error } = await supabase
-          .from('products')
-          .insert([{ ...productData, is_active: true, position: products.length + 1 }])
-        if (error) throw error
+        await productService.createProduct({ ...productData, is_active: true, position: products.length + 1 })
         toast.success('Produkt hinzugefügt!')
         fetchMenu() // Only fetch for new products to get the generated ID
       }
@@ -146,8 +135,7 @@ export function AdminMenu() {
   const deleteProduct = async (productId: string) => {
     if (confirm('Produkt wirklich löschen?')) {
       try {
-        const { error } = await supabase.from('products').delete().eq('id', productId)
-        if (error) throw error
+        await productService.deleteProduct(productId)
         toast.success('Produkt gelöscht')
         fetchMenu()
       } catch (err: any) {
@@ -349,14 +337,9 @@ export function AdminMenu() {
                     className="hidden"
                     accept="image/*"
                     onChange={handleImageUpload}
-                    disabled={isUploadingImage}
+                    disabled={false}
                   />
-                  {isUploadingImage ? (
-                    <div className="py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#142328] mx-auto mb-2"></div>
-                      <p className="text-sm text-gray-500">Wird hochgeladen...</p>
-                    </div>
-                  ) : form.image_url ? (
+                  {form.image_url ? (
                     <div className="relative">
                       <img src={form.image_url} alt="Preview" className="h-32 mx-auto rounded-lg object-cover" />
                       <div className="absolute top-1 right-1 flex gap-1">

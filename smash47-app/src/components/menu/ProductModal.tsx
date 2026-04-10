@@ -3,6 +3,7 @@ import { X, Share2, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product, CartExtra } from '@/types'
 import { useCartStore } from '@/store/cartStore'
+import { useRestaurantStore } from '@/store/restaurantStore'
 import { formatPrice, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -18,6 +19,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
   const [showStickyHeader, setShowStickyHeader] = useState(false)
   const [transformOrigin, setTransformOrigin] = useState('50% 50%')
   const { addItem } = useCartStore()
+  const { settings } = useRestaurantStore()
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const imageContainerRef = useRef<HTMLDivElement>(null)
@@ -118,7 +120,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       quantity,
       selected_extras: selectedExtras,
       note,
-    })
+    }, settings)
 
     if (success) {
       toast.success(`${product.name} wurde hinzugefügt!`)

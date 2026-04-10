@@ -3,66 +3,40 @@ import { TrendingUp, ShoppingBag, Users, Euro, Clock, AlertCircle, CheckCircle, 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from 'framer-motion'
 import { Toggle } from '@/components/ui/Toggle'
-import { supabase } from '@/lib/supabase'
+import { useOrderStore } from '@/store/orderStore'
+import * as orderService from '@/services/orderService'
+import * as customerService from '@/services/customerService'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
 import type { Order } from '@/types'
 
 export function AdminDashboard() {
   const { settings, toggleDelivery } = useRestaurantStore()
-  const [orders, setOrders] = useState<Order[]>([])
+  const allOrders = useOrderStore(state => state.orders)
   const [totalCustomers, setTotalCustomers] = useState(0)
   const [revenueData, setRevenueData] = useState<{ day: string; revenue: number }[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const DAY_LABELS: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' }
 
+  // Filter today's orders from the centralized store
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const orders = allOrders.filter(o => new Date(o.created_at) >= todayStart)
+
   useEffect(() => {
-    fetchDashboardData()
-
-    // Real-time for new orders
-    const channel = supabase
-      .channel('dashboard-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchDashboardData()
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    fetchDashboardExtras()
   }, [])
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardExtras = async () => {
     setIsLoading(true)
     try {
-      // Today's range
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-
-      // Fetch today's orders
-      const { data: todayOrders } = await supabase
-        .from('orders')
-        .select('*')
-        .gte('created_at', todayStart.toISOString())
-        .order('created_at', { ascending: false })
-
-      setOrders((todayOrders || []) as Order[])
-
       // Fetch total customer count
-      const { count } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-      setTotalCustomers(count || 0)
+      const count = await customerService.fetchTotalCustomerCount()
+      setTotalCustomers(count)
 
       // Fetch last 7 days orders for chart
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-      sevenDaysAgo.setHours(0, 0, 0, 0)
-
-      const { data: weekOrders } = await supabase
-        .from('orders')
-        .select('created_at, total, status')
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .neq('status', 'cancelled')
+      const weekOrders = await orderService.fetchWeekOrders()
 
       // Group by day
       const revenueMap: Record<string, number> = {}
@@ -72,7 +46,7 @@ export function AdminDashboard() {
         revenueMap[DAY_LABELS[d.getDay()]] = 0
       }
 
-      ;(weekOrders || []).forEach((o) => {
+      weekOrders.forEach((o) => {
         const day = DAY_LABELS[new Date(o.created_at).getDay()]
         if (day in revenueMap) {
           revenueMap[day] = (revenueMap[day] || 0) + (o.total || 0)

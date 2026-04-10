@@ -4,10 +4,14 @@ import { Lock, Eye, EyeOff } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import * as authService from '@/services/authService'
+import { useAuthStore } from '@/store/authStore'
+import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
 
 export function AdminLoginPage() {
   const navigate = useNavigate()
+  const { setUser, setSession } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -16,15 +20,25 @@ export function AdminLoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    await new Promise((r) => setTimeout(r, 1000))
-    // Demo login
-    if (email === 'admin@smash47.de' && password === 'smash47admin') {
+    try {
+      const data = await authService.signIn(email, password)
+      const profile = await authService.fetchProfile(data.user.id)
+
+      if (!profile || !['manager', 'cashier', 'kitchen'].includes(profile.role)) {
+        toast.error('Keine Admin-Berechtigung für dieses Konto')
+        await authService.signOut()
+        return
+      }
+
+      setSession(data as any)
+      setUser(profile)
       toast.success('Willkommen zurück!')
       navigate('/admin')
-    } else {
-      toast.error('Ungültige Anmeldedaten')
+    } catch (err) {
+      handleError(err, 'Anmeldung')
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   return (
@@ -71,12 +85,6 @@ export function AdminLoginPage() {
             Anmelden
           </Button>
         </form>
-
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
-          <p className="font-semibold mb-1">Demo-Zugangsdaten:</p>
-          <p>E-Mail: admin@smash47.de</p>
-          <p>Passwort: smash47admin</p>
-        </div>
       </motion.div>
     </div>
   )

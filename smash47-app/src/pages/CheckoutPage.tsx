@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useCartStore } from '@/store/cartStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useAuthStore } from '@/store/authStore'
-import { supabase } from '@/lib/supabase'
+import * as couponService from '@/services/couponService'
+import * as orderService from '@/services/orderService'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatPrice, isRestaurantOpen } from '@/lib/utils'
+import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
 import type { UserAddress } from '@/types'
 
@@ -107,64 +109,16 @@ export function CheckoutPage() {
     if (!couponCode) return
     setIsLoading(true)
     try {
-      const { data: coupon, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', couponCode.toUpperCase())
-        .eq('is_active', true)
-        .single()
-
-      if (error || !coupon) {
-        toast.error('Ungültiger Gutscheincode')
+      const result = await couponService.validateCoupon(couponCode, subtotal, user?.id)
+      if (!result.valid) {
+        toast.error(result.errorMessage || 'Ungültiger Gutscheincode')
         setDiscount(0)
         return
       }
-
-      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-        toast.error('Dieser Gutschein ist abgelaufen')
-        setDiscount(0)
-        return
-      }
-
-      // Check max usage limit
-      if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
-        toast.error('Dieser Gutschein wurde bereits zu oft eingelöst')
-        setDiscount(0)
-        return
-      }
-
-      // Check first-order-only restriction
-      if (coupon.is_first_order_only && user) {
-        const { count } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .neq('status', 'cancelled')
-
-        if (count && count > 0) {
-          toast.error('Dieser Gutschein gilt nur für die erste Bestellung')
-          setDiscount(0)
-          return
-        }
-      }
-
-      if (subtotal < coupon.min_order_amount) {
-        toast.error(`Mindestbestellwert für diesen Gutschein ist ${formatPrice(coupon.min_order_amount)}`)
-        setDiscount(0)
-        return
-      }
-
-      let amount = 0
-      if (coupon.discount_type === 'percentage') {
-        amount = (subtotal * coupon.discount_value) / 100
-      } else {
-        amount = coupon.discount_value
-      }
-
-      setDiscount(amount)
+      setDiscount(result.discount)
       toast.success('Gutschein angewendet!')
     } catch (err) {
-      toast.error('Fehler bei der Gutscheinprüfung')
+      handleError(err, 'Gutscheinprüfung')
     } finally {
       setIsLoading(false)
     }
@@ -182,7 +136,7 @@ export function CheckoutPage() {
     setIsLoading(true)
     
     try {
-      const orderData = {
+      await orderService.createOrder({
         order_number: orderNumber,
         user_id: user?.id,
         customer_name: form.name,
@@ -203,39 +157,16 @@ export function CheckoutPage() {
         discount_amount: discount,
         coupon_code: couponCode || null,
         total: total,
-        status: 'pending',
         payment_method: paymentMethod,
         estimated_delivery_time: settings?.estimated_delivery_time || 35,
         notes: form.note || null
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .insert([orderData])
-
-      if (error) throw error
-
-      // Increment coupon used_count if a coupon was applied
-      if (couponCode && discount > 0) {
-        const { data: currentCoupon } = await supabase
-          .from('coupons')
-          .select('used_count')
-          .eq('code', couponCode.toUpperCase())
-          .single()
-        if (currentCoupon) {
-          await supabase
-            .from('coupons')
-            .update({ used_count: (currentCoupon.used_count || 0) + 1 })
-            .eq('code', couponCode.toUpperCase())
-        }
-      }
+      })
 
       clearCart()
       setStatus('success')
       toast.success('Bestellung erfolgreich aufgegeben!')
-    } catch (err: any) {
-      console.error('Order submission error:', err)
-      toast.error('Fehler beim Aufgeben der Bestellung: ' + (err.message || 'Unbekannter Fehler'))
+    } catch (err) {
+      handleError(err, 'Bestellung aufgeben')
     } finally {
       setIsLoading(false)
     }
