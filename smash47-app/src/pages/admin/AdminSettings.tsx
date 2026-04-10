@@ -4,6 +4,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useRestaurantStore } from '@/store/restaurantStore'
+import type { RestaurantSettings } from '@/types'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -50,8 +51,8 @@ export function AdminSettings() {
     if (data) setCoupons(data)
   }
 
-  const update = <K extends keyof typeof localSettings>(key: K, value: any) => {
-    setLocalSettings((prev: any) => ({ ...prev, [key]: value }))
+  const update = <K extends keyof RestaurantSettings>(key: K, value: RestaurantSettings[K]) => {
+    setLocalSettings((prev) => prev ? ({ ...prev, [key]: value }) : prev)
   }
 
   const updateHours = (day: string, field: 'open' | 'close' | 'is_closed', value: string | boolean) => {
