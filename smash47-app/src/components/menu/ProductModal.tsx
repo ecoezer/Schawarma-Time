@@ -16,9 +16,11 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
   const [quantity, setQuantity] = useState(1)
   const [note, setNote] = useState('')
   const [showStickyHeader, setShowStickyHeader] = useState(false)
+  const [transformOrigin, setTransformOrigin] = useState('50% 50%')
   const { addItem } = useCartStore()
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const imageContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (product) {
@@ -31,6 +33,18 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       }
     }
   }, [product?.id])
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageContainerRef.current) return
+    const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect()
+    const x = ((e.clientX - left) / width) * 100
+    const y = ((e.clientY - top) / height) * 100
+    setTransformOrigin(`${x}% ${y}%`)
+  }
+
+  const handleMouseLeave = () => {
+    setTransformOrigin('50% 50%')
+  }
 
   // Close on ESC
   useEffect(() => {
@@ -163,14 +177,20 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
           {/* Main Content Area (Two Columns) */}
           <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden relative">
             {/* LEFT COLUMN: Image Segment */}
-            <div className="w-full h-[40vw] md:h-auto md:w-[42%] lg:w-[45%] flex-shrink-0 relative overflow-y-auto hidden-scrollbar bg-white md:bg-transparent p-0 md:pt-14 md:pl-6 md:pr-4 lg:pl-10 lg:pr-6">
-              <div className="w-full aspect-square md:sticky md:top-14 bg-[#f3f3f3] md:rounded-lg overflow-hidden flex items-center justify-center">
+            <div className="w-full h-[40vw] md:h-auto md:w-[42%] lg:w-[45%] flex-shrink-0 relative overflow-y-auto hidden-scrollbar bg-white md:bg-transparent p-0 md:pt-14 md:pl-2 md:pr-1 lg:pl-3 lg:pr-2">
+              <div 
+                ref={imageContainerRef}
+                className="w-full aspect-square md:sticky md:top-14 bg-[#f3f3f3] md:rounded-lg overflow-hidden flex items-center justify-center group"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+              >
                 {product.image_url ? (
                   <img
                     src={product.image_url}
                     alt={product.name}
+                    style={{ transformOrigin }}
                     className={cn(
-                      "w-full h-full",
+                      "w-full h-full transition-transform duration-[400ms] ease-out group-hover:scale-[1.75]",
                       isDrink ? "object-contain p-6" : "object-cover"
                     )}
                   />
@@ -192,7 +212,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
               <div className="flex-1 w-full flex flex-col pt-6 md:pt-14 pb-12">
                 
                 {/* Product Info Block */}
-                <div className="px-6 md:px-10 mb-8">
+                <div className="px-6 md:pl-3 md:pr-10 mb-8">
                   <h1 className="text-[32px] md:text-[40px] font-bold text-black tracking-tight leading-tight mb-2">
                     {product.name}
                   </h1>
@@ -217,7 +237,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                     return (
                       <li key={group.id} className="w-full">
                         {/* Section Title */}
-                        <div className="px-6 md:px-10 py-6 bg-white shrink-0 mt-2">
+                        <div className="px-6 md:pl-3 md:pr-10 py-6 bg-white shrink-0 mt-2">
                           <div className="text-[24px] md:text-[28px] font-bold text-black tracking-tight leading-tight">
                             {group.name}
                           </div>
@@ -231,7 +251,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                           {group.extras.map((extra) => {
                             const isSelected = isExtraSelected(extra.id)
                             return (
-                              <div key={extra.id} className="w-full px-6 md:px-10 flex flex-col group/item transition-colors hover:bg-[#f6f6f6] cursor-pointer" onClick={() => toggleExtra(extra, group)}>
+                              <div key={extra.id} className="w-full px-6 md:pl-3 md:pr-10 flex flex-col group/item transition-colors hover:bg-[#f6f6f6] cursor-pointer" onClick={() => toggleExtra(extra, group)}>
                                  <hr className="border-[#e8e8e8] border-t-1 m-0" />
                                  <div className="w-full flex items-center justify-between py-5">
                                    {/* Label Info */}
@@ -274,7 +294,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                             )
                           })}
                           {/* Final hr to close the list visually */}
-                          <div className="px-6 md:px-10"><hr className="border-[#e8e8e8] border-t-1 m-0" /></div>
+                          <div className="px-6 md:pl-3 md:pr-10"><hr className="border-[#e8e8e8] border-t-1 m-0" /></div>
                         </div>
                       </li>
                     )
@@ -282,7 +302,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                 </ul>
 
                 {/* Special Instructions (Besondere Anweisungen) */}
-                <div className="px-6 md:px-10 pt-10 pb-6 w-full flex flex-col">
+                <div className="px-6 md:pl-3 md:pr-10 pt-10 pb-6 w-full flex flex-col">
                   <div className="text-[20px] font-bold text-black mb-4">Besondere Anweisungen</div>
                   <div className="w-full border border-[#cfcfcf] rounded-xl bg-white overflow-hidden focus-within:border-black focus-within:ring-1 focus-within:ring-black outline-none transition-all">
                     <textarea
