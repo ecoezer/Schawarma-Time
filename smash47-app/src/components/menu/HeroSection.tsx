@@ -119,31 +119,60 @@ export function HeroSection({ settings }: HeroSectionProps) {
             </div>
 
             {/* Fee & Time Widget */}
-            <div className="flex border border-gray-200 rounded-xl shadow-sm w-full">
+            <div className="flex border border-gray-200 rounded-xl shadow-sm w-full overflow-hidden">
               {/* Left cell — fee */}
               <div
                 className="flex-1 border-r border-gray-200 px-4 py-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setShowFeesModal(true)}
               >
-                <p className="font-bold text-[15px] text-black">
-                  {isAbholung ? '0,00 €' : (settings.delivery_fee === 0 ? '0,00 €' : `${settings.delivery_fee.toFixed(2).replace('.', ',')} €`)}
-                </p>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={isAbholung ? 'fee-abholung' : 'fee-lieferung'}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="font-bold text-[15px] text-black"
+                  >
+                    {isAbholung ? '0,00 €' : (settings.delivery_fee === 0 ? '0,00 €' : `${settings.delivery_fee.toFixed(2).replace('.', ',')} €`)}
+                  </motion.p>
+                </AnimatePresence>
                 <p className="text-[13px] text-[#8a8a8a] flex items-center gap-1 mt-0.5 whitespace-nowrap">
                   Sonstige Gebühren <Info size={13} className="text-gray-400" />
                 </p>
               </div>
-              {/* Right cell — time. Render both labels, hide inactive one so box never resizes */}
+              {/* Right cell — time */}
               <div className="flex-1 px-4 py-4 flex flex-col items-center justify-center text-center">
-                <p className="font-bold text-[15px] text-black">
-                  {isAbholung ? '5 Min.' : `${settings.estimated_delivery_time} Min.`}
-                </p>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={isAbholung ? 'time-abholung' : 'time-lieferung'}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="font-bold text-[15px] text-black"
+                  >
+                    {isAbholung ? '5 Min.' : `${settings.estimated_delivery_time} Min.`}
+                  </motion.p>
+                </AnimatePresence>
+                {/* Render both labels, invisible trick keeps box size stable */}
                 <div className="relative mt-0.5">
                   <p className={`text-[13px] text-[#8a8a8a] whitespace-nowrap ${isAbholung ? 'invisible' : ''}`}>
                     Früheste Ankunftszeit
                   </p>
-                  <p className={`text-[13px] text-[#8a8a8a] whitespace-nowrap absolute inset-0 flex items-center justify-center ${isAbholung ? '' : 'invisible'}`}>
-                    Abholzeit
-                  </p>
+                  <AnimatePresence>
+                    {isAbholung && (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="text-[13px] text-[#8a8a8a] whitespace-nowrap absolute inset-0 flex items-center justify-center"
+                      >
+                        Abholzeit
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
