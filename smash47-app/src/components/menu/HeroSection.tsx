@@ -119,7 +119,7 @@ export function HeroSection({ settings }: HeroSectionProps) {
             </div>
 
             {/* Fee & Time Widget */}
-            <div className="flex items-stretch border border-gray-200 rounded-xl shadow-sm w-full min-h-[80px]">
+            <div className="flex items-stretch border border-gray-200 rounded-xl shadow-sm w-full h-[80px]">
               <div
                 className="flex-1 border-r border-gray-200 px-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setShowFeesModal(true)}
