@@ -25,6 +25,8 @@ export function AuthPage() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showResend, setShowResend] = useState(false)
+  const [isResending, setIsResending] = useState(false)
 
   const validate = () => {
     const errs: Record<string, string> = {}
@@ -40,7 +42,24 @@ export function AuthPage() {
     return Object.keys(errs).length === 0
   }
 
+  const handleResendConfirmation = async () => {
+    setIsResending(true)
+    try {
+      const { error } = await import('@/lib/supabase').then(m =>
+        m.supabase.auth.resend({ type: 'signup', email: formData.email })
+      )
+      if (error) throw error
+      toast.success('Bestätigungs-E-Mail wurde erneut gesendet. Bitte prüfe dein Postfach.', { duration: 6000 })
+      setShowResend(false)
+    } catch {
+      toast.error('E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.')
+    } finally {
+      setIsResending(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
+    setShowResend(false)
     e.preventDefault()
     if (!validate()) return
 
@@ -79,6 +98,10 @@ export function AuthPage() {
         }
       }
     } catch (err: any) {
+      if (err.code === 'email_not_confirmed' || err.message?.toLowerCase().includes('email not confirmed')) {
+        setShowResend(true)
+        return
+      }
       let message = 'Ein Fehler ist aufgetreten'
       if (err.message === 'Failed to fetch') {
         message = 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.'
@@ -181,6 +204,21 @@ export function AuthPage() {
             {isLogin ? 'Anmelden' : 'Registrieren'}
             {!isLoading && <ArrowRight size={18} className="ml-2" />}
           </Button>
+
+          {showResend && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
+              <p className="font-semibold mb-1">E-Mail nicht bestätigt</p>
+              <p className="mb-3">Bitte bestätige zuerst deine E-Mail-Adresse. Keine E-Mail erhalten?</p>
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={isResending}
+                className="font-bold underline hover:text-yellow-900 disabled:opacity-50"
+              >
+                {isResending ? 'Wird gesendet...' : 'Bestätigungs-E-Mail erneut senden'}
+              </button>
+            </div>
+          )}
         </form>
 
         <div className="mt-8 text-center text-sm">
