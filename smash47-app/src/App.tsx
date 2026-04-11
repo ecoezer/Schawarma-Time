@@ -70,7 +70,8 @@ function App() {
           await refreshUser()
         }
       } else if (event === 'SIGNED_OUT') {
-        useAuthStore.getState().signOut()
+        useAuthStore.setState({ user: null, session: null, isAdmin: false, isLoading: false, isInitialized: true })
+        localStorage.removeItem('smash47-auth')
       }
     })
 
