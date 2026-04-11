@@ -1,0 +1,200 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
+const FROM_EMAIL = 'Smash47 <bestellung@smash47.de>'
+
+interface OrderRecord {
+  id: string
+  order_number: string
+  customer_name: string
+  customer_email: string
+  customer_phone: string
+  delivery_address: string
+  items: {
+    product_name: string
+    quantity: number
+    unit_price: number
+    subtotal: number
+  }[]
+  subtotal: number
+  delivery_fee: number
+  discount_amount: number
+  coupon_code: string | null
+  total: number
+  payment_method: string
+  estimated_delivery_time: number
+  notes: string | null
+  created_at: string
+}
+
+function formatPrice(amount: number): string {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount)
+}
+
+function formatPayment(method: string): string {
+  return method === 'cash' ? 'Barzahlung bei Lieferung' : 'Kartenzahlung bei Lieferung'
+}
+
+function buildEmailHtml(order: OrderRecord): string {
+  const itemsHtml = order.items.map(item => `
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="font-weight:600;">${item.quantity}× ${item.product_name}</span>
+      </td>
+      <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;">
+        ${formatPrice(item.subtotal)}
+      </td>
+    </tr>
+  `).join('')
+
+  return `
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f6f6f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f6;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+        <!-- Header -->
+        <tr><td style="background:#142328;border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+          <div style="width:56px;height:56px;background:white;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+            <span style="font-weight:900;font-size:18px;color:#142328;">S47</span>
+          </div>
+          <h1 style="margin:0;color:white;font-size:24px;font-weight:900;">Bestellung bestätigt! 🎉</h1>
+          <p style="margin:8px 0 0;color:rgba(255,255,255,0.7);font-size:15px;">Deine Bestellung wird sofort zubereitet.</p>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="background:white;padding:32px;">
+
+          <p style="margin:0 0 24px;font-size:16px;color:#333;">
+            Hallo <strong>${order.customer_name}</strong>,<br>
+            vielen Dank für deine Bestellung bei <strong>Smash47</strong>!
+          </p>
+
+          <!-- Order Number -->
+          <div style="background:#f6f6f6;border-radius:12px;padding:16px;text-align:center;margin-bottom:24px;">
+            <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Bestellnummer</p>
+            <p style="margin:0;font-size:22px;font-weight:900;color:#142328;">${order.order_number}</p>
+          </div>
+
+          <!-- Items -->
+          <h2 style="font-size:16px;font-weight:700;color:#142328;margin:0 0 12px;">Deine Bestellung</h2>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+            ${itemsHtml}
+          </table>
+
+          <!-- Price breakdown -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr>
+              <td style="padding:4px 0;color:#666;font-size:14px;">Zwischensumme</td>
+              <td style="padding:4px 0;color:#666;font-size:14px;text-align:right;">${formatPrice(order.subtotal)}</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 0;color:#666;font-size:14px;">Liefergebühr</td>
+              <td style="padding:4px 0;color:#666;font-size:14px;text-align:right;">${formatPrice(order.delivery_fee)}</td>
+            </tr>
+            ${order.discount_amount > 0 ? `
+            <tr>
+              <td style="padding:4px 0;color:#06c167;font-size:14px;font-weight:600;">Rabatt${order.coupon_code ? ` (${order.coupon_code})` : ''}</td>
+              <td style="padding:4px 0;color:#06c167;font-size:14px;font-weight:600;text-align:right;">-${formatPrice(order.discount_amount)}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding:12px 0 0;font-size:18px;font-weight:900;color:#142328;border-top:2px solid #f0f0f0;">Gesamt</td>
+              <td style="padding:12px 0 0;font-size:18px;font-weight:900;color:#142328;text-align:right;border-top:2px solid #f0f0f0;">${formatPrice(order.total)}</td>
+            </tr>
+          </table>
+
+          <!-- Delivery info -->
+          <div style="background:#f6f6f6;border-radius:12px;padding:20px;margin-bottom:24px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:4px 0;">
+                  <span style="font-size:13px;color:#888;">📍 Lieferadresse</span><br>
+                  <span style="font-size:14px;font-weight:600;color:#333;">${order.delivery_address}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0 4px;">
+                  <span style="font-size:13px;color:#888;">🕐 Geschätzte Lieferzeit</span><br>
+                  <span style="font-size:14px;font-weight:600;color:#333;">${order.estimated_delivery_time}–${order.estimated_delivery_time + 10} Minuten</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;">
+                  <span style="font-size:13px;color:#888;">💳 Zahlung</span><br>
+                  <span style="font-size:14px;font-weight:600;color:#333;">${formatPayment(order.payment_method)}</span>
+                </td>
+              </tr>
+              ${order.notes ? `
+              <tr>
+                <td style="padding:8px 0 4px;">
+                  <span style="font-size:13px;color:#888;">📝 Anmerkungen</span><br>
+                  <span style="font-size:14px;font-weight:600;color:#333;">${order.notes}</span>
+                </td>
+              </tr>` : ''}
+            </table>
+          </div>
+
+          <p style="margin:0;font-size:14px;color:#888;text-align:center;">
+            Bei Fragen erreichst du uns unter<br>
+            <a href="tel:051213030551" style="color:#142328;font-weight:700;">05121 3030551</a>
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#f0f0f0;border-radius:0 0 16px 16px;padding:20px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#999;">
+            Smash47 · Bahnhofsallee 14a · 31134 Hildesheim<br>
+            <a href="https://smash47.netlify.app" style="color:#142328;">smash47.netlify.app</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+  `
+}
+
+serve(async (req) => {
+  try {
+    const payload = await req.json()
+
+    // Supabase DB webhook sends { type, table, record, ... }
+    const order: OrderRecord = payload.record
+
+    if (!order?.customer_email) {
+      return new Response('No email', { status: 400 })
+    }
+
+    const html = buildEmailHtml(order)
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [order.customer_email],
+        subject: `✅ Bestellung ${order.order_number} bestätigt – Smash47`,
+        html,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      console.error('Resend error:', err)
+      return new Response('Email failed', { status: 500 })
+    }
+
+    return new Response('OK', { status: 200 })
+  } catch (err) {
+    console.error('Edge function error:', err)
+    return new Response('Internal error', { status: 500 })
+  }
+})
