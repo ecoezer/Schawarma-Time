@@ -64,7 +64,16 @@ export const useAuthStore = create<AuthStore>()(
 
               set({ session })
 
-              const profile = await authService.fetchProfile(session.user.id)
+              let profile = await authService.fetchProfile(session.user.id)
+
+              // Sync phone from auth metadata if profile is missing it
+              if (profile && !profile.phone) {
+                const metaPhone = session.user.user_metadata?.phone
+                if (metaPhone) {
+                  await authService.updateProfile(session.user.id, { phone: metaPhone })
+                  profile = { ...profile, phone: metaPhone }
+                }
+              }
 
               if (profile) {
                 get().setUser(profile)

@@ -29,6 +29,11 @@ export async function getSession() {
   return session
 }
 
+export async function changePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
 export async function fetchProfile(userId: string): Promise<UserProfile | null> {

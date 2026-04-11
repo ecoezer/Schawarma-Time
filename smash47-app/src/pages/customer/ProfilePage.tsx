@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, ChevronRight, Clock, Map as MapIcon, CheckCircle, Package, Truck } from 'lucide-react'
+import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, Lock, Eye, EyeOff, Package, Truck } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import * as authService from '@/services/authService'
 import { useCartStore } from '@/store/cartStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useOrderStore } from '@/store/orderStore'
@@ -30,6 +31,11 @@ export function ProfilePage() {
     phone: user?.phone || '',
   })
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
+
+  // Password Form
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' })
+  const [showPasswords, setShowPasswords] = useState({ new: false, confirm: false })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   // Address Form
   const [showAddressModal, setShowAddressModal] = useState(false)
@@ -70,6 +76,28 @@ export function ProfilePage() {
       toast.success('Adresse hinzugefügt!')
     } catch (err) {
       toast.error('Fehler beim Hinzufügen der Adresse')
+    }
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Passwörter stimmen nicht überein')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      toast.error('Passwort muss mindestens 6 Zeichen lang sein')
+      return
+    }
+    setIsChangingPassword(true)
+    try {
+      await authService.changePassword(passwordForm.newPassword)
+      toast.success('Passwort erfolgreich geändert!')
+      setPasswordForm({ newPassword: '', confirmPassword: '' })
+    } catch (err: any) {
+      toast.error(err.message || 'Fehler beim Ändern des Passworts')
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -176,6 +204,47 @@ export function ProfilePage() {
                   </Button>
                 </div>
               </form>
+
+              {/* Password Change */}
+              <div className="mt-8 pt-8 border-t border-gray-100">
+                <h2 className="text-xl font-black mb-6 flex items-center gap-2">
+                  <Lock size={20} />
+                  Passwort ändern
+                </h2>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Neues Passwort"
+                      type={showPasswords.new ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      rightIcon={
+                        <button type="button" onClick={() => setShowPasswords(p => ({ ...p, new: !p.new }))}>
+                          {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      }
+                    />
+                    <Input
+                      label="Passwort bestätigen"
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      rightIcon={
+                        <button type="button" onClick={() => setShowPasswords(p => ({ ...p, confirm: !p.confirm }))}>
+                          {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      }
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <Button type="submit" variant="secondary" isLoading={isChangingPassword} className="min-w-[200px]">
+                      Passwort ändern
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </motion.div>
           )}
 
