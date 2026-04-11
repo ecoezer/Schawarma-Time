@@ -43,21 +43,21 @@ export function HeroSection({ settings }: HeroSectionProps) {
 
         {/* Info Grid */}
         <div className="flex flex-col lg:flex-row justify-between items-start mt-6">
-          
+
           {/* Left: Text Content */}
-          <div className="flex-1 pr-4">
+          <div className="flex-1 pr-4 text-center lg:text-left">
             <h1 className="text-[36px] font-bold text-black tracking-tight mb-2 leading-none">
               {settings.name}
             </h1>
-            
+
             {/* Meta tags line */}
-            <div className="flex flex-wrap items-center gap-1.5 text-[15px] font-medium text-gray-800 mb-2.5">
+            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-1.5 text-[15px] font-medium text-gray-800 mb-2.5">
               <span>{settings.delivery_fee === 0 ? 'Kostenlos' : `${settings.delivery_fee.toFixed(2).replace('.', ',')} €`} Liefergebühr</span>
               {(settings.tags?.length ? settings.tags : ['Food', 'Burger', 'Street Food']).map((tag) => (
-                <>
+                <span key={tag} className="flex items-center gap-1.5">
                   <span className="text-gray-400 font-normal">•</span>
-                  <span key={tag}>{tag}</span>
-                </>
+                  <span>{tag}</span>
+                </span>
               ))}
               <span className="text-gray-400 font-normal">•</span>
               <button
@@ -76,18 +76,12 @@ export function HeroSection({ settings }: HeroSectionProps) {
               {settings.description && (
                 <p className="text-[14px] text-[#545454]">{settings.description}</p>
               )}
-              <p
-                className="text-[14px] text-[#545454] cursor-pointer hover:underline decoration-1"
-                onClick={() => setShowInfoModal(true)}
-              >
-                Tippe, um Öffnungszeiten, Impressum und mehr anzuzeigen.
-              </p>
               <p className="text-[14px] text-[#545454]">
                 {settings.address}
               </p>
             </div>
-            
-            {/* If there's an announcement */}
+
+            {/* Announcement */}
             {settings.is_announcement_active && settings.announcement && (
               <div className="mt-4 bg-gray-100 rounded-lg p-3 text-sm font-medium text-gray-800 inline-block">
                 {settings.announcement}
