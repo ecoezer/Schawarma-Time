@@ -79,8 +79,9 @@ export function AuthPage() {
 
         setSession(data.session)
         setUser(profile)
-        toast.success('Willkommen zurück!')
-        navigate(redirect)
+        const isAdmin = ['manager', 'cashier', 'kitchen'].includes(profile?.role ?? '')
+        toast.success(`Willkommen zurück, ${profile?.full_name?.split(' ')[0] || 'Gast'}! 👋`)
+        navigate(isAdmin ? '/admin' : redirect, { replace: true })
       } else {
         const data = await authService.signUp(formData.email, formData.password, {
           full_name: formData.fullName,
