@@ -132,7 +132,7 @@ export function CheckoutPage() {
     try {
       await orderService.createOrder({
         order_number: orderNumber,
-        user_id: user?.id,
+        // user_id omitted — DB trigger enforces auth.uid()
         customer_name: form.name,
         customer_phone: form.phone,
         customer_email: form.email,

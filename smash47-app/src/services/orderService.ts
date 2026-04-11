@@ -7,7 +7,7 @@ import { toArray } from '@/lib/utils'
 
 export interface CreateOrderInput {
   order_number: string
-  user_id: string | undefined
+  user_id?: string | undefined  // ignored — DB trigger enforces auth.uid()
   customer_name: string
   customer_phone: string
   customer_email: string
