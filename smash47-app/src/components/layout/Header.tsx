@@ -56,7 +56,7 @@ export function Header() {
             </span>
           </button>
           
-          <div className="min-w-[140px] flex justify-end">
+          <div className="sm:min-w-[140px] flex justify-end">
             {!isInitialized || isLoading ? (
               <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-full" />
             ) : user ? (
