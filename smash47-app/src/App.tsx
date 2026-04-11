@@ -66,7 +66,7 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         useAuthStore.getState().setSession(session)
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'EMAIL_CONFIRMED') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           await refreshUser()
         }
       } else if (event === 'SIGNED_OUT') {
