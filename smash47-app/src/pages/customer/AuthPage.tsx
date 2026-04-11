@@ -12,7 +12,13 @@ export function AuthPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
-  const { setUser, setSession } = useAuthStore()
+  const { setUser, setSession, user, isInitialized } = useAuthStore()
+
+  if (isInitialized && user) {
+    toast('Du bist bereits angemeldet!', { icon: 'ℹ️' })
+    navigate('/', { replace: true })
+    return null
+  }
 
   const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
