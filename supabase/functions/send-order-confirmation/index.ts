@@ -211,13 +211,16 @@ serve(async (req) => {
     // Only accept requests from Supabase webhooks via the shared secret.
     // Set WEBHOOK_SECRET in Supabase Edge Function secrets and add the same
     // value as x-webhook-secret header in the Supabase Webhook config.
+    // Fail CLOSED: if the secret is not configured, refuse ALL requests.
     const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET')
-    if (WEBHOOK_SECRET) {
-      const incomingSecret = req.headers.get('x-webhook-secret') ?? ''
-      if (incomingSecret !== WEBHOOK_SECRET) {
-        console.error('Unauthorized webhook call — invalid secret')
-        return new Response('Unauthorized', { status: 401 })
-      }
+    if (!WEBHOOK_SECRET) {
+      console.error('WEBHOOK_SECRET is not configured — refusing all requests')
+      return new Response('Misconfigured', { status: 401 })
+    }
+    const incomingSecret = req.headers.get('x-webhook-secret') ?? ''
+    if (incomingSecret !== WEBHOOK_SECRET) {
+      console.error('Unauthorized webhook call — invalid secret')
+      return new Response('Unauthorized', { status: 401 })
     }
 
     const payload = await req.json()
@@ -266,8 +269,8 @@ serve(async (req) => {
 
     if (!res.ok) {
       const err = await res.text()
-      console.error('Resend error:', err)
-      return new Response(`Email failed: ${err}`, { status: 500 })
+      console.error('Resend error:', err)  // logged server-side only — not exposed to caller
+      return new Response('Email delivery failed', { status: 500 })
     }
 
     return new Response('OK', { status: 200 })

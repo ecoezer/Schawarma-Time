@@ -371,9 +371,15 @@ export function AdminMenu() {
                   )}
                 </label>
                 <Input
-                  placeholder="Bild-URL (optional)"
+                  placeholder="Bild-URL (optional, nur https://res.cloudinary.com/...)"
                   value={form.image_url}
-                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                  onChange={(e) => {
+                    const url = e.target.value.trim()
+                    // Only allow empty or valid Cloudinary HTTPS URLs
+                    if (url === '' || url.startsWith('https://res.cloudinary.com/')) {
+                      setForm({ ...form, image_url: url })
+                    }
+                  }}
                   className="mt-2"
                 />
               </>

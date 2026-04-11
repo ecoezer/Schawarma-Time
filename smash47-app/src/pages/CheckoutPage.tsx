@@ -182,7 +182,25 @@ export function CheckoutPage() {
       setStatus('pending_confirmation')
       toast.success('Bestellung eingegangen! Wir bestätigen gleich.')
     } catch (err) {
-      handleError(err, 'Bestellung aufgeben')
+      // Surface friendly coupon-specific message for phone-hash rejection
+      const msg = err instanceof Error ? err.message
+        : typeof err === 'object' && err !== null && 'message' in err
+          ? (err as { message: string }).message
+          : 'Unbekannter Fehler'
+
+      if (msg.includes('phone number') || msg.includes('first order')) {
+        toast.error('Dieser Gutschein wurde bereits von dieser Telefonnummer genutzt.')
+        setCouponCode('')
+        setDiscount(0)
+      } else if (msg.includes('delivery zone') || msg.includes('outside')) {
+        toast.error('Deine Adresse liegt außerhalb unserer Lieferzone.')
+      } else if (msg.includes('Discount cannot exceed')) {
+        toast.error('Der Gutschein überschreitet das erlaubte Rabattlimit.')
+        setCouponCode('')
+        setDiscount(0)
+      } else {
+        handleError(err, 'Bestellung aufgeben')
+      }
     } finally {
       setIsLoading(false)
     }

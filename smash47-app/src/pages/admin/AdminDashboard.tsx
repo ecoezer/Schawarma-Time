@@ -55,7 +55,8 @@ export function AdminDashboard() {
 
       setRevenueData(Object.entries(revenueMap).map(([day, revenue]) => ({ day, revenue })))
     } catch (err) {
-      console.error('Dashboard fetch error:', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('Dashboard fetch error:', msg)
     }
     setIsLoading(false)
   }

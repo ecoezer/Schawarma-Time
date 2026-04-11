@@ -6,8 +6,9 @@ import toast from 'react-hot-toast'
  */
 export function handleError(err: unknown, context: string): string {
   const message = extractMessage(err)
-  console.error(`[Smash47:${context}]`, err)
-  toast.error(`${context}: ${message}`)
+  // Log message only — never log raw error objects (may contain schema/key details)
+  console.error(`[Smash47:${context}]`, message)
+  toast.error(message)
   return message
 }
 

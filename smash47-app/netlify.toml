@@ -3,8 +3,18 @@
   publish = "dist"
 
 [build.environment]
-  SECRETS_SCAN_ENABLED = "false"
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
+  # Only omit the anon key (intentionally public) — keep all other secret scanning active
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # CSP: lock down script/connect sources; allow Cloudinary images + Supabase WebSocket
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://res.cloudinary.com data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 [[redirects]]
   from = "/*"

@@ -102,7 +102,7 @@ export function AdminOrders() {
             {!isLoading && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase">
                 <div className={`w-1.5 h-1.5 rounded-full ${error ? 'bg-red-500' : 'bg-green-500'}`} />
-                {import.meta.env.VITE_SUPABASE_URL?.split('.')[0].slice(-5)}...
+                {error ? 'Getrennt' : 'Verbunden'}
               </div>
             )}
             <button
