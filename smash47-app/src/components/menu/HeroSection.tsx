@@ -119,9 +119,9 @@ export function HeroSection({ settings }: HeroSectionProps) {
             </div>
 
             {/* Fee & Time Widget */}
-            <div className="flex items-center border border-gray-200 rounded-xl shadow-sm w-full">
-              <div 
-                className="flex-1 border-r border-gray-200 py-4 px-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors"
+            <div className="flex items-stretch border border-gray-200 rounded-xl shadow-sm w-full min-h-[80px]">
+              <div
+                className="flex-1 border-r border-gray-200 px-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setShowFeesModal(true)}
               >
                 <p className="font-bold text-[15px] text-black">
@@ -133,11 +133,11 @@ export function HeroSection({ settings }: HeroSectionProps) {
                   Sonstige Gebühren <Info size={13} className="text-gray-400" />
                 </p>
               </div>
-              <div className="flex-1 py-4 px-4 flex flex-col items-center justify-center text-center">
+              <div className="flex-1 px-4 flex flex-col items-center justify-center text-center">
                 <p className="font-bold text-[15px] text-black">
                   {isAbholung ? '5 Min.' : `${settings.estimated_delivery_time} Min.`}
                 </p>
-                <p className="text-[13px] text-[#8a8a8a] mt-0.5">
+                <p className="text-[13px] text-[#8a8a8a] mt-0.5 whitespace-nowrap">
                   {isAbholung ? 'Abholzeit' : 'Früheste Ankunftszeit'}
                 </p>
               </div>
