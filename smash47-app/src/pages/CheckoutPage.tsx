@@ -1,12 +1,13 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, MapPin, Clock, Banknote, CreditCard, Tag, CheckCircle, AlertCircle, Home, Briefcase, Navigation } from 'lucide-react'
+import { ChevronLeft, MapPin, Clock, Banknote, CreditCard, Tag, CheckCircle, AlertCircle, Home, Briefcase, Navigation, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCartStore } from '@/store/cartStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useAuthStore } from '@/store/authStore'
 import * as couponService from '@/services/couponService'
 import * as orderService from '@/services/orderService'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatPrice, generateOrderNumber, isRestaurantOpen } from '@/lib/utils'
@@ -15,7 +16,7 @@ import toast from 'react-hot-toast'
 import type { UserAddress } from '@/types'
 
 type PaymentMethod = 'cash' | 'card_on_delivery'
-type OrderStatus = 'form' | 'success'
+type OrderStatus = 'form' | 'pending_confirmation' | 'success' | 'rejected'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
@@ -26,22 +27,48 @@ export function CheckoutPage() {
 
   const [status, setStatus] = useState<OrderStatus>('form')
   const [isLoading, setIsLoading] = useState(false)
+  const [orderId, setOrderId] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [couponCode, setCouponCode] = useState('')
   const [discount, setDiscount] = useState(0)
   const orderNumber = useRef(generateOrderNumber()).current
 
-  // Prefill user data if available
+  // Prefill user data if available — use first saved address if exists
+  const defaultAddress = user?.addresses?.[0]
   const [form, setForm] = useState({
     name: user?.full_name || '',
     phone: user?.phone || '',
     email: user?.email || '',
-    street: '',
-    city: 'Hildesheim',
-    postalCode: '31134',
+    street: defaultAddress?.street || '',
+    city: defaultAddress?.city || 'Hildesheim',
+    postalCode: defaultAddress?.postal_code || '31134',
     note: '',
   })
   const [errors, setErrors] = useState<Partial<typeof form>>({})
+
+  // Realtime: admin onayı veya reddi bekle
+  useEffect(() => {
+    if (status !== 'pending_confirmation' || !orderId) return
+
+    const channel = supabase
+      .channel(`order-${orderId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `id=eq.${orderId}`,
+      }, (payload) => {
+        const newStatus = payload.new?.status
+        if (newStatus === 'confirmed' || newStatus === 'preparing' || newStatus === 'on_the_way') {
+          setStatus('success')
+        } else if (newStatus === 'cancelled') {
+          setStatus('rejected')
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [status, orderId])
 
   const subtotal = totalPrice()
 
@@ -150,13 +177,61 @@ export function CheckoutPage() {
       })
 
       clearCart()
-      setStatus('success')
-      toast.success('Bestellung erfolgreich aufgegeben!')
+      // Sipariş ID'sini al, admin onayı bekle
+      const placed = await orderService.fetchOrderByNumber(orderNumber)
+      if (placed) setOrderId(placed.id)
+      setStatus('pending_confirmation')
+      toast.success('Bestellung eingegangen! Wir bestätigen gleich.')
     } catch (err) {
       handleError(err, 'Bestellung aufgeben')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (status === 'pending_confirmation') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center"
+        >
+          <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Clock size={40} className="text-yellow-500 animate-pulse" />
+          </div>
+          <h1 className="text-2xl font-black text-gray-900 mb-2">Bestellung eingegangen! ⏳</h1>
+          <p className="text-gray-500 mb-4">Wir prüfen deine Bestellung und bestätigen sie in Kürze.</p>
+          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+            <p className="text-xs text-gray-500 mb-1">Bestellnummer</p>
+            <p className="text-xl font-black text-[#142328]">{orderNumber}</p>
+          </div>
+          <p className="text-sm text-gray-400">Diese Seite aktualisiert sich automatisch.</p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  if (status === 'rejected') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center"
+        >
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <XCircle size={40} className="text-red-500" />
+          </div>
+          <h1 className="text-2xl font-black text-gray-900 mb-2">Bestellung abgelehnt 😔</h1>
+          <p className="text-gray-500 mb-6">Leider konnten wir deine Bestellung nicht annehmen. Bitte ruf uns an.</p>
+          <p className="font-bold text-[#142328] text-lg mb-6">05121 3030551</p>
+          <Button variant="primary" fullWidth onClick={() => navigate('/')}>
+            Zurück zum Menü
+          </Button>
+        </motion.div>
+      </div>
+    )
   }
 
   if (items.length === 0 && status !== 'success') {

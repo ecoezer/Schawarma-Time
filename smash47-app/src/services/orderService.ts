@@ -115,6 +115,17 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────
 
+export async function fetchOrderByNumber(orderNumber: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('order_number', orderNumber)
+    .single()
+
+  if (error) return null
+  return data as Order
+}
+
 export function subscribeToOrders(callback: (payload: any) => void) {
   const channel = supabase
     .channel('orders-realtime')

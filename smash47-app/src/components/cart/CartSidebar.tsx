@@ -129,12 +129,15 @@ export function CartSidebar() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-bold text-gray-900">{item.name}</p>
+                            <span className="shrink-0 bg-[#142328] text-white text-xs font-black px-2 py-0.5 rounded-full">×{item.quantity}</span>
+                          </div>
                           {item.selected_extras.length > 0 && (
                             <div className="mt-1 space-y-0.5">
                               {item.selected_extras.map((extra, idx) => (
                                 <p key={idx} className="text-[12px] text-gray-500 leading-tight">
-                                  <span className="font-medium">{extra.group_name}:</span> {extra.name}
+                                  + {extra.name}{extra.price > 0 ? ` (${formatPrice(extra.price * item.quantity)})` : ''}
                                 </p>
                               ))}
                             </div>
@@ -170,6 +173,10 @@ export function CartSidebar() {
                               </button>
                             </div>
                           </div>
+                          {/* Fiyat başına birim */}
+                          {item.quantity > 1 && (
+                            <p className="text-[11px] text-gray-400 mt-0.5">{formatPrice(item.total / item.quantity)} pro Stück</p>
+                          )}
                         </div>
                       </motion.div>
                     ))}

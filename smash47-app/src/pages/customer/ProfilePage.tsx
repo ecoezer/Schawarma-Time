@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import * as authService from '@/services/authService'
 import { useCartStore } from '@/store/cartStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
-import { useOrderStore } from '@/store/orderStore'
+import * as orderService from '@/services/orderService'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -22,8 +22,7 @@ export function ProfilePage() {
   const { addItems } = useCartStore()
   const { settings } = useRestaurantStore()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
-  const allOrders = useOrderStore(state => state.orders)
-  const orders = allOrders.filter(o => o.user_id === user?.id)
+  const [orders, setOrders] = useState<Order[]>([])
   
   // Profile Form
   const [profileForm, setProfileForm] = useState({
@@ -51,7 +50,9 @@ export function ProfilePage() {
   useEffect(() => {
     if (!user) {
       navigate('/login')
+      return
     }
+    orderService.fetchUserOrders(user.id).then(setOrders).catch(() => {})
   }, [user])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -344,40 +345,85 @@ export function ProfilePage() {
                         </Badge>
                       </div>
 
-                      {/* Display active tracking if not delivered/cancelled */}
-                      {['pending', 'confirmed', 'preparing', 'on_the_way'].includes(order.status) && (
-                        <div className="mb-6 p-4 bg-[#142328] rounded-2xl text-white overflow-hidden relative group">
-                          <div className="flex items-center justify-between mb-4 relative z-10">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-1">Status</p>
-                              <h3 className="font-black text-lg flex items-center gap-2">
-                                {order.status === 'on_the_way' ? <Truck size={20} className="animate-bounce" /> : <Package size={20} />}
-                                {getStatusLabel(order.status)}
-                              </h3>
+                      {/* Order Tracking */}
+                      {['pending', 'confirmed', 'preparing', 'on_the_way'].includes(order.status) && (() => {
+                        const steps = [
+                          { key: 'pending',    icon: '🕐', label: 'Eingang' },
+                          { key: 'confirmed',  icon: '✅', label: 'Bestätigt' },
+                          { key: 'preparing',  icon: '👨‍🍳', label: 'Zubereitung' },
+                          { key: 'on_the_way', icon: '🛵', label: 'Unterwegs' },
+                        ]
+                        const currentIdx = steps.findIndex(s => s.key === order.status)
+                        return (
+                          <div className="mb-5 p-4 bg-[#142328] rounded-2xl text-white">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-5">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-0.5">Aktueller Status</p>
+                                <p className="font-black text-base">{steps[currentIdx].icon} {getStatusLabel(order.status)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-0.5">Lieferzeit</p>
+                                <p className="font-black text-base">{order.estimated_delivery_time || 35}–{(order.estimated_delivery_time || 35) + 10} Min</p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-1">Lieferzeit</p>
-                              <p className="text-lg font-black">{order.estimated_delivery_time || 35} Min</p>
-                            </div>
-                          </div>
-                          
-                          {/* Progress Line */}
-                          <div className="h-1.5 bg-white/10 rounded-full relative mb-1">
-                            <motion.div 
-                              initial={{ width: '0%' }}
-                              animate={{ 
-                                width: order.status === 'pending' ? '15%' : 
-                                       order.status === 'confirmed' ? '40%' :
-                                       order.status === 'preparing' ? '70%' : '90%'
-                              }}
-                              className="h-full bg-[#06c167] rounded-full shadow-[0_0_10px_rgba(6,193,103,0.5)]"
-                            />
-                          </div>
 
-                          {/* Decorative pattern */}
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
-                        </div>
-                      )}
+                            {/* Steps */}
+                            <div className="flex items-center gap-0">
+                              {steps.map((step, idx) => {
+                                const done = idx < currentIdx
+                                const active = idx === currentIdx
+                                return (
+                                  <div key={step.key} className="flex items-center flex-1 last:flex-none">
+                                    {/* Circle */}
+                                    <div className="flex flex-col items-center gap-1">
+                                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base font-black border-2 transition-all ${
+                                        done   ? 'bg-[#06c167] border-[#06c167] text-white' :
+                                        active ? 'bg-white border-white text-[#142328] scale-110 shadow-lg shadow-white/20' :
+                                                 'bg-white/10 border-white/20 text-white/40'
+                                      }`}>
+                                        {done ? '✓' : active ? (() => {
+                                          if (step.key === 'pending')
+                                            return <motion.span animate={{ rotate: [0, 360] }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>🕐</motion.span>
+                                          if (step.key === 'confirmed')
+                                            return <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}>✅</motion.span>
+                                          if (step.key === 'preparing')
+                                            return <motion.span animate={{ rotate: [-15, 15, -15] }} transition={{ repeat: Infinity, duration: 0.5 }}>👨‍🍳</motion.span>
+                                          if (step.key === 'on_the_way')
+                                            return <motion.span animate={{ x: [0, 3, 0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.5 }}>🛵</motion.span>
+                                          return <span>{step.icon}</span>
+                                        })() : step.icon}
+                                      </div>
+                                      <span className={`text-[9px] font-black uppercase tracking-wide text-center whitespace-nowrap ${
+                                        active ? 'text-white' : done ? 'text-[#06c167]' : 'text-white/30'
+                                      }`}>{step.label}</span>
+                                    </div>
+                                    {/* Connector */}
+                                    {idx < steps.length - 1 && (
+                                      <div className="flex-1 h-0.5 mx-1 mb-4 rounded-full overflow-hidden bg-white/10">
+                                        {idx < currentIdx ? (
+                                          // Tamamlanan çizgi — tam dolu yeşil
+                                          <div className="h-full w-full bg-[#06c167]" />
+                                        ) : idx === currentIdx ? (
+                                          // Aktif çizgi — akan animasyon
+                                          <motion.div
+                                            animate={{ x: ['-100%', '100%'] }}
+                                            transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                                            className="h-full w-1/2 bg-gradient-to-r from-transparent via-[#06c167] to-transparent"
+                                          />
+                                        ) : (
+                                          // Gelecek çizgi — boş
+                                          <div className="h-full w-0" />
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-50">
                         <p className="text-xs text-gray-500 truncate max-w-[200px]">

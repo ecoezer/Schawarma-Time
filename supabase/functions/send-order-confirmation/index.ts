@@ -1,7 +1,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
-const FROM_EMAIL = 'Smash47 <bestellung@smash47.de>'
+// Use verified domain email when smash47.de is verified in Resend.
+// Until then, use onboarding@resend.dev (Resend test sender).
+const DOMAIN_VERIFIED = Deno.env.get('RESEND_DOMAIN_VERIFIED') === 'true'
+const FROM_EMAIL = DOMAIN_VERIFIED
+  ? 'Smash47 <bestellung@smash47.de>'
+  : 'Smash47 <onboarding@resend.dev>'
+const RESTAURANT_EMAIL = 'smash47@skymail.de'
 
 interface OrderRecord {
   id: string
@@ -159,18 +165,82 @@ function buildEmailHtml(order: OrderRecord): string {
   `
 }
 
+function buildRejectedEmailHtml(order: OrderRecord): string {
+  return `
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f6f6f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f6;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <tr><td style="background:#142328;border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+          <div style="width:56px;height:56px;background:white;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+            <span style="font-weight:900;font-size:18px;color:#142328;">S47</span>
+          </div>
+          <h1 style="margin:0;color:white;font-size:24px;font-weight:900;">Bestellung abgelehnt 😔</h1>
+        </td></tr>
+        <tr><td style="background:white;padding:32px;border-radius:0 0 16px 16px;">
+          <p style="margin:0 0 16px;font-size:16px;color:#333;">
+            Hallo <strong>${order.customer_name}</strong>,<br>
+            leider konnten wir deine Bestellung <strong>${order.order_number}</strong> aufgrund von hoher Auslastung nicht annehmen.
+          </p>
+          <p style="margin:0 0 24px;font-size:15px;color:#333;">
+            Bitte ruf uns an, wir helfen dir gerne weiter:
+          </p>
+          <div style="text-align:center;margin-bottom:24px;">
+            <a href="tel:051213030551" style="display:inline-block;background:#142328;color:white;font-weight:900;font-size:18px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+              05121 3030551
+            </a>
+          </div>
+          <p style="margin:0;font-size:13px;color:#999;text-align:center;">
+            Smash47 · Bahnhofsallee 14a · 31134 Hildesheim
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+  `
+}
+
 serve(async (req) => {
   try {
     const payload = await req.json()
 
-    // Supabase DB webhook sends { type, table, record, ... }
+    // Webhook: UPDATE event — only act on confirmed or cancelled
     const order: OrderRecord = payload.record
+    const oldStatus: string = payload.old_record?.status ?? ''
+    const newStatus: string = order?.status ?? ''
 
     if (!order?.customer_email) {
       return new Response('No email', { status: 400 })
     }
 
-    const html = buildEmailHtml(order)
+    // Only send email when status first changes to 'confirmed' or 'cancelled'
+    if (newStatus === oldStatus) {
+      return new Response('No status change', { status: 200 })
+    }
+
+    if (newStatus !== 'confirmed' && newStatus !== 'cancelled') {
+      return new Response('Status not relevant', { status: 200 })
+    }
+
+    const isConfirmed = newStatus === 'confirmed'
+    const html = isConfirmed ? buildEmailHtml(order) : buildRejectedEmailHtml(order)
+
+    const toAddresses = DOMAIN_VERIFIED ? [order.customer_email] : [RESTAURANT_EMAIL]
+
+    const emailPayload: Record<string, unknown> = {
+      from: FROM_EMAIL,
+      to: toAddresses,
+      subject: isConfirmed
+        ? `Bestellung ${order.order_number} bestatigt – Smash47`
+        : `Bestellung ${order.order_number} abgelehnt – Smash47`,
+      html,
+    }
+
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -178,18 +248,13 @@ serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [order.customer_email],
-        subject: `✅ Bestellung ${order.order_number} bestätigt – Smash47`,
-        html,
-      }),
+      body: JSON.stringify(emailPayload),
     })
 
     if (!res.ok) {
       const err = await res.text()
       console.error('Resend error:', err)
-      return new Response('Email failed', { status: 500 })
+      return new Response(`Email failed: ${err}`, { status: 500 })
     }
 
     return new Response('OK', { status: 200 })

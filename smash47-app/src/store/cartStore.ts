@@ -109,6 +109,13 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'smash47-cart',
       partialize: (state) => ({ items: state.items, globalNote: state.globalNote }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        // UUID regex — drop any persisted items with mock IDs like "p1"
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        const clean = state.items.filter(i => UUID_RE.test(i.product_id))
+        if (clean.length !== state.items.length) state.items = clean
+      },
     }
   )
 )
