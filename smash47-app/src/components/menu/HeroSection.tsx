@@ -119,27 +119,32 @@ export function HeroSection({ settings }: HeroSectionProps) {
             </div>
 
             {/* Fee & Time Widget */}
-            <div className="flex border border-gray-200 rounded-xl shadow-sm w-full" style={{ height: 80 }}>
+            <div className="flex border border-gray-200 rounded-xl shadow-sm w-full">
+              {/* Left cell — fee */}
               <div
-                className="flex-1 border-r border-gray-200 px-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors overflow-hidden"
+                className="flex-1 border-r border-gray-200 px-4 py-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setShowFeesModal(true)}
               >
-                <p className="font-bold text-[15px] text-black leading-none">
-                  {isAbholung
-                    ? '0,00 €'
-                    : (settings.delivery_fee === 0 ? '0,00 €' : `${settings.delivery_fee.toFixed(2).replace('.', ',')} €`)}
+                <p className="font-bold text-[15px] text-black">
+                  {isAbholung ? '0,00 €' : (settings.delivery_fee === 0 ? '0,00 €' : `${settings.delivery_fee.toFixed(2).replace('.', ',')} €`)}
                 </p>
-                <p className="text-[13px] text-[#8a8a8a] flex items-center gap-1 mt-1 whitespace-nowrap leading-none">
+                <p className="text-[13px] text-[#8a8a8a] flex items-center gap-1 mt-0.5 whitespace-nowrap">
                   Sonstige Gebühren <Info size={13} className="text-gray-400" />
                 </p>
               </div>
-              <div className="flex-1 px-4 flex flex-col items-center justify-center text-center overflow-hidden">
-                <p className="font-bold text-[15px] text-black leading-none">
+              {/* Right cell — time. Render both labels, hide inactive one so box never resizes */}
+              <div className="flex-1 px-4 py-4 flex flex-col items-center justify-center text-center">
+                <p className="font-bold text-[15px] text-black">
                   {isAbholung ? '5 Min.' : `${settings.estimated_delivery_time} Min.`}
                 </p>
-                <p className="text-[13px] text-[#8a8a8a] mt-1 whitespace-nowrap leading-none">
-                  {isAbholung ? 'Abholzeit' : 'Früheste Ankunftszeit'}
-                </p>
+                <div className="relative mt-0.5">
+                  <p className={`text-[13px] text-[#8a8a8a] whitespace-nowrap ${isAbholung ? 'invisible' : ''}`}>
+                    Früheste Ankunftszeit
+                  </p>
+                  <p className={`text-[13px] text-[#8a8a8a] whitespace-nowrap absolute inset-0 flex items-center justify-center ${isAbholung ? '' : 'invisible'}`}>
+                    Abholzeit
+                  </p>
+                </div>
               </div>
             </div>
           </div>
