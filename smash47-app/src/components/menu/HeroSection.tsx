@@ -90,8 +90,8 @@ export function HeroSection({ settings }: HeroSectionProps) {
           </div>
 
           {/* Right: Widgets */}
-          <div className="flex flex-col items-start lg:items-end gap-5 mt-6 lg:mt-0 shrink-0">
-            
+          <div className="flex flex-col items-center lg:items-end gap-5 mt-6 lg:mt-0 shrink-0 w-full lg:w-auto">
+
             {/* Delivery Toggle — two separate pills */}
             <div className="flex items-center gap-3">
               {/* Lieferung / Abholung pill */}
