@@ -131,29 +131,22 @@ export function CheckoutPage() {
     
     try {
       await orderService.createOrder({
-        order_number: orderNumber,
-        // user_id omitted — DB trigger enforces auth.uid()
-        customer_name: form.name,
+        order_number:   orderNumber,
+        customer_name:  form.name,
         customer_phone: form.phone,
         customer_email: form.email,
         delivery_address: `${form.street}, ${form.postalCode} ${form.city}`,
+        // Only IDs + quantities — prices calculated server-side
         items: items.map(item => ({
           product_id: item.product_id,
-          product_name: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          extras: item.selected_extras,
-          note: item.note,
-          subtotal: item.total
+          quantity:   item.quantity,
+          extras:     item.selected_extras,
+          note:       item.note,
         })),
-        subtotal: subtotal,
-        delivery_fee: deliveryFee,
-        discount_amount: discount,
-        coupon_code: couponCode || null,
-        total: total,
-        payment_method: paymentMethod,
-        estimated_delivery_time: settings?.estimated_delivery_time || 35,
-        notes: form.note || null
+        coupon_code:              couponCode || null,
+        payment_method:           paymentMethod,
+        estimated_delivery_time:  settings?.estimated_delivery_time || 35,
+        notes:                    form.note || null,
       })
 
       clearCart()

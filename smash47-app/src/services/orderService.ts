@@ -7,17 +7,13 @@ import { toArray } from '@/lib/utils'
 
 export interface CreateOrderInput {
   order_number: string
-  user_id?: string | undefined  // ignored — DB trigger enforces auth.uid()
   customer_name: string
   customer_phone: string
   customer_email: string
   delivery_address: string
-  items: OrderItem[]
-  subtotal: number
-  delivery_fee: number
-  discount_amount: number
+  // Only product_id, quantity, extras, note sent — prices come from DB
+  items: { product_id: string; quantity: number; extras?: OrderItem['extras']; note?: string }[]
   coupon_code: string | null
-  total: number
   payment_method: PaymentMethod
   estimated_delivery_time: number
   notes: string | null
@@ -99,24 +95,22 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<void> {
-  const { error } = await supabase
-    .from('orders')
-    .insert([{ ...input, status: 'pending' }])
+  // All price calculation happens server-side in create_order_secure().
+  // Client sends only product IDs + quantities — never prices.
+  const { error } = await supabase.rpc('create_order_secure', {
+    p_order_number:           input.order_number,
+    p_customer_name:          input.customer_name,
+    p_customer_phone:         input.customer_phone,
+    p_customer_email:         input.customer_email,
+    p_delivery_address:       input.delivery_address,
+    p_items:                  input.items,
+    p_coupon_code:            input.coupon_code ?? null,
+    p_payment_method:         input.payment_method,
+    p_notes:                  input.notes ?? null,
+    p_estimated_delivery_time: input.estimated_delivery_time,
+  })
 
   if (error) throw error
-
-  // Atomically increment coupon used_count if applicable.
-  // Requires SQL function: create function increment_coupon_usage(coupon_code text)
-  // returns void as $$ update coupons set used_count = used_count + 1 where code = coupon_code; $$ language sql;
-  if (input.coupon_code && input.discount_amount > 0) {
-    try {
-      await supabase.rpc('increment_coupon_usage', {
-        coupon_code: input.coupon_code.toUpperCase()
-      })
-    } catch {
-      // Non-critical: don't fail the order if coupon increment fails
-    }
-  }
 }
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────
