@@ -21,9 +21,9 @@ interface CartStore {
   setGlobalNote: (note: string) => void
 
   // Computed
-  totalItems: () => number
+  totalQuantity: () => number
   totalPrice: () => number
-  itemCount: () => number
+  lineItemCount: () => number
 }
 
 const calculateItemTotal = (price: number, extras: CartExtra[], quantity: number): number => {
@@ -102,9 +102,9 @@ export const useCartStore = create<CartStore>()(
       closeCart: () => set({ isOpen: false }),
       setGlobalNote: (note) => set({ globalNote: note }),
 
-      totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
+      totalQuantity: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: () => get().items.reduce((sum, item) => sum + item.total, 0),
-      itemCount: () => get().items.length,
+      lineItemCount: () => get().items.length,
     }),
     {
       name: 'smash47-cart',

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { RestaurantSettings } from '@/types'
-import { supabase } from '@/lib/supabase'
+import * as restaurantService from '@/services/restaurantService'
+import { extractMessage } from '@/lib/errorHandler'
 
 interface RestaurantStore {
   settings: RestaurantSettings | null
@@ -20,15 +21,10 @@ export const useRestaurantStore = create<RestaurantStore>((set, get) => ({
   fetchSettings: async () => {
     set({ isLoading: true, error: null })
     try {
-      const { data, error } = await supabase
-        .from('restaurant_settings')
-        .select('*')
-        .single()
-
-      if (error) throw error
-      set({ settings: data as RestaurantSettings, isLoading: false })
-    } catch (err: any) {
-      set({ settings: null, error: err.message, isLoading: false })
+      const settings = await restaurantService.fetchSettings()
+      set({ settings, isLoading: false })
+    } catch (err) {
+      set({ settings: null, error: extractMessage(err), isLoading: false })
     }
   },
 
@@ -40,16 +36,7 @@ export const useRestaurantStore = create<RestaurantStore>((set, get) => ({
     set({ settings: { ...current, ...updates } })
 
     try {
-      const { error } = await supabase
-        .from('restaurant_settings')
-        .update(updates)
-        .eq('id', current.id)
-
-      if (error) {
-        // Revert on error
-        set({ settings: current })
-        throw error
-      }
+      await restaurantService.updateSettings(current.id, updates)
     } catch (err) {
       set({ settings: current, error: (err as Error).message })
     }

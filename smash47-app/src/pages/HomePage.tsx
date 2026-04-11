@@ -9,19 +9,49 @@ import { MapSection } from '@/components/menu/MapSection'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useMenuStore } from '@/store/menuStore'
 
+function SkeletonCard() {
+  return (
+    <div className="flex flex-row items-stretch bg-white rounded-xl border border-[#e8e8e8] overflow-hidden h-[120px] md:h-[140px] w-full">
+      <div className="flex-1 flex flex-col min-w-0 p-4 justify-center gap-2">
+        <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-1/4 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="relative shrink-0 bg-gray-100 h-full animate-pulse" style={{ aspectRatio: '1.25' }} />
+    </div>
+  )
+}
+
+function SkeletonSection() {
+  return (
+    <div className="space-y-10">
+      <div className="h-40 w-full bg-gray-200 animate-pulse" />
+      <div className="px-4">
+        {[1, 2].map((section) => (
+          <div key={section} className="mb-10">
+            <div className="h-7 w-40 bg-gray-200 rounded animate-pulse mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function HomePage() {
   const [activeCategory, setActiveCategory] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const sectionRefs = useRef<Record<string, HTMLElement>>({})
   
-  const { settings, fetchSettings } = useRestaurantStore()
+  const { settings } = useRestaurantStore()
   const { categories, products, fetchMenu, isLoading } = useMenuStore()
 
   useEffect(() => {
-    fetchSettings()
     fetchMenu()
-  }, [fetchSettings, fetchMenu])
+  }, [fetchMenu])
 
   // Set initial active category
   useEffect(() => {
@@ -71,34 +101,6 @@ export function HomePage() {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [activeCategories, searchQuery])
-
-  // Skeleton card component for loading state
-  const SkeletonCard = () => (
-    <div className="flex flex-row items-stretch bg-white rounded-xl border border-[#e8e8e8] overflow-hidden h-[120px] md:h-[140px] w-full">
-      <div className="flex-1 flex flex-col min-w-0 p-4 justify-center gap-2">
-        <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
-        <div className="h-3 w-1/4 bg-gray-200 rounded animate-pulse" />
-        <div className="h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
-      </div>
-      <div className="relative shrink-0 bg-gray-100 h-full animate-pulse" style={{ aspectRatio: '1.25' }} />
-    </div>
-  )
-
-  const SkeletonSection = () => (
-    <div className="space-y-10">
-      <div className="h-40 w-full bg-gray-200 animate-pulse" />
-      <div className="px-4">
-        {[1, 2].map((section) => (
-          <div key={section} className="mb-10">
-            <div className="h-7 w-40 bg-gray-200 rounded animate-pulse mb-4" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
 
   if (!settings) {
     return <SkeletonSection />

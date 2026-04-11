@@ -39,7 +39,6 @@ export async function fetchProfile(userId: string): Promise<UserProfile | null> 
     .single()
 
   if (error) {
-    console.error('Error fetching profile:', error)
     return null
   }
   return data as UserProfile
@@ -54,9 +53,3 @@ export async function updateProfile(userId: string, updates: Partial<UserProfile
   if (error) throw error
 }
 
-// ─── Auth State Listener ──────────────────────────────────────────────────────
-
-export function onAuthStateChange(callback: (event: string, session: any) => void) {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback)
-  return subscription
-}

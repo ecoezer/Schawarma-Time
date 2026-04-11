@@ -6,9 +6,9 @@ import { useAuthStore } from '@/store/authStore'
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { totalItems, toggleCart } = useCartStore()
+  const { totalQuantity, toggleCart } = useCartStore()
   const { user, isLoading, isInitialized } = useAuthStore()
-  const itemCount = totalItems()
+  const itemCount = totalQuantity()
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-[72px] lg:h-[80px]">

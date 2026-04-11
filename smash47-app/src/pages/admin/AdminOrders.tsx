@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
@@ -11,16 +11,22 @@ import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
 
+function escHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 export function AdminOrders() {
   const orders = useOrderStore(state => state.orders)
   const isLoading = useOrderStore(state => state.isLoading)
+  const error = useOrderStore(state => state.error)
   const { soundEnabled, setSoundEnabled, fetchOrders } = useOrderStore()
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
 
-  useEffect(() => {
-    fetchOrders()
-  }, [])
+  const statusCounts = orders.reduce((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
   // Keep selectedOrder in sync with store updates
   useEffect(() => {
@@ -55,20 +61,20 @@ export function AdminOrders() {
     const win = window.open('', '_blank')
     if (!win) return
     win.document.write(`
-      <html><head><title>Bestellung ${order.order_number}</title>
+      <html><head><title>Bestellung ${escHtml(order.order_number)}</title>
       <style>body{font-family:monospace;padding:20px;font-size:14px}h2{text-align:center}hr{border:1px dashed #000}table{width:100%}</style>
       </head><body>
-      <h2>SMASH47</h2><p style="text-align:center">${order.order_number}</p><hr/>
-      <p><b>Kunde:</b> ${order.customer_name}</p>
-      <p><b>Tel:</b> ${order.customer_phone}</p>
-      <p><b>Adresse:</b> ${order.delivery_address}</p>
+      <h2>SMASH47</h2><p style="text-align:center">${escHtml(order.order_number)}</p><hr/>
+      <p><b>Kunde:</b> ${escHtml(order.customer_name)}</p>
+      <p><b>Tel:</b> ${escHtml(order.customer_phone)}</p>
+      <p><b>Adresse:</b> ${escHtml(order.delivery_address)}</p>
       <hr/><table>
       ${order.items.map((i) => `
         <tr>
           <td>
-            ${i.quantity}x ${i.product_name}
-            ${i.extras && i.extras.length > 0 ? 
-              `<br/><small style="color:#666;margin-left:10px">+ ${i.extras.map(e => `${e.name}${e.price > 0 ? ` (€${(e.price * i.quantity).toFixed(2)})` : ''}`).join(', ')}</small>` 
+            ${i.quantity}x ${escHtml(i.product_name)}
+            ${i.extras && i.extras.length > 0 ?
+              `<br/><small style="color:#666;margin-left:10px">+ ${i.extras.map(e => `${escHtml(e.name)}${e.price > 0 ? ` (€${(e.price * i.quantity).toFixed(2)})` : ''}`).join(', ')}</small>`
               : ''}
           </td>
           <td style="text-align:right" valign="top">€${i.subtotal.toFixed(2)}</td>
@@ -77,7 +83,7 @@ export function AdminOrders() {
       </table><hr/>
       <p style="text-align:right"><b>Gesamt: €${order.total.toFixed(2)}</b></p>
       <p>Zahlung: ${order.payment_method === 'cash' ? 'Bar' : 'Karte'}</p>
-      ${order.notes ? `<p>Notiz: ${order.notes}</p>` : ''}
+      ${order.notes ? `<p>Notiz: ${escHtml(order.notes)}</p>` : ''}
       </body></html>`)
     win.document.close()
     win.print()
@@ -95,7 +101,7 @@ export function AdminOrders() {
           <div className="flex items-center gap-3">
             {!isLoading && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase">
-                <div className={`w-1.5 h-1.5 rounded-full ${orders.length > 0 || !error ? 'bg-green-500' : 'bg-red-500'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${error ? 'bg-red-500' : 'bg-green-500'}`} />
                 {import.meta.env.VITE_SUPABASE_URL?.split('.')[0].slice(-5)}...
               </div>
             )}
@@ -122,7 +128,7 @@ export function AdminOrders() {
               {s === 'all' ? 'Alle' : getStatusLabel(s)}
               {s !== 'all' && (
                 <span className="ml-1.5 text-xs opacity-70">
-                  {orders.filter((o) => o.status === s).length}
+                  {statusCounts[s] ?? 0}
                 </span>
               )}
             </button>

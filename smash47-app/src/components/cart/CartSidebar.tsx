@@ -10,14 +10,14 @@ import { OrderNoteModal } from './OrderNoteModal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 export function CartSidebar() {
-  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalItems, globalNote, setGlobalNote, clearCart } = useCartStore()
+  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalQuantity, globalNote, setGlobalNote, clearCart } = useCartStore()
   const { settings } = useRestaurantStore()
   const navigate = useNavigate()
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
 
   const total = totalPrice()
-  const count = totalItems()
+  const count = totalQuantity()
   const deliveryFee = settings?.delivery_fee ?? 2.00
   const minOrder = settings?.min_order_amount ?? 15.00
   const isMinOrderMet = total >= minOrder

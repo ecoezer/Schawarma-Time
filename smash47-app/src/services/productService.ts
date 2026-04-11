@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Product, Category } from '@/types'
+import { toArray } from '@/lib/utils'
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -11,7 +12,7 @@ export async function fetchCategories(): Promise<Category[]> {
     .order('position')
 
   if (error) throw error
-  return (data || []) as Category[]
+  return toArray(data) as Category[]
 }
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -21,7 +22,7 @@ export async function fetchProducts(): Promise<Product[]> {
     .order('position')
 
   if (error) throw error
-  return (data || []) as Product[]
+  return toArray(data) as Product[]
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────

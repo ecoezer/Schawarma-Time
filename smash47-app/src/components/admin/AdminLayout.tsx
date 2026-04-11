@@ -30,6 +30,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const user = useAuthStore(state => state.user)
   const { signOut } = useAuthStore()
+  const { fetchOrders, initRealtime } = useOrderStore()
+
+  useEffect(() => {
+    fetchOrders()
+    const unsubOrders = initRealtime((order) => {
+      toast.success(`Neue Bestellung: ${order.order_number}`)
+    })
+    return unsubOrders
+  }, [fetchOrders, initRealtime])
 
   const handleLogout = async () => {
     await signOut()

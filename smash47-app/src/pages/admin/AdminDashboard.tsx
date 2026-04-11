@@ -10,14 +10,14 @@ import { useRestaurantStore } from '@/store/restaurantStore'
 import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
 import type { Order } from '@/types'
 
+const DAY_LABELS: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' }
+
 export function AdminDashboard() {
   const { settings, toggleDelivery } = useRestaurantStore()
   const allOrders = useOrderStore(state => state.orders)
   const [totalCustomers, setTotalCustomers] = useState(0)
   const [revenueData, setRevenueData] = useState<{ day: string; revenue: number }[]>([])
   const [isLoading, setIsLoading] = useState(true)
-
-  const DAY_LABELS: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' }
 
   // Filter today's orders from the centralized store
   const todayStart = new Date()
@@ -67,9 +67,15 @@ export function AdminDashboard() {
   const avgOrderValue = orders.length > 0 ? todayRevenue / orders.filter((o) => o.status !== 'cancelled').length : 0
   const goal = settings?.revenue_goal_daily || 500
 
-  const pendingCount = orders.filter((o) => o.status === 'pending').length
-  const preparingCount = orders.filter((o) => o.status === 'preparing' || o.status === 'confirmed').length
-  const deliveredCount = orders.filter((o) => o.status === 'delivered').length
+  const { pendingCount, preparingCount, deliveredCount } = orders.reduce(
+    (acc, o) => {
+      if (o.status === 'pending') acc.pendingCount++
+      if (o.status === 'preparing' || o.status === 'confirmed') acc.preparingCount++
+      if (o.status === 'delivered') acc.deliveredCount++
+      return acc
+    },
+    { pendingCount: 0, preparingCount: 0, deliveredCount: 0 }
+  )
 
   const recentOrders = orders.slice(0, 4)
 

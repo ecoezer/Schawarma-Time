@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, MapPin, Clock, Banknote, CreditCard, Tag, CheckCircle, AlertCircle, Home, Briefcase, Navigation } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,7 +9,7 @@ import * as couponService from '@/services/couponService'
 import * as orderService from '@/services/orderService'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { formatPrice, isRestaurantOpen } from '@/lib/utils'
+import { formatPrice, generateOrderNumber, isRestaurantOpen } from '@/lib/utils'
 import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
 import type { UserAddress } from '@/types'
@@ -23,20 +23,13 @@ export function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCartStore()
   const { settings } = useRestaurantStore()
 
-  // Enforce authentication
-  useEffect(() => {
-    if (!user) {
-      toast.error('Bitte melde dich an, um fortzufahren')
-      navigate('/login?redirect=/bestellung')
-    }
-  }, [user, navigate])
 
   const [status, setStatus] = useState<OrderStatus>('form')
   const [isLoading, setIsLoading] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [couponCode, setCouponCode] = useState('')
   const [discount, setDiscount] = useState(0)
-  const [orderNumber] = useState(`S47-${Date.now().toString(36).toUpperCase()}`)
+  const orderNumber = useRef(generateOrderNumber()).current
 
   // Prefill user data if available
   const [form, setForm] = useState({
@@ -52,22 +45,23 @@ export function CheckoutPage() {
 
   const subtotal = totalPrice()
 
-  // Business Rules Validation
-  const isOpen = useMemo(() => settings ? isRestaurantOpen(settings.hours) : false, [settings])
-  const isDeliveryActive = settings?.is_delivery_active ?? true
-  
-  const activeZone = useMemo(() => {
-    if (!settings?.delivery_zones || settings.delivery_zones.length === 0) return null
-    return settings.delivery_zones.find(z => 
-      z.name.includes(form.postalCode) || 
-      (z as any).postal_codes?.includes(form.postalCode)
-    )
-  }, [settings, form.postalCode])
+  // Unified form field handler — eliminates per-field onChange boilerplate
+  const handleField = (field: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm(prev => ({ ...prev, [field]: e.target.value }))
 
-  const isZoneValid = useMemo(() => {
-    if (!settings?.delivery_zones || settings.delivery_zones.length === 0) return true
-    return !!activeZone
-  }, [settings, activeZone])
+  // Business Rules Validation
+  const isOpen = settings ? isRestaurantOpen(settings.hours) : false
+  const isDeliveryActive = settings?.is_delivery_active ?? true
+
+  const activeZone = settings?.delivery_zones?.length
+    ? settings.delivery_zones.find(z =>
+        z.name.includes(form.postalCode) ||
+        (z as any).postal_codes?.includes(form.postalCode)
+      )
+    : null
+
+  const isZoneValid = !settings?.delivery_zones?.length || !!activeZone
 
   const currentMinOrder = activeZone?.min_order ?? settings?.min_order_amount ?? 15.00
   const isAboveMinOrder = subtotal >= currentMinOrder
@@ -230,25 +224,28 @@ export function CheckoutPage() {
           <div className="lg:col-span-2 space-y-5">
             
             {/* Business Status Warnings */}
-            {!isOpen && (
-              <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-4 text-red-700">
+            {[
+              !isOpen && {
+                key: 'closed',
+                bg: 'bg-red-50 border-red-100 text-red-700',
+                title: 'Aktuell geschlossen',
+                body: 'Wir nehmen momentan keine Bestellungen entgegen. Bitte versuche es später während unserer Öffnungszeiten.',
+              },
+              isOpen && !isAboveMinOrder && {
+                key: 'minorder',
+                bg: 'bg-orange-50 border-orange-100 text-orange-700',
+                title: 'Mindestbestellwert nicht erreicht',
+                body: `Dir fehlen noch ${formatPrice(currentMinOrder - subtotal)} zum Mindestbestellwert (${formatPrice(currentMinOrder)}).`,
+              },
+            ].filter(Boolean).map((w) => (
+              <div key={(w as any).key} className={`border rounded-2xl p-4 flex gap-4 ${(w as any).bg}`}>
                 <AlertCircle className="shrink-0" />
                 <div>
-                  <p className="font-bold text-sm">Aktuell geschlossen</p>
-                  <p className="text-xs opacity-80">Wir nehmen momentan keine Bestellungen entgegen. Bitte versuche es später während unserer Öffnungszeiten.</p>
+                  <p className="font-bold text-sm">{(w as any).title}</p>
+                  <p className="text-xs opacity-80">{(w as any).body}</p>
                 </div>
               </div>
-            )}
-
-            {isOpen && !isAboveMinOrder && (
-              <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex gap-4 text-orange-700">
-                <AlertCircle className="shrink-0" />
-                <div>
-                  <p className="font-bold text-sm">Mindestbestellwert nicht erreicht</p>
-                  <p className="text-xs opacity-80">Dir fehlen noch {formatPrice(currentMinOrder - subtotal)} zum Mindestbestellwert ({formatPrice(currentMinOrder)}).</p>
-                </div>
-              </div>
-            )}
+            ))}
 
             {/* Address Selection (if registered) */}
             {user && user.addresses && user.addresses.length > 0 && (
@@ -285,25 +282,20 @@ export function CheckoutPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 md:col-span-1">
                   <Input label="Vollständiger Name" placeholder="Max Mustermann" required
-                    value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    error={errors.name} />
+                    value={form.name} onChange={handleField('name')} error={errors.name} />
                 </div>
                 <div className="col-span-2 md:col-span-1">
                   <Input label="Telefon" placeholder="+49 172 1234567" required
-                    value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    error={errors.phone} />
+                    value={form.phone} onChange={handleField('phone')} error={errors.phone} />
                 </div>
                 <div className="col-span-2">
-                    <Input label="Straße & Hausnummer" placeholder="Musterstraße 1" required
-                        value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })}
-                        error={errors.street} />
+                  <Input label="Straße & Hausnummer" placeholder="Musterstraße 1" required
+                    value={form.street} onChange={handleField('street')} error={errors.street} />
                 </div>
                 <Input label="PLZ" placeholder="31134" required
-                  value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
-                  error={errors.postalCode} />
+                  value={form.postalCode} onChange={handleField('postalCode')} error={errors.postalCode} />
                 <Input label="Stadt" placeholder="Hildesheim" required
-                  value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  error={errors.city} />
+                  value={form.city} onChange={handleField('city')} error={errors.city} />
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Anmerkungen</label>
                   <textarea

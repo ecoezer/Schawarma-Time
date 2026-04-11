@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { Order, OrderStatus, OrderItem, PaymentMethod } from '@/types'
 import { handleError } from '@/lib/errorHandler'
+import { toArray } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,15 @@ export interface CreateOrderInput {
   notes: string | null
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function startOf(daysAgo = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function fetchAllOrders(): Promise<Order[]> {
@@ -31,21 +41,18 @@ export async function fetchAllOrders(): Promise<Order[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []) as Order[]
+  return toArray(data) as Order[]
 }
 
 export async function fetchTodayOrders(): Promise<Order[]> {
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-
   const { data, error } = await supabase
     .from('orders')
     .select('*')
-    .gte('created_at', todayStart.toISOString())
+    .gte('created_at', startOf(0))
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []) as Order[]
+  return toArray(data) as Order[]
 }
 
 export async function fetchUserOrders(userId: string): Promise<Order[]> {
@@ -56,22 +63,18 @@ export async function fetchUserOrders(userId: string): Promise<Order[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []) as Order[]
+  return toArray(data) as Order[]
 }
 
 export async function fetchWeekOrders(): Promise<{ created_at: string; total: number; status: string }[]> {
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-  sevenDaysAgo.setHours(0, 0, 0, 0)
-
   const { data, error } = await supabase
     .from('orders')
     .select('created_at, total, status')
-    .gte('created_at', sevenDaysAgo.toISOString())
+    .gte('created_at', startOf(6))
     .neq('status', 'cancelled')
 
   if (error) throw error
-  return data || []
+  return toArray(data)
 }
 
 export async function fetchPendingCount(): Promise<number> {
@@ -102,24 +105,16 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
 
   if (error) throw error
 
-  // Atomically increment coupon used_count if applicable
+  // Atomically increment coupon used_count if applicable.
+  // Requires SQL function: create function increment_coupon_usage(coupon_code text)
+  // returns void as $$ update coupons set used_count = used_count + 1 where code = coupon_code; $$ language sql;
   if (input.coupon_code && input.discount_amount > 0) {
     try {
-      const { data: coupon } = await supabase
-        .from('coupons')
-        .select('used_count')
-        .eq('code', input.coupon_code.toUpperCase())
-        .single()
-
-      if (coupon) {
-        await supabase
-          .from('coupons')
-          .update({ used_count: (coupon.used_count || 0) + 1 })
-          .eq('code', input.coupon_code.toUpperCase())
-      }
-    } catch (err) {
+      await supabase.rpc('increment_coupon_usage', {
+        coupon_code: input.coupon_code.toUpperCase()
+      })
+    } catch {
       // Non-critical: don't fail the order if coupon increment fails
-      console.error('[orderService] Coupon increment failed:', err)
     }
   }
 }
@@ -129,11 +124,7 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
 export function subscribeToOrders(callback: (payload: any) => void) {
   const channel = supabase
     .channel('orders-realtime')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'orders' },
-      callback
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
     .subscribe()
 
   return () => { supabase.removeChannel(channel) }

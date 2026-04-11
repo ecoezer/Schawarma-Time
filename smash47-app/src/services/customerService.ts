@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Customer, Order } from '@/types'
+import { toArray } from '@/lib/utils'
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -10,7 +11,7 @@ export async function fetchCustomers(): Promise<Customer[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []) as Customer[]
+  return toArray(data) as Customer[]
 }
 
 export async function fetchTotalCustomerCount(): Promise<number> {
@@ -31,5 +32,5 @@ export async function fetchCustomerOrders(userId: string): Promise<Order[]> {
     .limit(20)
 
   if (error) throw error
-  return (data || []) as Order[]
+  return toArray(data) as Order[]
 }

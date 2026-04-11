@@ -52,7 +52,7 @@ export function AuthPage() {
         // Fetch profile
         const profile = await authService.fetchProfile(data.user.id)
 
-        setSession(data as any)
+        setSession(data.session)
         setUser(profile)
         toast.success('Willkommen zurück!')
         navigate(redirect)
@@ -64,7 +64,7 @@ export function AuthPage() {
 
         if (data.user) {
           if (data.session) {
-            setSession(data as any)
+            setSession(data.session)
             const profile = await authService.fetchProfile(data.user.id)
             setUser(profile)
             toast.success('Konto erfolgreich erstellt!')
@@ -79,7 +79,6 @@ export function AuthPage() {
         }
       }
     } catch (err: any) {
-      console.error('Auth error:', err)
       let message = 'Ein Fehler ist aufgetreten'
       if (err.message === 'Failed to fetch') {
         message = 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.'

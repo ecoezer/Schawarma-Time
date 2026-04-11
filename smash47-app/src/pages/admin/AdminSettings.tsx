@@ -18,7 +18,7 @@ const DAYS = [
 ]
 
 export function AdminSettings() {
-  const { settings, fetchSettings, updateSettings } = useRestaurantStore()
+  const { settings, updateSettings } = useRestaurantStore()
   const [localSettings, setLocalSettings] = useState(settings)
   const [hours, setHours] = useState(settings?.hours || {})
   const [isSaving, setIsSaving] = useState(false)
@@ -78,7 +78,6 @@ export function AdminSettings() {
             onChange={(v) => update('is_delivery_active', v)}
             label="Lieferung aktiv"
             description={localSettings.is_delivery_active ? 'Kunden können Bestellungen aufgeben' : 'Keine Bestellungen möglich'}
-            colorOn="bg-[#06c167]"
           />
           <div className="grid grid-cols-2 gap-4">
             <Input

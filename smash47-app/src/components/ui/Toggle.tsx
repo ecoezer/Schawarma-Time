@@ -7,10 +7,9 @@ interface ToggleProps {
   description?: string
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
-  colorOn?: string
 }
 
-export function Toggle({ checked, onChange, label, description, size = 'md', disabled, colorOn = 'bg-[#06c167]' }: ToggleProps) {
+export function Toggle({ checked, onChange, label, description, size = 'md', disabled }: ToggleProps) {
   const sizes = {
     sm: { track: 'w-8 h-4', thumb: 'w-3 h-3', translate: 'translate-x-4' },
     md: { track: 'w-11 h-6', thumb: 'w-5 h-5', translate: 'translate-x-5' },
@@ -29,7 +28,7 @@ export function Toggle({ checked, onChange, label, description, size = 'md', dis
         className={cn(
           'relative inline-flex shrink-0 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#06c167] focus-visible:ring-offset-2',
           s.track,
-          checked ? colorOn : 'bg-gray-200',
+          checked ? 'bg-[#06c167]' : 'bg-gray-200',
           !disabled && 'cursor-pointer'
         )}
       >

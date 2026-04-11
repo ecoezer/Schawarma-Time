@@ -30,7 +30,7 @@ export function AdminLoginPage() {
         return
       }
 
-      setSession(data as any)
+      setSession(data.session)
       setUser(profile)
       toast.success('Willkommen zurück!')
       navigate('/admin')

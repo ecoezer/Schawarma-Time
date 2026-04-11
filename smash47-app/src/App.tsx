@@ -1,11 +1,12 @@
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useEffect } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartSidebar } from '@/components/cart/CartSidebar'
 import { AdminLayout } from '@/components/admin/AdminLayout'
-import * as authService from '@/services/authService'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { supabase } from '@/lib/supabase'
 import { HomePage } from '@/pages/HomePage'
 import { CheckoutPage } from '@/pages/CheckoutPage'
 import { AuthPage } from '@/pages/customer/AuthPage'
@@ -22,9 +23,7 @@ import { AdminCustomers } from '@/pages/admin/AdminCustomers'
 import { AdminCampaigns } from '@/pages/admin/AdminCampaigns'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useAuthStore } from '@/store/authStore'
-import { useOrderStore } from '@/store/orderStore'
 
-// Customer layout with header, footer and cart sidebar
 function CustomerLayout() {
   return (
     <div className="flex flex-col min-h-screen">
@@ -38,8 +37,10 @@ function CustomerLayout() {
   )
 }
 
-// Admin layout wrapper
 function AdminRoute() {
+  const { user, isAdmin, isInitialized } = useAuthStore()
+  if (!isInitialized) return null
+  if (!user || !isAdmin) return <Navigate to="/admin/login" replace />
   return (
     <AdminLayout>
       <Outlet />
@@ -47,20 +48,25 @@ function AdminRoute() {
   )
 }
 
+// Blocks unauthenticated users from protected routes — avoids flash-before-redirect
+function ProtectedRoute() {
+  const { user, isInitialized } = useAuthStore()
+  if (!isInitialized) return null
+  return user ? <Outlet /> : <Navigate to="/login" replace />
+}
+
 function App() {
   const { fetchSettings } = useRestaurantStore()
   const { refreshUser } = useAuthStore()
-  const { fetchOrders, initRealtime } = useOrderStore()
 
   useEffect(() => {
     fetchSettings()
-    fetchOrders()
-    
-    // Global Auth Listener
-    const subscription = authService.onAuthStateChange(async (event, session) => {
+    refreshUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        useAuthStore.getState().setSession(session as any)
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        useAuthStore.getState().setSession(session)
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           await refreshUser()
         }
       } else if (event === 'SIGNED_OUT') {
@@ -68,69 +74,66 @@ function App() {
       }
     })
 
-    // Centralized realtime for orders
-    const unsubOrders = initRealtime()
-
-    // Initial auth check
-    refreshUser()
-
-    return () => {
-      subscription.unsubscribe()
-      unsubOrders()
-    }
-  }, [fetchSettings, refreshUser, fetchOrders, initRealtime])
+    return () => { subscription.unsubscribe() }
+  }, [fetchSettings, refreshUser])
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Customer Routes */}
-        <Route element={<CustomerLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/bestellung" element={<CheckoutPage />} />
-          <Route path="/login" element={<AuthPage />} />
-          <Route path="/register" element={<AuthPage />} />
-          <Route path="/profil" element={<ProfilePage />} />
-          <Route path="/impressum" element={<ImpressumPage />} />
-          <Route path="/datenschutz" element={<DatenschutzPage />} />
-          <Route path="/agb" element={<AgbPage />} />
-        </Route>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          {/* Customer Routes */}
+          <Route element={<CustomerLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/register" element={<AuthPage />} />
+            <Route path="/impressum" element={<ImpressumPage />} />
+            <Route path="/datenschutz" element={<DatenschutzPage />} />
+            <Route path="/agb" element={<AgbPage />} />
 
-        {/* Admin Login (standalone, no header/footer) */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
+            {/* Protected customer routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/bestellung" element={<CheckoutPage />} />
+              <Route path="/profil" element={<ProfilePage />} />
+            </Route>
+          </Route>
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={<AdminRoute />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="bestellungen" element={<AdminOrders />} />
-          <Route path="menue" element={<AdminMenu />} />
-          <Route path="kampagnen" element={<AdminCampaigns />} />
-          <Route path="kunden" element={<AdminCustomers />} />
-          <Route path="einstellungen" element={<AdminSettings />} />
-        </Route>
-      </Routes>
+          {/* Admin Login (standalone, no header/footer) */}
+          <Route path="/admin/login" element={<AdminLoginPage />} />
 
-      {/* Global Toast */}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            borderRadius: '12px',
-            background: '#142328',
-            color: '#fff',
-            fontSize: '14px',
-            fontWeight: '600',
-            padding: '12px 16px',
-          },
-          success: {
-            iconTheme: { primary: '#06c167', secondary: '#fff' },
-          },
-          error: {
-            style: { background: '#991b1b' },
-          },
-        }}
-      />
-    </BrowserRouter>
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminRoute />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="bestellungen" element={<AdminOrders />} />
+            <Route path="menue" element={<AdminMenu />} />
+            <Route path="kampagnen" element={<AdminCampaigns />} />
+            <Route path="kunden" element={<AdminCustomers />} />
+            <Route path="einstellungen" element={<AdminSettings />} />
+          </Route>
+        </Routes>
+
+        {/* Global Toast */}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              borderRadius: '12px',
+              background: '#142328',
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: '600',
+              padding: '12px 16px',
+            },
+            success: {
+              iconTheme: { primary: '#06c167', secondary: '#fff' },
+            },
+            error: {
+              style: { background: '#991b1b' },
+            },
+          }}
+        />
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

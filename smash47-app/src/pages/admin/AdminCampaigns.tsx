@@ -119,7 +119,7 @@ export function AdminCampaigns() {
     const newActive = !coupon.is_active
     setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, is_active: newActive } : c))
     try {
-      await couponService.toggleCouponActive(coupon.id, newActive)
+      await couponService.updateCoupon(coupon.id, { is_active: newActive })
     } catch (err) {
       setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, is_active: coupon.is_active } : c))
       handleError(err, 'Gutschein aktualisieren')
@@ -368,7 +368,6 @@ export function AdminCampaigns() {
               checked={form.is_active}
               onChange={(v) => setForm({ ...form, is_active: v })}
               label="Sofort aktivieren"
-              colorOn="bg-[#06c167]"
             />
           </div>
 

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Coupon } from '@/types'
+import { toArray } from '@/lib/utils'
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -10,7 +11,7 @@ export async function fetchCoupons(): Promise<Coupon[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []) as Coupon[]
+  return toArray(data) as Coupon[]
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -107,11 +108,3 @@ export async function deleteCoupon(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function toggleCouponActive(id: string, isActive: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('coupons')
-    .update({ is_active: isActive })
-    .eq('id', id)
-
-  if (error) throw error
-}

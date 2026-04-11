@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Category, Product } from '@/types'
 import * as productService from '@/services/productService'
+import { handleError } from '@/lib/errorHandler'
 
 interface MenuStore {
   categories: Category[]
@@ -27,9 +28,9 @@ export const useMenuStore = create<MenuStore>((set, get) => ({
         productService.fetchProducts(),
       ])
       set({ categories, products, isLoading: false, error: null })
-    } catch (err: any) {
-      console.error('[menuStore] fetchMenu error:', err)
-      set({ isLoading: false, error: err.message || 'Unbekannter Fehler' })
+    } catch (err) {
+      const msg = handleError(err, 'Menü laden')
+      set({ isLoading: false, error: msg })
     }
   },
 

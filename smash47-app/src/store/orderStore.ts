@@ -1,8 +1,13 @@
 import { create } from 'zustand'
-import type { Order, OrderStatus } from '@/types'
+import type { Order } from '@/types'
 import * as orderService from '@/services/orderService'
 import { handleError } from '@/lib/errorHandler'
-import toast from 'react-hot-toast'
+
+// Lazy-initialized to avoid issues in test/non-browser environments
+let notificationAudio: HTMLAudioElement | null = null
+function getAudio(): HTMLAudioElement {
+  return (notificationAudio ??= new Audio('/order-notification.mp3'))
+}
 
 interface OrderStore {
   orders: Order[]
@@ -10,16 +15,9 @@ interface OrderStore {
   error: string | null
   soundEnabled: boolean
 
-  // Actions
   fetchOrders: () => Promise<void>
   setSoundEnabled: (enabled: boolean) => void
-
-  // Computed-like helpers
-  pendingCount: () => number
-  activeOrders: () => Order[]
-
-  // Realtime
-  initRealtime: () => () => void
+  initRealtime: (onNewOrder?: (order: Order) => void) => () => void
 }
 
 export const useOrderStore = create<OrderStore>((set, get) => ({
@@ -41,30 +39,23 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
 
   setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
 
-  pendingCount: () => get().orders.filter(o => o.status === 'pending').length,
-  activeOrders: () => get().orders.filter(o => !['cancelled', 'delivered'].includes(o.status)),
-
-  initRealtime: () => {
+  initRealtime: (onNewOrder) => {
     return orderService.subscribeToOrders((payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newOrder = payload.new as Order
-        set(state => ({ orders: [newOrder, ...state.orders] }))
+      const { eventType, new: next, old } = payload
 
-        // Play sound if enabled
+      if (eventType === 'INSERT') {
+        const order = next as Order
+        set(state => ({ orders: [order, ...state.orders] }))
         if (get().soundEnabled) {
-          const audio = new Audio('/order-notification.mp3')
+          const audio = getAudio()
+          audio.currentTime = 0
           audio.play().catch(e => console.warn('Audio play failed:', e))
         }
-        toast.success(`Neue Bestellung: ${newOrder.order_number}`)
-      } else if (payload.eventType === 'UPDATE') {
-        const updated = payload.new as Order
-        set(state => ({
-          orders: state.orders.map(o => o.id === updated.id ? updated : o)
-        }))
-      } else if (payload.eventType === 'DELETE') {
-        set(state => ({
-          orders: state.orders.filter(o => o.id !== payload.old.id)
-        }))
+        onNewOrder?.(order)
+      } else if (eventType === 'UPDATE') {
+        set(state => ({ orders: state.orders.map(o => o.id === next.id ? next as Order : o) }))
+      } else if (eventType === 'DELETE') {
+        set(state => ({ orders: state.orders.filter(o => o.id !== old.id) }))
       }
     })
   },
