@@ -102,18 +102,64 @@ export function ProfilePage() {
     }
   }
 
-  const handleReorder = (order: Order) => {
-    const cartItems = order.items.map(item => ({
-      product_id: item.product_id,
-      name: item.product_name,
-      price: item.unit_price,
-      quantity: item.quantity,
-      selected_extras: item.extras,
-      image_url: null, // Since image_url isn't stored in OrderItem
-      note: item.note,
-    }))
-    addItems(cartItems, settings)
-    toast.success('Produkte zum Warenkorb hinzugefügt!')
+  const handleReorder = async (order: Order) => {
+    // BLV-5: Fetch current product prices from DB — never reuse stale order prices
+    try {
+      const productIds = [...new Set(order.items.map(i => i.product_id))]
+      const { data: products, error } = await (await import('@/lib/supabase')).supabase
+        .from('products')
+        .select('id, name, price, extra_groups, is_active, image_url')
+        .in('id', productIds)
+        .eq('is_active', true)
+
+      if (error) throw error
+
+      const productMap = new Map((products || []).map((p: any) => [p.id, p]))
+      const unavailable: string[] = []
+      const cartItems: any[] = []
+
+      for (const item of order.items) {
+        const product = productMap.get(item.product_id)
+        if (!product) {
+          unavailable.push(item.product_name)
+          continue
+        }
+
+        // Resolve current extra prices from DB product definition
+        const resolvedExtras = (item.extras || []).map((extra: any) => {
+          for (const group of product.extra_groups || []) {
+            for (const opt of group.options || []) {
+              if (opt.id === extra.id) {
+                return { ...extra, price: opt.price ?? 0 }
+              }
+            }
+          }
+          return null // extra no longer available
+        }).filter(Boolean)
+
+        cartItems.push({
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity,
+          selected_extras: resolvedExtras,
+          image_url: product.image_url ?? null,
+          note: item.note,
+        })
+      }
+
+      if (unavailable.length > 0) {
+        toast(`Nicht mehr verfügbar: ${unavailable.join(', ')}`, { icon: '⚠️' })
+      }
+      if (cartItems.length > 0) {
+        addItems(cartItems, settings)
+        toast.success('Produkte zum Warenkorb hinzugefügt!')
+      } else {
+        toast.error('Keine Produkte verfügbar')
+      }
+    } catch (err) {
+      toast.error('Fehler beim Wiederholen der Bestellung')
+    }
   }
 
   if (!user) return null
