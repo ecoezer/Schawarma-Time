@@ -106,7 +106,7 @@ export function AdminCustomers() {
                       <Mail size={32} className="mb-2 opacity-50" />
                       <p className="font-bold">{error}</p>
                       <button
-                        onClick={() => fetchCustomers()}
+                        onClick={() => fetchCustomersData()}
                         className="mt-4 text-sm underline hover:text-red-600"
                       >
                         Erneut versuchen
