@@ -93,14 +93,11 @@ export function HeroSection({ settings }: HeroSectionProps) {
           <div className="flex flex-col items-center lg:items-end gap-5 mt-6 lg:mt-0 shrink-0 w-full lg:w-auto">
 
             {/* Delivery Toggle */}
-            <div className="flex items-center bg-[#f0f0f0] rounded-full p-1 relative">
-              {/* Sliding indicator */}
+            <div className="relative flex items-center bg-[#f0f0f0] rounded-full p-1 overflow-hidden">
               <motion.div
-                layout
-                layoutId="delivery-mode-indicator"
                 className="absolute top-1 bottom-1 rounded-full bg-white shadow-sm"
                 style={{ width: 'calc(50% - 4px)' }}
-                animate={{ x: mode === 'lieferung' ? 0 : 'calc(100% + 8px)' }}
+                animate={{ left: mode === 'lieferung' ? 4 : '50%' }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
               <button
