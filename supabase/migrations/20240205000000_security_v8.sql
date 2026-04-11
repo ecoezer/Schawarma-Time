@@ -1,0 +1,19 @@
+-- Migration: 006 — Penetration test findings fixes v8
+-- Source: security_fixes_v8.sql
+-- Fixes:
+--   🔴-1: coupons_public view rebuilt WITHOUT the code column
+--   🔴-3: phone number must have ≥10 digits (blocks throwaway "+123456" phones)
+--   🔴-3: dual rate limit: per phone_hash AND per user_id (10 per user / 10 min)
+--   🧱-1: audit_log table created (insert-only, manager-read-only, no delete)
+--         Logs: order_placed, order_status_changed, coupon_attempt_failed,
+--               rate_limit_phone, rate_limit_user, loyalty_awarded
+--   🧱-2: validate_order_status_transition trigger — state machine enforcement
+--         terminal states (delivered/cancelled) block further transitions
+--         managers bypass for corrections
+--   🧱-3: REVOKE EXECUTE on has_role() / is_admin() from anon/authenticated
+--   🧱-4: loyalty_awarded column on orders — idempotency guard for trigger
+--         prevents double points via status regression (delivered→confirmed→delivered)
+--   Edge Function: webhook replay guard — re-queries live DB status before sending email
+--   authService.ts: changePassword() now calls signOut({ scope: 'global' })
+-- Applied: via Supabase Management API + Edge Function deploy
+-- Status: APPLIED

@@ -1,6 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
+// Service-role client for webhook replay guard — re-queries live DB status
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+)
 const DOMAIN_VERIFIED = Deno.env.get('RESEND_DOMAIN_VERIFIED') === 'true'
 const FROM_EMAIL = DOMAIN_VERIFIED
   ? 'Smash47 <bestellung@smash47.de>'
@@ -275,6 +281,20 @@ serve(async (req) => {
 
     if (newStatus !== 'confirmed' && newStatus !== 'cancelled') {
       return new Response('Status not relevant', { status: 200 })
+    }
+
+    // Webhook replay guard: re-query the LIVE order status from DB.
+    // If the current DB status no longer matches the webhook payload's new status,
+    // this is a replayed or stale webhook — skip silently.
+    const { data: liveOrder } = await supabaseAdmin
+      .from('orders')
+      .select('status')
+      .eq('id', order.id)
+      .single()
+
+    if (!liveOrder || liveOrder.status !== newStatus) {
+      console.log(`Replay guard: live status=${liveOrder?.status}, webhook status=${newStatus} — skipping`)
+      return new Response('Stale webhook', { status: 200 })
     }
 
     const isConfirmed = newStatus === 'confirmed'

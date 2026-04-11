@@ -32,6 +32,9 @@ export async function getSession() {
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) throw error
+  // 🔴-2 fix: invalidate ALL other sessions globally after password change.
+  // Stolen JWTs / refresh tokens from other devices are revoked immediately.
+  await supabase.auth.signOut({ scope: 'global' })
 }
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
