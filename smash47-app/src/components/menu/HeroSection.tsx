@@ -92,31 +92,33 @@ export function HeroSection({ settings }: HeroSectionProps) {
           {/* Right: Widgets */}
           <div className="flex flex-col items-center lg:items-end gap-5 mt-6 lg:mt-0 shrink-0 w-full lg:w-auto">
 
-            {/* Delivery Toggle — two separate pills */}
-            <div className="flex items-center gap-3">
-              {/* Lieferung / Abholung pill */}
-              <div className="flex items-center bg-[#f0f0f0] rounded-full p-1">
-                <button
-                  onClick={() => setMode('lieferung')}
-                  className={`px-5 py-2 rounded-full text-[15px] font-semibold transition-all ${
-                    mode === 'lieferung'
-                      ? 'bg-white shadow-sm text-black'
-                      : 'text-[#6b6b6b] hover:text-black'
-                  }`}
-                >
-                  Lieferung
-                </button>
-                <button
-                  onClick={() => setMode('abholung')}
-                  className={`px-5 py-2 rounded-full text-[15px] font-semibold transition-all ${
-                    mode === 'abholung'
-                      ? 'bg-white shadow-sm text-black'
-                      : 'text-[#6b6b6b] hover:text-black'
-                  }`}
-                >
-                  Abholung
-                </button>
-              </div>
+            {/* Delivery Toggle */}
+            <div className="flex items-center bg-[#f0f0f0] rounded-full p-1 relative">
+              {/* Sliding indicator */}
+              <motion.div
+                layout
+                layoutId="delivery-mode-indicator"
+                className="absolute top-1 bottom-1 rounded-full bg-white shadow-sm"
+                style={{ width: 'calc(50% - 4px)' }}
+                animate={{ x: mode === 'lieferung' ? 0 : 'calc(100% + 8px)' }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+              <button
+                onClick={() => setMode('lieferung')}
+                className={`relative z-10 px-6 py-2 rounded-full text-[15px] font-semibold transition-colors duration-200 ${
+                  mode === 'lieferung' ? 'text-black' : 'text-[#6b6b6b] hover:text-black'
+                }`}
+              >
+                Lieferung
+              </button>
+              <button
+                onClick={() => setMode('abholung')}
+                className={`relative z-10 px-6 py-2 rounded-full text-[15px] font-semibold transition-colors duration-200 ${
+                  mode === 'abholung' ? 'text-black' : 'text-[#6b6b6b] hover:text-black'
+                }`}
+              >
+                Abholung
+              </button>
             </div>
 
             {/* Fee & Time Widget */}
