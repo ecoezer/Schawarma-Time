@@ -8,6 +8,7 @@ export async function fetchCustomers(): Promise<Customer[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
+    .eq('role', 'customer')
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -18,6 +19,7 @@ export async function fetchTotalCustomerCount(): Promise<number> {
   const { count, error } = await supabase
     .from('profiles')
     .select('id', { count: 'exact', head: true })
+    .eq('role', 'customer')
 
   if (error) throw error
   return count || 0
