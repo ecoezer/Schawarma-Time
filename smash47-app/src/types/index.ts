@@ -145,6 +145,7 @@ export interface RestaurantSettings {
   announcement: string | null
   is_announcement_active: boolean
   revenue_goal_daily: number
+  tags: string[]
 }
 
 export interface DeliveryZone {

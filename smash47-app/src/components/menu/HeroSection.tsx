@@ -53,24 +53,14 @@ export function HeroSection({ settings }: HeroSectionProps) {
             {/* Meta tags line */}
             <div className="flex flex-wrap items-center gap-1.5 text-[15px] font-medium text-gray-800 mb-2.5">
               <span>{settings.delivery_fee === 0 ? 'Kostenlos' : `${settings.delivery_fee.toFixed(2).replace('.', ',')} €`} Liefergebühr</span>
-              <span className="text-gray-400 font-normal">•</span>
-              <span>Food</span>
-              <span className="text-gray-400 font-normal">•</span>
-              <span>Burger</span>
-              {settings.is_halal_certified && (
+              {(settings.tags?.length ? settings.tags : ['Food', 'Burger', 'Street Food']).map((tag) => (
                 <>
                   <span className="text-gray-400 font-normal">•</span>
-                  <span>Halal</span>
+                  <span key={tag}>{tag}</span>
                 </>
-              )}
+              ))}
               <span className="text-gray-400 font-normal">•</span>
-              <span>Street Food</span>
-              <span className="text-gray-400 font-normal">•</span>
-              <span>Bar</span>
-              <span className="text-gray-400 font-normal">•</span>
-              <span>Pub</span>
-              <span className="text-gray-400 font-normal">•</span>
-              <button 
+              <button
                 onClick={() => setShowInfoModal(true)}
                 className="underline decoration-1 underline-offset-2 text-black hover:text-gray-600"
               >
@@ -83,7 +73,10 @@ export function HeroSection({ settings }: HeroSectionProps) {
               <p className="text-[14px] text-[#545454]">
                 Der Mindestbestellwert in diesem Geschäft beträgt {settings.min_order_amount} €.
               </p>
-              <p 
+              {settings.description && (
+                <p className="text-[14px] text-[#545454]">{settings.description}</p>
+              )}
+              <p
                 className="text-[14px] text-[#545454] cursor-pointer hover:underline decoration-1"
                 onClick={() => setShowInfoModal(true)}
               >
