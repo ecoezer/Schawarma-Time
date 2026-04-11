@@ -207,6 +207,19 @@ function buildRejectedEmailHtml(order: OrderRecord): string {
 
 serve(async (req) => {
   try {
+    // ── MED-3: Webhook authentication ────────────────────────────────────────
+    // Only accept requests from Supabase webhooks via the shared secret.
+    // Set WEBHOOK_SECRET in Supabase Edge Function secrets and add the same
+    // value as x-webhook-secret header in the Supabase Webhook config.
+    const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET')
+    if (WEBHOOK_SECRET) {
+      const incomingSecret = req.headers.get('x-webhook-secret') ?? ''
+      if (incomingSecret !== WEBHOOK_SECRET) {
+        console.error('Unauthorized webhook call — invalid secret')
+        return new Response('Unauthorized', { status: 401 })
+      }
+    }
+
     const payload = await req.json()
 
     // Webhook: UPDATE event — only act on confirmed or cancelled

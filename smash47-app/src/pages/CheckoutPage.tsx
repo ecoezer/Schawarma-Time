@@ -10,7 +10,7 @@ import * as orderService from '@/services/orderService'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { formatPrice, generateOrderNumber, isRestaurantOpen } from '@/lib/utils'
+import { formatPrice, isRestaurantOpen } from '@/lib/utils'
 import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
 import type { UserAddress } from '@/types'
@@ -28,10 +28,10 @@ export function CheckoutPage() {
   const [status, setStatus] = useState<OrderStatus>('form')
   const [isLoading, setIsLoading] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
+  const [orderNumber, setOrderNumber] = useState<string>('')  // set by server after order creation
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [couponCode, setCouponCode] = useState('')
   const [discount, setDiscount] = useState(0)
-  const orderNumber = useRef(generateOrderNumber()).current
 
   // Prefill user data if available — use first saved address if exists
   const defaultAddress = user?.addresses?.[0]
@@ -157,8 +157,7 @@ export function CheckoutPage() {
     setIsLoading(true)
     
     try {
-      await orderService.createOrder({
-        order_number:   orderNumber,
+      const result = await orderService.createOrder({
         customer_name:  form.name,
         customer_phone: form.phone,
         customer_email: form.email,
@@ -177,9 +176,9 @@ export function CheckoutPage() {
       })
 
       clearCart()
-      // Sipariş ID'sini al, admin onayı bekle
-      const placed = await orderService.fetchOrderByNumber(orderNumber)
-      if (placed) setOrderId(placed.id)
+      // Server returns { id, order_number } — set both from result
+      setOrderId(result.id)
+      setOrderNumber(result.order_number)
       setStatus('pending_confirmation')
       toast.success('Bestellung eingegangen! Wir bestätigen gleich.')
     } catch (err) {

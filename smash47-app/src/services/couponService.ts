@@ -27,9 +27,10 @@ export async function validateCoupon(
   subtotal: number,
   userId?: string
 ): Promise<CouponValidationResult> {
+  // CRITICAL-1 fix: select only needed fields, never expose internal stats via select('*')
   const { data: coupon, error } = await supabase
     .from('coupons')
-    .select('*')
+    .select('code, discount_type, discount_value, min_order_amount, expires_at, max_uses, used_count, is_first_order_only')
     .eq('code', code.toUpperCase())
     .eq('is_active', true)
     .single()

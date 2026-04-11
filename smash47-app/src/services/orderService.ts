@@ -6,7 +6,7 @@ import { toArray } from '@/lib/utils'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CreateOrderInput {
-  order_number: string
+  // order_number removed — now generated server-side (LOW-1)
   customer_name: string
   customer_phone: string
   customer_email: string
@@ -17,6 +17,11 @@ export interface CreateOrderInput {
   payment_method: PaymentMethod
   estimated_delivery_time: number
   notes: string | null
+}
+
+export interface CreateOrderResult {
+  id: string
+  order_number: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -94,26 +99,41 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   if (error) throw error
 }
 
-export async function createOrder(input: CreateOrderInput): Promise<void> {
+export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
   // All price calculation happens server-side in create_order_secure().
   // Client sends only product IDs + quantities — never prices.
-  const { error } = await supabase.rpc('create_order_secure', {
-    p_order_number:           input.order_number,
-    p_customer_name:          input.customer_name,
-    p_customer_phone:         input.customer_phone,
-    p_customer_email:         input.customer_email,
-    p_delivery_address:       input.delivery_address,
-    p_items:                  input.items,
-    p_coupon_code:            input.coupon_code ?? null,
-    p_payment_method:         input.payment_method,
-    p_notes:                  input.notes ?? null,
+  // Order number is now generated server-side (LOW-1 fix).
+  const { data, error } = await supabase.rpc('create_order_secure', {
+    p_customer_name:           input.customer_name,
+    p_customer_phone:          input.customer_phone,
+    p_customer_email:          input.customer_email,
+    p_delivery_address:        input.delivery_address,
+    p_items:                   input.items,
+    p_coupon_code:             input.coupon_code ?? null,
+    p_payment_method:          input.payment_method,
+    p_notes:                   input.notes ?? null,
     p_estimated_delivery_time: input.estimated_delivery_time,
   })
 
   if (error) throw error
+
+  // RPC returns JSON string: { id, order_number }
+  const result = typeof data === 'string' ? JSON.parse(data) : data
+  return result as CreateOrderResult
 }
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────
+
+export async function fetchOrderById(orderId: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .single()
+
+  if (error) return null
+  return data as Order
+}
 
 export async function fetchOrderByNumber(orderNumber: string): Promise<Order | null> {
   const { data, error } = await supabase

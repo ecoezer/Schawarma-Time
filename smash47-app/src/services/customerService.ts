@@ -5,9 +5,10 @@ import { toArray } from '@/lib/utils'
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function fetchCustomers(): Promise<Customer[]> {
+  // MED-4 fix: only fetch columns needed for customer list — no addresses/birth_date in list view
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, email, full_name, phone, created_at, total_orders, loyalty_points, role')
     .eq('role', 'customer')
     .order('created_at', { ascending: false })
 
