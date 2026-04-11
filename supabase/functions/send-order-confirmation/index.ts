@@ -1,13 +1,42 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
-// Use verified domain email when smash47.de is verified in Resend.
-// Until then, use onboarding@resend.dev (Resend test sender).
 const DOMAIN_VERIFIED = Deno.env.get('RESEND_DOMAIN_VERIFIED') === 'true'
 const FROM_EMAIL = DOMAIN_VERIFIED
   ? 'Smash47 <bestellung@smash47.de>'
   : 'Smash47 <onboarding@resend.dev>'
 const RESTAURANT_EMAIL = 'smash47@skymail.de'
+
+// ── H-1: Timing-safe string comparison ───────────────────────────────────────
+// Prevents timing-based secret enumeration attacks on the webhook endpoint.
+function timingSafeEqual(a: string, b: string): boolean {
+  const encoder = new TextEncoder()
+  const aBytes = encoder.encode(a)
+  const bBytes = encoder.encode(b)
+  if (aBytes.length !== bBytes.length) {
+    // Still consume time proportional to `a` to avoid length oracle
+    let diff = 0
+    for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ (bBytes[i % bBytes.length] ?? 0)
+    return false
+  }
+  let diff = 0
+  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
+  return diff === 0
+}
+
+// ── H-2: HTML escape all user-supplied fields before embedding in email HTML ──
+// Prevents HTML injection in confirmation emails sent to customers/restaurant.
+// customer_name, delivery_address, notes, and order items all come from
+// attacker-controlled input stored in the DB — must be escaped before rendering.
+function escHtml(str: string | null | undefined): string {
+  if (!str) return ''
+  return str
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#039;')
+}
 
 interface OrderRecord {
   id: string
@@ -42,10 +71,16 @@ function formatPayment(method: string): string {
 }
 
 function buildEmailHtml(order: OrderRecord): string {
+  // H-2: all user-supplied fields are escaped before HTML interpolation
+  const safeName    = escHtml(order.customer_name)
+  const safeAddress = escHtml(order.delivery_address)
+  const safeNotes   = escHtml(order.notes)
+  const safeOrderNo = escHtml(order.order_number)   // server-generated but escape anyway
+
   const itemsHtml = order.items.map(item => `
     <tr>
       <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
-        <span style="font-weight:600;">${item.quantity}× ${item.product_name}</span>
+        <span style="font-weight:600;">${item.quantity}× ${escHtml(item.product_name)}</span>
       </td>
       <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;">
         ${formatPrice(item.subtotal)}
@@ -75,14 +110,14 @@ function buildEmailHtml(order: OrderRecord): string {
         <tr><td style="background:white;padding:32px;">
 
           <p style="margin:0 0 24px;font-size:16px;color:#333;">
-            Hallo <strong>${order.customer_name}</strong>,<br>
+            Hallo <strong>${safeName}</strong>,<br>
             vielen Dank für deine Bestellung bei <strong>Smash47</strong>!
           </p>
 
           <!-- Order Number -->
           <div style="background:#f6f6f6;border-radius:12px;padding:16px;text-align:center;margin-bottom:24px;">
             <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Bestellnummer</p>
-            <p style="margin:0;font-size:22px;font-weight:900;color:#142328;">${order.order_number}</p>
+            <p style="margin:0;font-size:22px;font-weight:900;color:#142328;">${safeOrderNo}</p>
           </div>
 
           <!-- Items -->
@@ -103,7 +138,7 @@ function buildEmailHtml(order: OrderRecord): string {
             </tr>
             ${order.discount_amount > 0 ? `
             <tr>
-              <td style="padding:4px 0;color:#06c167;font-size:14px;font-weight:600;">Rabatt${order.coupon_code ? ` (${order.coupon_code})` : ''}</td>
+              <td style="padding:4px 0;color:#06c167;font-size:14px;font-weight:600;">Rabatt${order.coupon_code ? ` (${escHtml(order.coupon_code)})` : ''}</td>
               <td style="padding:4px 0;color:#06c167;font-size:14px;font-weight:600;text-align:right;">-${formatPrice(order.discount_amount)}</td>
             </tr>` : ''}
             <tr>
@@ -118,7 +153,7 @@ function buildEmailHtml(order: OrderRecord): string {
               <tr>
                 <td style="padding:4px 0;">
                   <span style="font-size:13px;color:#888;">📍 Lieferadresse</span><br>
-                  <span style="font-size:14px;font-weight:600;color:#333;">${order.delivery_address}</span>
+                  <span style="font-size:14px;font-weight:600;color:#333;">${safeAddress}</span>
                 </td>
               </tr>
               <tr>
@@ -133,11 +168,11 @@ function buildEmailHtml(order: OrderRecord): string {
                   <span style="font-size:14px;font-weight:600;color:#333;">${formatPayment(order.payment_method)}</span>
                 </td>
               </tr>
-              ${order.notes ? `
+              ${safeNotes ? `
               <tr>
                 <td style="padding:8px 0 4px;">
                   <span style="font-size:13px;color:#888;">📝 Anmerkungen</span><br>
-                  <span style="font-size:14px;font-weight:600;color:#333;">${order.notes}</span>
+                  <span style="font-size:14px;font-weight:600;color:#333;">${safeNotes}</span>
                 </td>
               </tr>` : ''}
             </table>
@@ -166,6 +201,9 @@ function buildEmailHtml(order: OrderRecord): string {
 }
 
 function buildRejectedEmailHtml(order: OrderRecord): string {
+  const safeName    = escHtml(order.customer_name)
+  const safeOrderNo = escHtml(order.order_number)
+
   return `
 <!DOCTYPE html>
 <html lang="de">
@@ -182,8 +220,8 @@ function buildRejectedEmailHtml(order: OrderRecord): string {
         </td></tr>
         <tr><td style="background:white;padding:32px;border-radius:0 0 16px 16px;">
           <p style="margin:0 0 16px;font-size:16px;color:#333;">
-            Hallo <strong>${order.customer_name}</strong>,<br>
-            leider konnten wir deine Bestellung <strong>${order.order_number}</strong> aufgrund von hoher Auslastung nicht annehmen.
+            Hallo <strong>${safeName}</strong>,<br>
+            leider konnten wir deine Bestellung <strong>${safeOrderNo}</strong> aufgrund von hoher Auslastung nicht annehmen.
           </p>
           <p style="margin:0 0 24px;font-size:15px;color:#333;">
             Bitte ruf uns an, wir helfen dir gerne weiter:
@@ -207,25 +245,22 @@ function buildRejectedEmailHtml(order: OrderRecord): string {
 
 serve(async (req) => {
   try {
-    // ── MED-3: Webhook authentication ────────────────────────────────────────
-    // Only accept requests from Supabase webhooks via the shared secret.
-    // Set WEBHOOK_SECRET in Supabase Edge Function secrets and add the same
-    // value as x-webhook-secret header in the Supabase Webhook config.
     // Fail CLOSED: if the secret is not configured, refuse ALL requests.
     const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET')
     if (!WEBHOOK_SECRET) {
       console.error('WEBHOOK_SECRET is not configured — refusing all requests')
       return new Response('Misconfigured', { status: 401 })
     }
+
+    // H-1: timing-safe comparison — prevents secret enumeration via timing
     const incomingSecret = req.headers.get('x-webhook-secret') ?? ''
-    if (incomingSecret !== WEBHOOK_SECRET) {
+    if (!timingSafeEqual(incomingSecret, WEBHOOK_SECRET)) {
       console.error('Unauthorized webhook call — invalid secret')
       return new Response('Unauthorized', { status: 401 })
     }
 
     const payload = await req.json()
 
-    // Webhook: UPDATE event — only act on confirmed or cancelled
     const order: OrderRecord = payload.record
     const oldStatus: string = payload.old_record?.status ?? ''
     const newStatus: string = order?.status ?? ''
@@ -234,7 +269,6 @@ serve(async (req) => {
       return new Response('No email', { status: 400 })
     }
 
-    // Only send email when status first changes to 'confirmed' or 'cancelled'
     if (newStatus === oldStatus) {
       return new Response('No status change', { status: 200 })
     }
@@ -252,11 +286,10 @@ serve(async (req) => {
       from: FROM_EMAIL,
       to: toAddresses,
       subject: isConfirmed
-        ? `Bestellung ${order.order_number} bestatigt – Smash47`
-        : `Bestellung ${order.order_number} abgelehnt – Smash47`,
+        ? `Bestellung ${escHtml(order.order_number)} bestätigt – Smash47`
+        : `Bestellung ${escHtml(order.order_number)} abgelehnt – Smash47`,
       html,
     }
-
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -269,13 +302,14 @@ serve(async (req) => {
 
     if (!res.ok) {
       const err = await res.text()
-      console.error('Resend error:', err)  // logged server-side only — not exposed to caller
+      console.error('Resend error:', err)  // server-side only — never exposed to caller
       return new Response('Email delivery failed', { status: 500 })
     }
 
     return new Response('OK', { status: 200 })
   } catch (err) {
-    console.error('Edge function error:', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('Edge function error:', msg)
     return new Response('Internal error', { status: 500 })
   }
 })

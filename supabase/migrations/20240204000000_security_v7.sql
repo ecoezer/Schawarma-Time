@@ -1,0 +1,17 @@
+-- Migration: 005 — Attacker-perspective security fixes v7
+-- Source: security_fixes_v7.sql
+-- Fixes:
+--   A-2:  p_customer_email validated against auth.users.email — no email spoofing
+--   B-1:  coupons_public view created; direct table SELECT removed for anon/authenticated
+--   C-2:  Extras per item capped at 20; inner loops EXIT on first match (CPU DoS prevention)
+--   C-8:  SET LOCAL lock_timeout = '3s' on coupon FOR UPDATE (lock starvation prevention)
+--   C-9:  Phone rate limit INSERT moved before all validation (counts failed attempts too)
+--   C-11: p_estimated_delivery_time bounded to [10, 120] minutes
+--   F-1:  All coupon failure paths return same generic error (blocks code enumeration)
+--   F-2:  is_first_order_only checks ANY prior order, not just orders with coupon
+--   G-1:  Per-INSERT purge trigger replaced with pg_cron scheduled job every 5 min
+--   H-1:  Timing-safe webhook secret comparison in Edge Function
+--   H-2:  HTML escaping added to all user-supplied fields in email templates
+--   J-1:  orders removed from public Realtime publication; separate admin publication added
+-- Applied: via Supabase Management API
+-- Status: APPLIED
