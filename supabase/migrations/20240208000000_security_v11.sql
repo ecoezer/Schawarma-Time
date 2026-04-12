@@ -30,4 +30,4 @@
 --   Edge function:     RESEND_API_KEY — explicit fail-closed guard added
 --
 -- Applied: via Supabase SQL Editor
--- Status: PENDING
+-- Status: APPLIED
