@@ -22,61 +22,34 @@ export interface CouponValidationResult {
   errorMessage?: string
 }
 
+// v11 fix: Previously called `coupons` table directly, which RLS blocks for customers
+// (post-v9 policy: coupons readable only by managers). All customer coupon validation
+// calls failed silently — every code showed "invalid" in the UI.
+//
+// New approach: call the `validate_coupon_public` SECURITY DEFINER RPC, which runs
+// as the table owner, performs all checks server-side, and returns only the
+// necessary fields. No code enumeration possible (uniform error messages).
 export async function validateCoupon(
   code: string,
   subtotal: number,
-  userId?: string
+  _userId?: string   // kept for API compat, server-side RPC uses auth.uid() internally
 ): Promise<CouponValidationResult> {
-  // CRITICAL-1 fix: select only needed fields, never expose internal stats via select('*')
-  const { data: coupon, error } = await supabase
-    .from('coupons')
-    .select('code, discount_type, discount_value, min_order_amount, expires_at, max_uses, used_count, is_first_order_only')
-    .eq('code', code.toUpperCase())
-    .eq('is_active', true)
-    .single()
+  const { data, error } = await supabase.rpc('validate_coupon_public', {
+    p_code:     code,
+    p_subtotal: subtotal,
+  })
 
-  if (error || !coupon) {
-    return { valid: false, discount: 0, errorMessage: 'Ungültiger Gutscheincode' }
+  if (error) {
+    return { valid: false, discount: 0, errorMessage: 'Gutscheinprüfung fehlgeschlagen' }
   }
 
-  // Check expiry
-  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return { valid: false, discount: 0, errorMessage: 'Dieser Gutschein ist abgelaufen' }
+  const result = data as { valid: boolean; discount?: number; errorMessage?: string }
+
+  if (!result.valid) {
+    return { valid: false, discount: 0, errorMessage: result.errorMessage || 'Ungültiger Gutscheincode' }
   }
 
-  // Check max usage
-  if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
-    return { valid: false, discount: 0, errorMessage: 'Dieser Gutschein wurde bereits zu oft eingelöst' }
-  }
-
-  // Check first-order-only
-  if (coupon.is_first_order_only && userId) {
-    const { count } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .neq('status', 'cancelled')
-
-    if (count && count > 0) {
-      return { valid: false, discount: 0, errorMessage: 'Dieser Gutschein gilt nur für die erste Bestellung' }
-    }
-  }
-
-  // Check min order amount
-  if (subtotal < coupon.min_order_amount) {
-    return {
-      valid: false,
-      discount: 0,
-      errorMessage: `Mindestbestellwert für diesen Gutschein ist €${coupon.min_order_amount.toFixed(2)}`
-    }
-  }
-
-  // Calculate discount
-  const discount = coupon.discount_type === 'percentage'
-    ? (subtotal * coupon.discount_value) / 100
-    : coupon.discount_value
-
-  return { valid: true, discount }
+  return { valid: true, discount: result.discount ?? 0 }
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────

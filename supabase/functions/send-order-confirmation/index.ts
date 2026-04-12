@@ -1,7 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
+// v11: RESEND_API_KEY now uses the same fail-closed guard pattern as WEBHOOK_SECRET.
+// Previously used a non-null assertion (!), which is compile-time only — at runtime
+// in Deno, a missing key would result in "Authorization: Bearer undefined" being sent
+// to Resend, causing a silent 401 failure with no early error.
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+
 // Service-role client for webhook replay guard — re-queries live DB status
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -251,11 +256,17 @@ function buildRejectedEmailHtml(order: OrderRecord): string {
 
 serve(async (req) => {
   try {
-    // Fail CLOSED: if the secret is not configured, refuse ALL requests.
+    // Fail CLOSED: if either secret/key is not configured, refuse ALL requests.
     const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET')
     if (!WEBHOOK_SECRET) {
       console.error('WEBHOOK_SECRET is not configured — refusing all requests')
       return new Response('Misconfigured', { status: 401 })
+    }
+
+    // v11: explicit guard — mirrors the WEBHOOK_SECRET pattern above.
+    if (!RESEND_API_KEY) {
+      console.error('RESEND_API_KEY is not configured — cannot send emails')
+      return new Response('Misconfigured', { status: 500 })
     }
 
     // H-1: timing-safe comparison — prevents secret enumeration via timing

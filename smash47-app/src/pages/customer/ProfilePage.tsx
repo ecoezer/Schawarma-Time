@@ -52,7 +52,8 @@ export function ProfilePage() {
       navigate('/login')
       return
     }
-    orderService.fetchUserOrders(user.id).then(setOrders).catch(() => {})
+    // v11: userId parameter removed — RLS scopes the query to auth.uid() automatically
+    orderService.fetchUserOrders().then(setOrders).catch(() => {})
   }, [user])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {

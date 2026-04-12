@@ -58,7 +58,15 @@ export function CheckoutPage() {
         table: 'orders',
         filter: `id=eq.${orderId}`,
       }, (payload) => {
-        const newStatus = payload.new?.status
+        // v11: verify the payload belongs to the current user before acting on it.
+        // Even if RLS filters the payload to null for foreign orders, be explicit.
+        // An attacker subscribing to a known order ID should not be able to
+        // trigger UI state changes.
+        const record = payload.new
+        if (!record) return
+        if (record.user_id && record.user_id !== user?.id) return
+
+        const newStatus = record.status
         if (newStatus === 'confirmed' || newStatus === 'preparing' || newStatus === 'on_the_way') {
           setStatus('success')
         } else if (newStatus === 'cancelled') {
@@ -158,9 +166,9 @@ export function CheckoutPage() {
     
     try {
       const result = await orderService.createOrder({
-        customer_name:  form.name,
-        customer_phone: form.phone,
-        customer_email: form.email,
+        customer_name:    form.name,
+        customer_phone:   form.phone,
+        customer_email:   form.email,
         delivery_address: `${form.street}, ${form.postalCode} ${form.city}`,
         // Only IDs + quantities — prices calculated server-side
         items: items.map(item => ({
@@ -169,10 +177,11 @@ export function CheckoutPage() {
           extras:     item.selected_extras,
           note:       item.note,
         })),
-        coupon_code:              couponCode || null,
-        payment_method:           paymentMethod,
-        estimated_delivery_time:  settings?.estimated_delivery_time || 35,
-        notes:                    form.note || null,
+        coupon_code:    couponCode || null,
+        payment_method: paymentMethod,
+        // v11: estimated_delivery_time removed from client payload —
+        // server reads it from restaurant_settings to prevent promise manipulation.
+        notes: form.note || null,
       })
 
       clearCart()

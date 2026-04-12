@@ -1,0 +1,33 @@
+-- Migration: 009 — Security Hardening v11
+-- Source: security_fixes_v11.sql
+-- Fixes from 2026-04-12 pentest report:
+--
+--   🔴-1: loyalty_awarded added to orders UPDATE WITH CHECK — immutable once TRUE
+--         handle_order_delivered() trigger re-reads from DB inside a FOR UPDATE lock
+--         preventing manager status-cycling loyalty inflation attack
+--   🔴-2: Explicit orders SELECT policy — customers see only user_id = auth.uid()
+--         Previously no explicit policy existed; initial schema may have been USING(TRUE)
+--   🟡-1: updated_at trigger (set_updated_at) — DB owns timestamps, not the client
+--         Prevents staff from backdating orders via REST PATCH
+--   🟡-2: validate_coupon_public() SECURITY DEFINER RPC — fixes broken coupon UX
+--         Post-v9, customers couldn't read coupons table; all validation silently failed
+--   🟡-3: create_order_secure v11 — p_estimated_delivery_time removed from signature
+--         Server reads estimated_delivery_time from restaurant_settings (🟡-1 fix)
+--         Per-item quantity max reduced 100→20; total quantity cap added (max 50)
+--   🟢-1: profiles.addresses JSONB: max 10 entries, max 10KB (CHECK constraint)
+--
+-- Frontend changes:
+--   orderService.ts:   fetchUserOrders() — userId param removed (RLS scopes it)
+--                      updateOrderStatus() — updated_at removed from payload
+--                      createOrder() — estimated_delivery_time removed from payload
+--   couponService.ts:  validateCoupon() — now calls validate_coupon_public RPC
+--   authService.ts:    signIn/signUp — client-side rate limiting added
+--   authStore.ts:      phone metadata sync — format validation before persist
+--                      addAddress — client-side count guard (mirrors DB constraint)
+--   CheckoutPage.tsx:  Realtime payload — user_id ownership check before acting
+--                      estimated_delivery_time removed from order submission
+--   ProfilePage.tsx:   fetchUserOrders() — call without userId argument
+--   Edge function:     RESEND_API_KEY — explicit fail-closed guard added
+--
+-- Applied: via Supabase SQL Editor
+-- Status: PENDING

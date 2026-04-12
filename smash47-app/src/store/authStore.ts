@@ -66,10 +66,14 @@ export const useAuthStore = create<AuthStore>()(
 
               let profile = await authService.fetchProfile(session.user.id)
 
-              // Sync phone from auth metadata if profile is missing it
+              // Sync phone from auth metadata if profile is missing it.
+              // v11: validate the metadata phone before persisting — user_metadata is
+              // attacker-controlled at signup time (arbitrary string can be injected).
+              // Only sync if it matches the same format enforced by create_order_secure.
               if (profile && !profile.phone) {
                 const metaPhone = session.user.user_metadata?.phone
-                if (metaPhone) {
+                const PHONE_RE = /^[+0-9\s\-()]{7,25}$/
+                if (metaPhone && typeof metaPhone === 'string' && PHONE_RE.test(metaPhone)) {
                   await authService.updateProfile(session.user.id, { phone: metaPhone })
                   profile = { ...profile, phone: metaPhone }
                 }
@@ -105,7 +109,12 @@ export const useAuthStore = create<AuthStore>()(
       addAddress: async (address) => {
         const { user } = get()
         if (!user) return
-        const newAddresses = [...(user.addresses || []), { ...address, id: generateId() }]
+        const current = user.addresses || []
+        // v11: enforce address count limit client-side to mirror DB CHECK constraint (max 10)
+        if (current.length >= 10) {
+          throw new Error('Maximal 10 Adressen erlaubt. Bitte lösche eine Adresse, um fortzufahren.')
+        }
+        const newAddresses = [...current, { ...address, id: generateId() }]
         await get().updateProfile({ addresses: newAddresses })
       },
 

@@ -15,7 +15,7 @@ export interface CreateOrderInput {
   items: { product_id: string; quantity: number; extras?: OrderItem['extras']; note?: string }[]
   coupon_code: string | null
   payment_method: PaymentMethod
-  estimated_delivery_time: number
+  // estimated_delivery_time REMOVED (v11) — now read server-side from restaurant_settings
   notes: string | null
 }
 
@@ -56,11 +56,12 @@ export async function fetchTodayOrders(): Promise<Order[]> {
   return toArray(data) as Order[]
 }
 
-export async function fetchUserOrders(userId: string): Promise<Order[]> {
+// v11: userId parameter removed — RLS implicitly scopes to auth.uid().
+// Passing an arbitrary userId previously allowed IDOR if SELECT policy was too broad.
+export async function fetchUserOrders(): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
     .select('*')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -90,10 +91,12 @@ export async function fetchPendingCount(): Promise<number> {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
+// v11: updated_at removed from client payload — DB trigger sets it to NOW() server-side.
+// Sending updated_at from the client allowed staff to backdate order timestamps.
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
   const { error } = await supabase
     .from('orders')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', orderId)
 
   if (error) throw error
@@ -103,16 +106,16 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   // All price calculation happens server-side in create_order_secure().
   // Client sends only product IDs + quantities — never prices.
   // Order number is now generated server-side (LOW-1 fix).
+  // v11: p_estimated_delivery_time removed — server reads it from restaurant_settings.
   const { data, error } = await supabase.rpc('create_order_secure', {
-    p_customer_name:           input.customer_name,
-    p_customer_phone:          input.customer_phone,
-    p_customer_email:          input.customer_email,
-    p_delivery_address:        input.delivery_address,
-    p_items:                   input.items,
-    p_coupon_code:             input.coupon_code ?? null,
-    p_payment_method:          input.payment_method,
-    p_notes:                   input.notes ?? null,
-    p_estimated_delivery_time: input.estimated_delivery_time,
+    p_customer_name:    input.customer_name,
+    p_customer_phone:   input.customer_phone,
+    p_customer_email:   input.customer_email,
+    p_delivery_address: input.delivery_address,
+    p_items:            input.items,
+    p_coupon_code:      input.coupon_code ?? null,
+    p_payment_method:   input.payment_method,
+    p_notes:            input.notes ?? null,
   })
 
   if (error) throw error
