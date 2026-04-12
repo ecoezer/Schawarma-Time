@@ -8,7 +8,7 @@ interface RestaurantStore {
   isLoading: boolean
   error: string | null
 
-  fetchSettings: () => Promise<void>
+  fetchSettings: (adminMode?: boolean) => Promise<void>
   updateSettings: (updates: Partial<RestaurantSettings>) => Promise<void>
   toggleDelivery: () => Promise<void>
 }
@@ -18,10 +18,14 @@ export const useRestaurantStore = create<RestaurantStore>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchSettings: async () => {
+  fetchSettings: async (adminMode = false) => {
     set({ isLoading: true, error: null })
     try {
-      const settings = await restaurantService.fetchSettings()
+      // adminMode=true uses the full table (delivery_zones, revenue_goal_daily visible)
+      // adminMode=false (default) uses the restricted public view — no sensitive fields
+      const settings = adminMode
+        ? await restaurantService.fetchSettingsAdmin()
+        : await restaurantService.fetchSettings()
       set({ settings, isLoading: false })
     } catch (err) {
       set({ settings: null, error: extractMessage(err), isLoading: false })

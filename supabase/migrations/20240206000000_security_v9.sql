@@ -1,0 +1,22 @@
+-- Migration: 007 — RLS Hardening v9
+-- Source: security_fixes_v9.sql
+-- Fixes:
+--   🔴-1: profiles DELETE policy added (manager-only, no self-delete via REST)
+--   🔴-3: profiles UPDATE WITH CHECK locks role, loyalty_points, total_orders, email
+--         Subqueries now correctly read separate row snapshots (not the updating row)
+--   🔴-4: audit_log direct INSERT blocked (WITH CHECK FALSE)
+--         Only SECURITY DEFINER functions can write audit records
+--   🟡-3: orders UPDATE WITH CHECK — financial columns (total, subtotal,
+--         discount_amount, delivery_fee, user_id, order_number) are immutable
+--         Admin can only change: status, notes, estimated_delivery_time, rejection_reason
+--   🟡-4: coupons policy deduplication — all old conflicting policies dropped,
+--         single clean "coupons_manager_all" policy
+--   🟡-1: restaurant_info view created — hides revenue_goal_daily and delivery_zones
+--         from public/customer reads; admin fetches full table via fetchSettingsAdmin()
+-- Frontend:
+--   restaurantService.ts: fetchSettings() → restaurant_info view (public)
+--                         fetchSettingsAdmin() → restaurant_settings table (admin)
+--   restaurantStore.ts: fetchSettings(adminMode?) — defaults to public view
+--   AdminLayout.tsx: fetchSettings(true) on mount — admin gets full settings
+-- Applied: via Supabase Management API
+-- Status: APPLIED

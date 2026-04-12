@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useOrderStore } from '@/store/orderStore'
+import { useRestaurantStore } from '@/store/restaurantStore'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -31,14 +32,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const user = useAuthStore(state => state.user)
   const { signOut } = useAuthStore()
   const { fetchOrders, initRealtime } = useOrderStore()
+  const { fetchSettings } = useRestaurantStore()
 
   useEffect(() => {
     fetchOrders()
+    // Admin layout uses full settings (delivery_zones + revenue_goal_daily visible)
+    fetchSettings(true)
     const unsubOrders = initRealtime((order) => {
       toast.success(`Neue Bestellung: ${order.order_number}`)
     })
     return unsubOrders
-  }, [fetchOrders, initRealtime])
+  }, [fetchOrders, initRealtime, fetchSettings])
 
   const handleLogout = async () => {
     await signOut()
