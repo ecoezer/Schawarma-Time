@@ -87,8 +87,8 @@ export function ProfilePage() {
       toast.error('Passwörter stimmen nicht überein')
       return
     }
-    if (passwordForm.newPassword.length < 6) {
-      toast.error('Passwort muss mindestens 6 Zeichen lang sein')
+    if (passwordForm.newPassword.length < 10) {
+      toast.error('Passwort muss mindestens 10 Zeichen lang sein')
       return
     }
     setIsChangingPassword(true)

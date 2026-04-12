@@ -48,6 +48,15 @@ function AdminRoute() {
   )
 }
 
+// v12: restrict manager-only routes (customer PII, campaigns, settings).
+// cashier and kitchen roles should never access these pages.
+function ManagerRoute() {
+  const { user, isInitialized } = useAuthStore()
+  if (!isInitialized) return null
+  if (user?.role !== 'manager') return <Navigate to="/admin" replace />
+  return <Outlet />
+}
+
 // Blocks unauthenticated users from protected routes — avoids flash-before-redirect
 function ProtectedRoute() {
   const { user, isInitialized } = useAuthStore()
@@ -106,9 +115,12 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="bestellungen" element={<AdminOrders />} />
             <Route path="menue" element={<AdminMenu />} />
-            <Route path="kampagnen" element={<AdminCampaigns />} />
-            <Route path="kunden" element={<AdminCustomers />} />
-            <Route path="einstellungen" element={<AdminSettings />} />
+            {/* v12: manager-only routes — cashier/kitchen redirected to /admin */}
+            <Route element={<ManagerRoute />}>
+              <Route path="kampagnen" element={<AdminCampaigns />} />
+              <Route path="kunden" element={<AdminCustomers />} />
+              <Route path="einstellungen" element={<AdminSettings />} />
+            </Route>
           </Route>
         </Routes>
 

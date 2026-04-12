@@ -1,8 +1,0 @@
--- Migration: 002 — Security fixes v4
--- Source: security_fixes_v4.sql
--- Fixes: CRITICAL-1 (coupon RLS), CRITICAL-2 (no direct order insert),
---        CRITICAL-3 (role escalation), CRITICAL-4 (extra price validation),
---        MED-2 (input validation), LOW-1 (server-side order number),
---        LOW-2 (rate limiting)
--- Applied: manually via Supabase SQL Editor
--- Status: APPLIED

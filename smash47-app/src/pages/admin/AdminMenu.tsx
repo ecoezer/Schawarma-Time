@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, GripVertical, Star, Upload, X, Scissors } from 'lucide-react'
+import { Plus, Edit2, Trash2, GripVertical, Star, Upload, X, Scissors, FolderPlus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product } from '@/types'
 import { useMenuStore } from '@/store/menuStore'
@@ -14,7 +14,8 @@ import { ImageCropModal } from '@/components/admin/ImageCropModal'
 import toast from 'react-hot-toast'
 
 export function AdminMenu() {
-  const { categories, products, isLoading, fetchMenu, patchProductLocally, updateProduct } = useMenuStore()
+  const { categories, products, isLoading, fetchMenu, patchProductLocally, updateProduct,
+          createCategory, updateCategory, deleteCategory } = useMenuStore()
   const [activeCategory, setActiveCategory] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -22,6 +23,12 @@ export function AdminMenu() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isCropModalOpen, setIsCropModalOpen] = useState(false)
   const [tempImageForCrop, setTempImageForCrop] = useState('')
+
+  // Category management state
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false)
+  const [editCategoryId, setEditCategoryId] = useState<string | null>(null)
+  const [catForm, setCatForm] = useState({ name: '', slug: '' })
+  const [isCatSubmitting, setIsCatSubmitting] = useState(false)
 
   useEffect(() => {
     fetchMenu()
@@ -132,6 +139,56 @@ export function AdminMenu() {
     await updateProduct(productId, { is_most_liked: !current })
   }
 
+  // ── Category handlers ────────────────────────────────────────────────────────
+  const openAddCategory = () => {
+    setEditCategoryId(null)
+    setCatForm({ name: '', slug: '' })
+    setIsCatModalOpen(true)
+  }
+
+  const openEditCategory = (id: string, name: string, slug: string) => {
+    setEditCategoryId(id)
+    setCatForm({ name, slug })
+    setIsCatModalOpen(true)
+  }
+
+  const handleSaveCategory = async () => {
+    const name = catForm.name.trim()
+    const slug = catForm.slug.trim() || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    if (!name) { toast.error('Kategoriename ist erforderlich'); return }
+    setIsCatSubmitting(true)
+    try {
+      if (editCategoryId) {
+        await updateCategory(editCategoryId, { name, slug })
+        toast.success('Kategorie aktualisiert!')
+      } else {
+        await createCategory(name, slug)
+        toast.success('Kategorie hinzugefügt!')
+      }
+      setIsCatModalOpen(false)
+    } catch (err: any) {
+      toast.error('Fehler: ' + err.message)
+    } finally {
+      setIsCatSubmitting(false)
+    }
+  }
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+    const count = products.filter(p => p.category_id === id).length
+    if (count > 0) {
+      toast.error(`Kategorie "${name}" hat noch ${count} Produkt(e). Bitte zuerst verschieben oder löschen.`)
+      return
+    }
+    if (!confirm(`Kategorie "${name}" wirklich löschen?`)) return
+    try {
+      await deleteCategory(id)
+      if (activeCategory === id) setActiveCategory(categories[0]?.id ?? '')
+      toast.success('Kategorie gelöscht')
+    } catch (err: any) {
+      toast.error('Fehler: ' + err.message)
+    }
+  }
+
   const deleteProduct = async (productId: string) => {
     if (confirm('Produkt wirklich löschen?')) {
       try {
@@ -156,23 +213,52 @@ export function AdminMenu() {
 
       <div className="flex gap-4">
         {/* Category Sidebar */}
-        <div className="w-48 shrink-0">
+        <div className="w-52 shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 space-y-1">
+            <div className="flex items-center justify-between px-1 pb-2 border-b border-gray-100 mb-1">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Kategorien</span>
+              <button
+                onClick={openAddCategory}
+                className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#142328] transition-colors"
+                title="Kategorie hinzufügen"
+              >
+                <FolderPlus size={15} />
+              </button>
+            </div>
+
             {categories.map((cat) => {
               const count = products.filter((p) => p.category_id === cat.id).length
+              const isActive = activeCategory === cat.id
               return (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                    activeCategory === cat.id ? 'bg-[#142328] text-white' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="truncate">{cat.name}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeCategory === cat.id ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    {count}
-                  </span>
-                </button>
+                <div key={cat.id} className="group relative">
+                  <button
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                      isActive ? 'bg-[#142328] text-white' : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="truncate pr-1">{cat.name}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
+                      {count}
+                    </span>
+                  </button>
+
+                  {/* Edit / Delete icons — visible on hover */}
+                  <div className={`absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5 ${isActive ? 'hidden' : ''}`}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEditCategory(cat.id, cat.name, cat.slug) }}
+                      className="p-1 rounded bg-white shadow-sm text-gray-400 hover:text-[#142328]"
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id, cat.name) }}
+                      className="p-1 rounded bg-white shadow-sm text-gray-400 hover:text-red-600"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -434,6 +520,39 @@ export function AdminMenu() {
             <Button variant="ghost" fullWidth onClick={() => setIsModalOpen(false)}>Abbrechen</Button>
             <Button variant="primary" fullWidth onClick={handleSave} isLoading={isSubmitting}>
               {editProduct ? 'Speichern' : 'Hinzufügen'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Category Modal */}
+      <Modal
+        isOpen={isCatModalOpen}
+        onClose={() => setIsCatModalOpen(false)}
+        title={editCategoryId ? 'Kategorie bearbeiten' : 'Neue Kategorie'}
+        size="sm"
+      >
+        <div className="p-5 space-y-4">
+          <Input
+            label="Name"
+            placeholder="z.B. Burger"
+            value={catForm.name}
+            onChange={(e) => {
+              const name = e.target.value
+              const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+              setCatForm({ name, slug })
+            }}
+          />
+          <Input
+            label="Slug (URL-Kürzel)"
+            placeholder="z.B. burger"
+            value={catForm.slug}
+            onChange={(e) => setCatForm({ ...catForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+          />
+          <div className="flex gap-3 pt-1">
+            <Button variant="ghost" fullWidth onClick={() => setIsCatModalOpen(false)}>Abbrechen</Button>
+            <Button variant="primary" fullWidth onClick={handleSaveCategory} isLoading={isCatSubmitting}>
+              {editCategoryId ? 'Speichern' : 'Hinzufügen'}
             </Button>
           </div>
         </div>

@@ -4,16 +4,23 @@ import { toArray } from '@/lib/utils'
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function fetchCustomers(): Promise<Customer[]> {
-  // MED-4 fix: only fetch columns needed for customer list — no addresses/birth_date in list view
+const CUSTOMERS_PAGE_SIZE = 50
+
+// v12: pagination added — unbounded SELECT on profiles is a DoS and PII risk.
+export async function fetchCustomers(page = 0): Promise<{ data: Customer[]; hasMore: boolean }> {
+  const from = page * CUSTOMERS_PAGE_SIZE
+  const to   = from + CUSTOMERS_PAGE_SIZE - 1
+
   const { data, error } = await supabase
     .from('profiles')
     .select('id, email, full_name, phone, created_at, total_orders, loyalty_points, role')
     .eq('role', 'customer')
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (error) throw error
-  return toArray(data) as Customer[]
+  const rows = toArray(data) as Customer[]
+  return { data: rows, hasMore: rows.length === CUSTOMERS_PAGE_SIZE }
 }
 
 export async function fetchTotalCustomerCount(): Promise<number> {

@@ -61,17 +61,17 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
 
   const toggleExtra = (extra: { id: string; name: string; price: number }, group: any) => {
     setSelectedExtras((prev) => {
-      const isSelected = prev.some((e) => e.extra_id === extra.id)
+      const isSelected = prev.some((e) => e.id === extra.id)
       
       if (group.max_select === 1) {
         if (isSelected && !group.required) {
-          return prev.filter((e) => e.extra_id !== extra.id)
+          return prev.filter((e) => e.id !== extra.id)
         }
         const withoutGroup = prev.filter(
-          (e) => !group.extras.some((x: any) => x.id === e.extra_id)
+          (e) => !group.extras.some((x: any) => x.id === e.id)
         )
         return [...withoutGroup, { 
-          extra_id: extra.id, 
+          id: extra.id, 
           name: extra.name, 
           price: extra.price,
           group_name: group.name 
@@ -79,11 +79,11 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       }
 
       if (isSelected) {
-        return prev.filter((e) => e.extra_id !== extra.id)
+        return prev.filter((e) => e.id !== extra.id)
       }
 
       const currentInGroup = prev.filter((e) =>
-        group.extras.some((x: any) => x.id === e.extra_id)
+        group.extras.some((x: any) => x.id === e.id)
       ).length
 
       if (group.max_select && currentInGroup >= group.max_select) {
@@ -91,7 +91,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       }
 
       return [...prev, { 
-        extra_id: extra.id, 
+        id: extra.id, 
         name: extra.name, 
         price: extra.price,
         group_name: group.name
@@ -99,11 +99,11 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
     })
   }
 
-  const isExtraSelected = (extraId: string) => selectedExtras.some((e) => e.extra_id === extraId)
+  const isExtraSelected = (extraId: string) => selectedExtras.some((e) => e.id === extraId)
   
   const isGroupSatisfied = (group: any) => {
     if (!group.required) return true
-    return selectedExtras.some((e) => group.extras.some((x: any) => x.id === e.extra_id))
+    return selectedExtras.some((e) => group.extras.some((x: any) => x.id === e.id))
   }
 
   const extrasTotal = selectedExtras.reduce((sum, e) => sum + e.price, 0)

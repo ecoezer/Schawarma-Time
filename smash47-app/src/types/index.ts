@@ -53,7 +53,7 @@ export interface Product {
 // =====================
 
 export interface CartExtra {
-  extra_id: string
+  id: string        // v12: was extra_id — must match Extra.id key used across the codebase
   name: string
   price: number
   group_name: string

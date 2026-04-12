@@ -8,11 +8,38 @@ export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .eq('is_active', true)
     .order('position')
 
   if (error) throw error
   return toArray(data) as Category[]
+}
+
+export async function createCategory(name: string, slug: string, position: number): Promise<Category> {
+  const { data, error } = await supabase
+    .from('categories')
+    .insert([{ name, slug, position, is_active: true }])
+    .select()
+
+  if (error) throw error
+  return data![0] as Category
+}
+
+export async function updateCategory(id: string, updates: Partial<Category>): Promise<void> {
+  const { error } = await supabase
+    .from('categories')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('categories')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 export async function fetchProducts(): Promise<Product[]> {

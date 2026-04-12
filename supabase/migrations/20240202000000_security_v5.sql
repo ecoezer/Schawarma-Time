@@ -1,9 +1,0 @@
--- Migration: 003 — Security fixes v5
--- Source: security_fixes_v5.sql
--- Fixes: BLV-1 (coupon_phone_usage table + phone hash),
---        BLV-2 (delivery zone server-side validation),
---        BLV-3 (phone usage persists on cancel),
---        BLV-4 (50% discount cap),
---        BLV-6 (loyalty points trigger on delivery)
--- Applied: manually via Supabase SQL Editor
--- Status: APPLIED

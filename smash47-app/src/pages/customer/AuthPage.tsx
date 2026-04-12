@@ -38,6 +38,7 @@ export function AuthPage() {
     const errs: Record<string, string> = {}
     if (!formData.email) errs.email = 'E-Mail ist erforderlich'
     if (!formData.password) errs.password = 'Passwort ist erforderlich'
+    else if (!isLogin && formData.password.length < 10) errs.password = 'Passwort muss mindestens 10 Zeichen lang sein'
     if (!isLogin) {
       if (!formData.fullName) errs.fullName = 'Name ist erforderlich'
       if (!formData.phone) {
@@ -115,7 +116,7 @@ export function AuthPage() {
       } else if (err.status === 400 && err.code === 'email_address_invalid') {
         message = 'Ungültige E-Mail-Adresse.'
       } else if (err.status === 400 && err.code === 'weak_password') {
-        message = 'Das Passwort ist zu schwach (min. 6 Zeichen).'
+        message = 'Das Passwort ist zu schwach (min. 10 Zeichen).'
       } else if (err.message) {
         message = err.message
       }

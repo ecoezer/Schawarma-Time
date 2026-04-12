@@ -36,10 +36,12 @@ function startOf(daysAgo = 0): string {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function fetchAllOrders(): Promise<Order[]> {
+  // v12: hard cap at 200 rows — unbounded admin query is a DoS risk on large tables.
   const { data, error } = await supabase
     .from('orders')
     .select('*')
     .order('created_at', { ascending: false })
+    .limit(200)
 
   if (error) throw error
   return toArray(data) as Order[]
