@@ -28,7 +28,7 @@ export function AdminCustomers() {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await customerService.fetchCustomers()
+      const { data } = await customerService.fetchCustomers(0)
       setCustomers(data)
     } catch (err) {
       const msg = handleError(err, 'Kunden laden')

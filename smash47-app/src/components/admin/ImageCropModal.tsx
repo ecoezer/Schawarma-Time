@@ -205,11 +205,15 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
         formData.append('file', blob, 'cropped.jpg')
         formData.append('upload_preset', uploadPreset)
 
+        console.log('[DEBUG] Cloudinary upload starting...', { cloudName, uploadPreset })
         const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
           method: 'POST', body: formData,
         })
-        if (!res.ok) throw new Error('Upload fehlgeschlagen')
+
         const data = await res.json()
+        console.log('[DEBUG] Cloudinary response:', res.status, data)
+
+        if (!res.ok) throw new Error(data?.error?.message || 'Upload fehlgeschlagen')
 
         const parts = data.secure_url.split('/upload/')
         const finalUrl = parts.length === 2
@@ -220,8 +224,9 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
         onConfirm(canvas.toDataURL('image/jpeg', 0.92))
       }
     } catch (err) {
-      console.error('Crop error:', err)
-      onConfirm(imageUrl)
+      console.error('[DEBUG] Crop/Upload error:', err)
+      // Blob URL'yi KAYDETME — sayfa yenilenince siliniyor
+      // onConfirm çağrılmıyor, modal açık kalıyor
     } finally {
       setIsProcessing(false)
     }
