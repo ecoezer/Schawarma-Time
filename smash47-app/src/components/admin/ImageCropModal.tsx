@@ -83,6 +83,7 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const isProcessingRef = useRef(false)
   const [rotation, setRotation] = useState(0)
   const [activePreset, setActivePreset] = useState(0) // Default to "Produktkarte" (index 0)
   const [imageSrc, setImageSrc] = useState('')
@@ -190,6 +191,8 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
 
   const handleConfirm = async () => {
     if (!imgRef.current || !completedCrop) return
+    if (isProcessingRef.current) return   // çift tıklama / double-trigger guard
+    isProcessingRef.current = true
     setIsProcessing(true)
     try {
       const canvas = getCroppedCanvas(imgRef.current, completedCrop, rotation)
@@ -225,9 +228,8 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
       }
     } catch (err) {
       console.error('[DEBUG] Crop/Upload error:', err)
-      // Blob URL'yi KAYDETME — sayfa yenilenince siliniyor
-      // onConfirm çağrılmıyor, modal açık kalıyor
     } finally {
+      isProcessingRef.current = false
       setIsProcessing(false)
     }
   }
