@@ -1,73 +1,61 @@
-# React + TypeScript + Vite
+# Smash47 — Online Sipariş Sistemi
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Supabase üzerine kurulu restoran sipariş yönetim sistemi.
 
-Currently, two official plugins are available:
+## Kurulum
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Detaylı adım adım kurulum için: [`../INSTALLATION_GUIDE.md`](../INSTALLATION_GUIDE.md)
 
-## React Compiler
+## Hızlı Başlangıç
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# 1. Bağımlılıkları yükle
+npm install
 
-## Expanding the ESLint configuration
+# 2. Ortam değişkenlerini ayarla
+cp .env.example .env
+# .env dosyasını kendi Supabase/Cloudinary bilgilerinizle doldurun
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# 3. Geliştirme sunucusunu başlat
+npm run dev
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 4. Production build
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Gerekli Ortam Değişkenleri
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Değişken | Açıklama | Zorunlu |
+|----------|----------|---------|
+| `VITE_SUPABASE_URL` | Supabase proje URL'i | ✅ |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key | ✅ |
+| `VITE_CLOUDINARY_CLOUD_NAME` | Cloudinary cloud adı | ✅ |
+| `VITE_CLOUDINARY_UPLOAD_PRESET` | Cloudinary unsigned preset adı | ✅ |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Teknoloji Stack
+
+- **Frontend:** React 19 + TypeScript + Vite
+- **Styling:** Tailwind CSS 4
+- **State:** Zustand
+- **Backend:** Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
+- **Images:** Cloudinary
+- **Email:** Resend
+- **Hosting:** Netlify
+
+## Proje Yapısı
+
+```
+smash47-app/
+├── src/
+│   ├── components/     # UI bileşenleri
+│   ├── pages/          # Sayfalar (HomePage, CheckoutPage, Admin sayfaları)
+│   ├── store/          # Zustand state yönetimi
+│   ├── services/       # Supabase API çağrıları
+│   ├── lib/            # Supabase client, yardımcı fonksiyonlar
+│   └── types/          # TypeScript tip tanımları
+├── supabase/
+│   ├── schema.sql      # Tam veritabanı şeması (tek kaynak)
+│   ├── seed.sql        # Ürün kataloğu verileri
+│   └── functions/      # Supabase Edge Functions
+└── netlify.toml        # Netlify deployment konfigürasyonu
 ```
