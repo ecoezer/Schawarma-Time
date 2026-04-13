@@ -327,11 +327,24 @@ export function AuthPage() {
         </div>
 
         {isLogin && (
-          <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 gap-3">
+          <div className="mt-6 pt-6 border-t border-gray-100 space-y-3">
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl text-green-700 text-xs">
               <CheckCircle size={14} className="shrink-0" />
               <p>Spare Zeit beim Checkout durch gespeicherte Adressen.</p>
             </div>
+            <p className="text-center text-xs text-gray-400">
+              Keine Bestätigungs-E-Mail erhalten?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!formData.email) { toast.error('Bitte zuerst E-Mail-Adresse eingeben.'); return }
+                  handleResendConfirmation()
+                }}
+                className="font-semibold text-[#142328] hover:underline"
+              >
+                Erneut senden
+              </button>
+            </p>
           </div>
         )}
         </>)} {/* end !isForgotPassword */}

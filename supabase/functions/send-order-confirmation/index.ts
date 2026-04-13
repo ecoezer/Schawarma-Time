@@ -311,11 +311,14 @@ serve(async (req) => {
     const isConfirmed = newStatus === 'confirmed'
     const html = isConfirmed ? buildEmailHtml(order) : buildRejectedEmailHtml(order)
 
-    const toAddresses = DOMAIN_VERIFIED ? [order.customer_email] : [RESTAURANT_EMAIL]
+    // Always send to customer. CC restaurant when domain is verified.
+    const toAddresses = [order.customer_email]
+    const ccAddresses = DOMAIN_VERIFIED ? [RESTAURANT_EMAIL] : []
 
     const emailPayload: Record<string, unknown> = {
       from: FROM_EMAIL,
       to: toAddresses,
+      ...(ccAddresses.length > 0 && { cc: ccAddresses }),
       subject: isConfirmed
         ? `Bestellung ${escHtml(order.order_number)} bestätigt – Smash47`
         : `Bestellung ${escHtml(order.order_number)} abgelehnt – Smash47`,
