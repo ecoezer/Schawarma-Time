@@ -27,6 +27,8 @@ export function AdminSettings() {
   const [isSaving, setIsSaving] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [isUploadingHero, setIsUploadingHero] = useState(false)
+  const [isSavingHero, setIsSavingHero] = useState(false)
+  const [pendingHeroUrl, setPendingHeroUrl] = useState<string | null>(null)
   const heroInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -98,10 +100,9 @@ export function AdminSettings() {
       const finalUrl = parts.length === 2
         ? `${parts[0]}/upload/f_auto,q_auto,w_1600/${parts[1]}`
         : data.secure_url
+      setPendingHeroUrl(finalUrl)
       update('hero_images', [finalUrl])
-      // Auto-save immediately — no need to click the main save button
-      await updateSettings({ ...localSettings!, hero_images: [finalUrl] })
-      toast.success('Hero-Bild gespeichert!')
+      toast.success('Bild bereit – jetzt speichern!')
     } catch (err: any) {
       toast.error('Upload fehlgeschlagen: ' + err.message)
     } finally {
@@ -198,15 +199,11 @@ export function AdminSettings() {
           Hero-Bild (Startseiten-Banner)
         </h2>
 
-        {/* Current image preview */}
+        {/* Preview */}
         {localSettings.hero_images?.[0] ? (
           <div className="relative w-full h-40 rounded-xl overflow-hidden bg-gray-100 mb-4 group">
-            <img
-              src={localSettings.hero_images[0]}
-              alt="Hero"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            <img src={localSettings.hero_images[0]} alt="Hero" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <button
                 type="button"
                 onClick={() => heroInputRef.current?.click()}
@@ -214,14 +211,6 @@ export function AdminSettings() {
               >
                 <Upload size={14} />
                 Ersetzen
-              </button>
-              <button
-                type="button"
-                onClick={async () => { update('hero_images', []); await updateSettings({ ...localSettings!, hero_images: [] }); toast.success('Hero-Bild entfernt') }}
-                className="flex items-center gap-2 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-600 transition-colors"
-              >
-                <X size={14} />
-                Entfernen
               </button>
             </div>
           </div>
@@ -245,31 +234,56 @@ export function AdminSettings() {
           </div>
         )}
 
-        {isUploadingHero && localSettings.hero_images?.[0] && (
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-            <div className="w-4 h-4 border-2 border-[#142328] border-t-transparent rounded-full animate-spin" />
-            Wird hochgeladen...
-          </div>
-        )}
+        <input ref={heroInputRef} type="file" accept="image/*" className="hidden" onChange={handleHeroUpload} />
 
-        <input
-          ref={heroInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleHeroUpload}
-        />
-
-        {!localSettings.hero_images?.[0] && !isUploadingHero && (
-          <button
-            type="button"
-            onClick={() => heroInputRef.current?.click()}
-            className="flex items-center gap-2 text-sm font-bold text-[#142328] hover:underline"
-          >
-            <Upload size={14} />
-            Bild hochladen
-          </button>
-        )}
+        {/* Action buttons */}
+        <div className="flex items-center gap-3">
+          {pendingHeroUrl && (
+            <Button
+              variant="primary"
+              isLoading={isSavingHero}
+              onClick={async () => {
+                setIsSavingHero(true)
+                try {
+                  await updateSettings({ ...localSettings!, hero_images: [pendingHeroUrl] })
+                  setPendingHeroUrl(null)
+                  toast.success('Hero-Bild gespeichert!')
+                } catch (err: any) {
+                  toast.error('Fehler: ' + err.message)
+                } finally {
+                  setIsSavingHero(false)
+                }
+              }}
+            >
+              <Save size={14} />
+              Bild speichern
+            </Button>
+          )}
+          {localSettings.hero_images?.[0] && !pendingHeroUrl && (
+            <button
+              type="button"
+              onClick={async () => {
+                update('hero_images', [])
+                await updateSettings({ ...localSettings!, hero_images: [] })
+                toast.success('Hero-Bild entfernt')
+              }}
+              className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600 transition-colors"
+            >
+              <X size={14} />
+              Bild entfernen
+            </button>
+          )}
+          {!localSettings.hero_images?.[0] && !isUploadingHero && !pendingHeroUrl && (
+            <button
+              type="button"
+              onClick={() => heroInputRef.current?.click()}
+              className="flex items-center gap-2 text-sm font-bold text-[#142328] hover:underline"
+            >
+              <Upload size={14} />
+              Bild hochladen
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Delivery Toggle */}
