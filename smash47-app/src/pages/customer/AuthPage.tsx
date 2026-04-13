@@ -218,8 +218,7 @@ export function AuthPage() {
         )}
 
         {/* ── LOGIN / REGISTER ───────────────────────────────────── */}
-        {!isForgotPassword && (
-
+        {!isForgotPassword && (<>
         <form onSubmit={handleSubmit} className="space-y-6">
           <AnimatePresence mode="wait">
             {!isLogin && (
@@ -335,7 +334,7 @@ export function AuthPage() {
             </div>
           </div>
         )}
-        </> {/* end !isForgotPassword */}
+        </>)} {/* end !isForgotPassword */}
       </motion.div>
     </div>
   )
