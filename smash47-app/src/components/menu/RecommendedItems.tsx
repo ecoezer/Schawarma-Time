@@ -1,7 +1,6 @@
 import { useRef } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import type { Product } from '@/types'
-import { cn } from '@/lib/utils'
 
 interface RecommendedItemsProps {
   products: Product[]

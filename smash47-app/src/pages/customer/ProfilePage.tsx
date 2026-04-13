@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, Lock, Eye, EyeOff, Package, Truck } from 'lucide-react'
+import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, Lock, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import * as authService from '@/services/authService'
 import { useCartStore } from '@/store/cartStore'
@@ -10,7 +10,7 @@ import * as orderService from '@/services/orderService'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
+import { formatPrice, getStatusLabel } from '@/lib/utils'
 import type { Order, UserAddress } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -62,7 +62,7 @@ export function ProfilePage() {
     try {
       await updateProfile(profileForm)
       toast.success('Profil aktualisiert!')
-    } catch (err) {
+    } catch {
       toast.error('Fehler beim Aktualisieren des Profils')
     } finally {
       setIsUpdatingProfile(false)
@@ -158,7 +158,7 @@ export function ProfilePage() {
       } else {
         toast.error('Keine Produkte verfügbar')
       }
-    } catch (err) {
+    } catch {
       toast.error('Fehler beim Wiederholen der Bestellung')
     }
   }

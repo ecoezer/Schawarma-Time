@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import type { Order, OrderStatus, OrderItem, PaymentMethod } from '@/types'
-import { handleError } from '@/lib/errorHandler'
 import { toArray } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Heart, MoreHorizontal, User, Info, X } from 'lucide-react'
+import { Heart, MoreHorizontal, Info, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { RestaurantSettings } from '@/types'
 import { RestaurantInfoModal } from './RestaurantInfoModal'

@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingCart, Menu, ChevronDown, MapPin, Search, Phone } from 'lucide-react'
+import { ShoppingCart, Search, Phone } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 
 export function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { totalQuantity, toggleCart } = useCartStore()
   const { user, isLoading, isInitialized } = useAuthStore()
   const itemCount = totalQuantity()

@@ -113,9 +113,7 @@ export function AdminMenu() {
       }
 
       if (editProduct) {
-        console.log('[DEBUG] Saving image_url:', productData.image_url)
         const updatedProduct = await productService.updateProduct(editProduct.id, productData)
-        console.log('[DEBUG] Server returned image_url:', updatedProduct.image_url)
         patchProductLocally(editProduct.id, updatedProduct)
         toast.success('Produkt aktualisiert!')
       } else {

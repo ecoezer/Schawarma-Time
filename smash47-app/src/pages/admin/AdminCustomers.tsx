@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Mail, Phone, Calendar, ShoppingBag, User as UserIcon, X, MapPin, Clock, Euro } from 'lucide-react'
+import { Search, Mail, Phone, Calendar, ShoppingBag, User as UserIcon, MapPin, Clock } from 'lucide-react'
 import * as customerService from '@/services/customerService'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MapPin, Star, Copy, Plus, Clock } from 'lucide-react'
+import { X, MapPin, Copy } from 'lucide-react'
 import type { RestaurantSettings } from '@/types'
 
 interface RestaurantInfoModalProps {

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings,
-  LogOut, Menu, X, Bell, Tag, Users, ChevronLeft, XCircle
+  LogOut, Menu, X, Bell, Tag, Users
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -27,7 +27,6 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
 
   const user = useAuthStore(state => state.user)
   const { signOut } = useAuthStore()

@@ -8,7 +8,6 @@ import * as orderService from '@/services/orderService'
 import * as customerService from '@/services/customerService'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
-import type { Order } from '@/types'
 
 const DAY_LABELS: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' }
 
