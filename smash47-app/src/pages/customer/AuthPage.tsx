@@ -1,12 +1,30 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'lucide-react'
+import { Mail, Lock, User, Phone, ArrowRight, CheckCircle, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import * as authService from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
+import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+
+// Alle Supabase-Fehlermeldungen auf Deutsch übersetzen
+function translateAuthError(err: any): string {
+  const msg = err?.message ?? ''
+  const code = err?.code ?? ''
+  if (msg === 'Failed to fetch') return 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.'
+  if (code === 'email_address_invalid' || msg.toLowerCase().includes('invalid email')) return 'Ungültige E-Mail-Adresse.'
+  if (code === 'weak_password') return 'Das Passwort ist zu schwach (min. 10 Zeichen).'
+  if (code === 'email_not_confirmed' || msg.toLowerCase().includes('email not confirmed')) return '__resend__'
+  if (msg.toLowerCase().includes('invalid login credentials') || msg.toLowerCase().includes('invalid credentials') || code === 'invalid_credentials') return 'Falsche E-Mail-Adresse oder falsches Passwort.'
+  if (msg.toLowerCase().includes('user already registered') || code === 'user_already_exists') return 'Diese E-Mail-Adresse ist bereits registriert.'
+  if (msg.toLowerCase().includes('too many requests') || code === 'over_request_rate_limit') return 'Zu viele Versuche. Bitte warte einen Moment.'
+  if (msg.toLowerCase().includes('user not found')) return 'Kein Konto mit dieser E-Mail-Adresse gefunden.'
+  if (msg.toLowerCase().includes('password')) return 'Das Passwort ist ungültig.'
+  if (msg) return msg
+  return 'Ein Fehler ist aufgetreten.'
+}
 
 export function AuthPage() {
   const navigate = useNavigate()
@@ -21,6 +39,10 @@ export function AuthPage() {
   }
 
   const [isLogin, setIsLogin] = useState(true)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [isSendingReset, setIsSendingReset] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -65,6 +87,23 @@ export function AuthPage() {
     }
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail) { toast.error('Bitte gib deine E-Mail-Adresse ein.'); return }
+    setIsSendingReset(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/passwort-zuruecksetzen`,
+      })
+      if (error) throw error
+      setResetSent(true)
+    } catch (err: any) {
+      toast.error(translateAuthError(err))
+    } finally {
+      setIsSendingReset(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     setShowResend(false)
     e.preventDefault()
@@ -106,20 +145,8 @@ export function AuthPage() {
         }
       }
     } catch (err: any) {
-      if (err.code === 'email_not_confirmed' || err.message?.toLowerCase().includes('email not confirmed')) {
-        setShowResend(true)
-        return
-      }
-      let message = 'Ein Fehler ist aufgetreten'
-      if (err.message === 'Failed to fetch') {
-        message = 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.'
-      } else if (err.status === 400 && err.code === 'email_address_invalid') {
-        message = 'Ungültige E-Mail-Adresse.'
-      } else if (err.status === 400 && err.code === 'weak_password') {
-        message = 'Das Passwort ist zu schwach (min. 10 Zeichen).'
-      } else if (err.message) {
-        message = err.message
-      }
+      const message = translateAuthError(err)
+      if (message === '__resend__') { setShowResend(true); return }
       toast.error(message)
     } finally {
       setIsLoading(false)
@@ -138,14 +165,60 @@ export function AuthPage() {
             S47
           </div>
           <h1 className="text-2xl font-black text-gray-900">
-            {isLogin ? 'Willkommen zurück' : 'Konto erstellen'}
+            {isForgotPassword ? 'Passwort zurücksetzen' : isLogin ? 'Willkommen zurück' : 'Konto erstellen'}
           </h1>
           <p className="text-gray-500 mt-2">
-            {isLogin
+            {isForgotPassword
+              ? 'Gib deine E-Mail-Adresse ein. Wir senden dir einen Link zum Zurücksetzen.'
+              : isLogin
               ? 'Melde dich an, um mit deiner Bestellung fortzufahren.'
               : 'Erstelle ein Konto für ein schnelleres Bestellerlebnis.'}
           </p>
         </div>
+
+        {/* ── PASSWORT VERGESSEN ─────────────────────────────────── */}
+        {isForgotPassword && (
+          <>
+            {resetSent ? (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle size={28} className="text-green-600" />
+                </div>
+                <p className="text-center text-gray-700 font-medium">
+                  Wir haben dir einen Link zum Zurücksetzen des Passworts an <strong>{forgotEmail}</strong> gesendet.
+                </p>
+                <p className="text-center text-sm text-gray-500">Bitte prüfe auch deinen Spam-Ordner.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <Input
+                  label="E-Mail-Adresse"
+                  type="email"
+                  placeholder="name@beispiel.de"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  leftIcon={<Mail size={18} className="text-gray-400" />}
+                  required
+                />
+                <Button type="submit" variant="primary" fullWidth size="lg" isLoading={isSendingReset}>
+                  <KeyRound size={16} />
+                  Link senden
+                </Button>
+              </form>
+            )}
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => { setIsForgotPassword(false); setResetSent(false); setForgotEmail('') }}
+                className="text-sm font-bold text-[#142328] hover:underline"
+              >
+                ← Zurück zur Anmeldung
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── LOGIN / REGISTER ───────────────────────────────────── */}
+        {!isForgotPassword && (
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <AnimatePresence mode="wait">
@@ -190,16 +263,29 @@ export function AuthPage() {
             required
           />
 
-          <Input
-            label="Passwort"
-            type="password"
-            placeholder="••••••••"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            leftIcon={<Lock size={18} className="text-gray-400" />}
-            error={errors.password}
-            required
-          />
+          <div>
+            <Input
+              label="Passwort"
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              leftIcon={<Lock size={18} className="text-gray-400" />}
+              error={errors.password}
+              required
+            />
+            {isLogin && (
+              <div className="text-right mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setIsForgotPassword(true); setForgotEmail(formData.email) }}
+                  className="text-xs font-medium text-gray-500 hover:text-[#142328] hover:underline transition-colors"
+                >
+                  Passwort vergessen?
+                </button>
+              </div>
+            )}
+          </div>
 
           <Button
             type="submit"
@@ -249,6 +335,7 @@ export function AuthPage() {
             </div>
           </div>
         )}
+        </> {/* end !isForgotPassword */}
       </motion.div>
     </div>
   )

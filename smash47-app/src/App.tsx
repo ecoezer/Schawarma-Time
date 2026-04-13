@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { HomePage } from '@/pages/HomePage'
 import { CheckoutPage } from '@/pages/CheckoutPage'
 import { AuthPage } from '@/pages/customer/AuthPage'
+import { ResetPasswordPage } from '@/pages/customer/ResetPasswordPage'
 import { ProfilePage } from '@/pages/customer/ProfilePage'
 import { ImpressumPage } from '@/pages/ImpressumPage'
 import { DatenschutzPage } from '@/pages/DatenschutzPage'
@@ -96,6 +97,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/register" element={<AuthPage />} />
+            <Route path="/passwort-zuruecksetzen" element={<ResetPasswordPage />} />
             <Route path="/impressum" element={<ImpressumPage />} />
             <Route path="/datenschutz" element={<DatenschutzPage />} />
             <Route path="/agb" element={<AgbPage />} />
