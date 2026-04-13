@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react'
-import { Clock, Truck, Euro, Bell, Save, RefreshCw, Store, X, Plus } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Clock, Truck, Euro, Bell, Save, RefreshCw, Store, X, Plus, ImageIcon, Upload } from 'lucide-react'
 import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import type { RestaurantSettings } from '@/types'
 import toast from 'react-hot-toast'
+
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
 const DAYS = [
   { key: 'monday', label: 'Montag' },
@@ -23,6 +26,8 @@ export function AdminSettings() {
   const [hours, setHours] = useState(settings?.hours || {})
   const [isSaving, setIsSaving] = useState(false)
   const [tagInput, setTagInput] = useState('')
+  const [isUploadingHero, setIsUploadingHero] = useState(false)
+  const heroInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (settings) {
@@ -72,6 +77,35 @@ export function AdminSettings() {
 
   const removeTag = (tag: string) => {
     update('tags', (localSettings?.tags || []).filter(t => t !== tag))
+  }
+
+  const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Nur Bilddateien erlaubt'); return }
+    setIsUploadingHero(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('upload_preset', UPLOAD_PRESET)
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST', body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error?.message || 'Upload fehlgeschlagen')
+      // Optimized URL: auto format + quality, max 1600px wide
+      const parts = data.secure_url.split('/upload/')
+      const finalUrl = parts.length === 2
+        ? `${parts[0]}/upload/f_auto,q_auto,w_1600/${parts[1]}`
+        : data.secure_url
+      update('hero_images', [finalUrl])
+      toast.success('Hero-Bild hochgeladen!')
+    } catch (err: any) {
+      toast.error('Upload fehlgeschlagen: ' + err.message)
+    } finally {
+      setIsUploadingHero(false)
+      if (heroInputRef.current) heroInputRef.current.value = ''
+    }
   }
 
   return (
@@ -153,6 +187,87 @@ export function AdminSettings() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Hero Image */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <ImageIcon size={18} className="text-[#142328]" />
+          Hero-Bild (Startseiten-Banner)
+        </h2>
+
+        {/* Current image preview */}
+        {localSettings.hero_images?.[0] ? (
+          <div className="relative w-full h-40 rounded-xl overflow-hidden bg-gray-100 mb-4 group">
+            <img
+              src={localSettings.hero_images[0]}
+              alt="Hero"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => heroInputRef.current?.click()}
+                className="flex items-center gap-2 bg-white text-gray-900 text-sm font-bold px-4 py-2 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <Upload size={14} />
+                Ersetzen
+              </button>
+              <button
+                type="button"
+                onClick={() => update('hero_images', [])}
+                className="flex items-center gap-2 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-600 transition-colors"
+              >
+                <X size={14} />
+                Entfernen
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() => heroInputRef.current?.click()}
+            className="w-full h-40 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#142328] hover:bg-gray-100 transition-all mb-4"
+          >
+            {isUploadingHero ? (
+              <>
+                <div className="w-8 h-8 border-4 border-[#142328] border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-gray-500">Wird hochgeladen...</p>
+              </>
+            ) : (
+              <>
+                <Upload size={28} className="text-gray-300" />
+                <p className="text-sm font-medium text-gray-500">Klicken zum Hochladen</p>
+                <p className="text-xs text-gray-400">JPG, PNG, WebP · Empfohlen: 1600 × 400 px</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {isUploadingHero && localSettings.hero_images?.[0] && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+            <div className="w-4 h-4 border-2 border-[#142328] border-t-transparent rounded-full animate-spin" />
+            Wird hochgeladen...
+          </div>
+        )}
+
+        <input
+          ref={heroInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleHeroUpload}
+        />
+
+        {!localSettings.hero_images?.[0] && !isUploadingHero && (
+          <button
+            type="button"
+            onClick={() => heroInputRef.current?.click()}
+            className="flex items-center gap-2 text-sm font-bold text-[#142328] hover:underline"
+          >
+            <Upload size={14} />
+            Bild hochladen
+          </button>
+        )}
       </div>
 
       {/* Delivery Toggle */}
