@@ -99,7 +99,9 @@ export function AdminSettings() {
         ? `${parts[0]}/upload/f_auto,q_auto,w_1600/${parts[1]}`
         : data.secure_url
       update('hero_images', [finalUrl])
-      toast.success('Hero-Bild hochgeladen!')
+      // Auto-save immediately — no need to click the main save button
+      await updateSettings({ ...localSettings!, hero_images: [finalUrl] })
+      toast.success('Hero-Bild gespeichert!')
     } catch (err: any) {
       toast.error('Upload fehlgeschlagen: ' + err.message)
     } finally {
@@ -215,7 +217,7 @@ export function AdminSettings() {
               </button>
               <button
                 type="button"
-                onClick={() => update('hero_images', [])}
+                onClick={async () => { update('hero_images', []); await updateSettings({ ...localSettings!, hero_images: [] }); toast.success('Hero-Bild entfernt') }}
                 className="flex items-center gap-2 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-600 transition-colors"
               >
                 <X size={14} />
