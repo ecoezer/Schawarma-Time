@@ -834,8 +834,8 @@ BEGIN
       v_extra_found := FALSE;
 
       <<group_loop>>
-      FOR v_extra_group IN SELECT * FROM jsonb_array_elements(v_product.extra_groups) LOOP
-        FOR v_extra_option IN SELECT * FROM jsonb_array_elements(v_extra_group->'options') LOOP
+      FOR v_extra_group IN SELECT * FROM jsonb_array_elements(COALESCE(v_product.extra_groups, '[]')) LOOP
+        FOR v_extra_option IN SELECT * FROM jsonb_array_elements(COALESCE(v_extra_group->'extras', '[]')) LOOP
           IF (v_extra_option->>'id') = (v_extra->>'id') THEN
             v_extra_price := COALESCE((v_extra_option->>'price')::DECIMAL, 0);
             v_extra_found := TRUE;
