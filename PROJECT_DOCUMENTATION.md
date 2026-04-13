@@ -1,6 +1,6 @@
-# Smash47 — Proje Dokümantasyonu
+# Schawarma-Time — Proje Dokümantasyonu
 
-> Smash47, Hildesheim/Almanya'da faaliyet gösteren bir smash burger restoranı için geliştirilmiş, tam kapsamlı bir online sipariş sistemidir. UberEats benzeri bir müşteri arayüzü ve gerçek zamanlı admin paneli içerir.
+> Schawarma-Time, Hildesheim/Almanya'da faaliyet gösteren bir smash burger restoranı için geliştirilmiş, tam kapsamlı bir online sipariş sistemidir. UberEats benzeri bir müşteri arayüzü ve gerçek zamanlı admin paneli içerir.
 
 ---
 
@@ -48,8 +48,8 @@
 ## 2. Proje Yapısı
 
 ```
-Smash47-antigravity/
-├── smash47-app/                    # React uygulaması
+Schawarma-Time-antigravity/
+├── schawarma-time-app/                    # React uygulaması
 │   ├── src/
 │   │   ├── App.tsx                 # Ana routing ve layout
 │   │   ├── pages/
@@ -248,7 +248,7 @@ Kullanıcı oturumu ve profil yönetimi.
 }
 ```
 
-- **localStorage Anahtarı:** `smash47-auth`
+- **localStorage Anahtarı:** `schawarma-time-auth`
 - **Persist Edilen:** Yalnızca `session`
 - **Admin Rolleri:** `manager`, `cashier`, `kitchen`
 - **Başlangıçta:** `onAuthStateChange` ile oturum dinlenir, profil DB'den çekilir
@@ -265,7 +265,7 @@ Alışveriş sepeti yönetimi.
 }
 ```
 
-- **localStorage Anahtarı:** `smash47-cart`
+- **localStorage Anahtarı:** `schawarma-time-cart`
 - **Persist Edilen:** `items` ve `globalNote`
 - **Güvenlik:** Rehydration'da UUID olmayan `product_id`'ler temizlenir (eski mock data kalıntısı)
 - **Fiyat Hesaplama:** `(base_price + extras_total) × quantity`
@@ -686,13 +686,13 @@ Email yalnızca şu durumlarda gönderilir:
 - Restoran telefon numarası (büyük buton)
 
 ### Gönderici Adresi
-- Domain doğrulandığında: `Smash47 <bestellung@smash47.de>`
-- Test modunda: `Smash47 <onboarding@resend.dev>`
+- Domain doğrulandığında: `Schawarma-Time <bestellung@schawarma-time.de>`
+- Test modunda: `Schawarma-Time <onboarding@resend.dev>`
 - `RESEND_DOMAIN_VERIFIED=true` environment variable ile kontrol edilir
 
 ### DNS Gereksinimleri (Spam Önleme)
 - **SPF:** `v=spf1 include:_spf-eu.ionos.com include:amazonses.com ~all`
-- **DMARC:** `v=DMARC1; p=quarantine; rua=mailto:smash47@skymail.de`
+- **DMARC:** `v=DMARC1; p=quarantine; rua=mailto:schawarma-time@skymail.de`
 - **DKIM:** Resend panel'inden otomatik eklenir
 
 ---
@@ -808,12 +808,12 @@ Email yalnızca şu durumlarda gönderilir:
 
 ### Cloudinary
 - **Kullanım:** Ürün görseli yükleme ve dönüştürme
-- **Upload Preset:** `smash47_speisekarte` (unsigned upload)
+- **Upload Preset:** `schawarma-time_speisekarte` (unsigned upload)
 - **Entegrasyon:** AdminMenu.tsx — görsel seçme, kırpma, upload
 
 ### Resend
 - **Kullanım:** Sipariş onay ve red emailleri
-- **Domain:** `smash47.de` (DNS doğrulamalı)
+- **Domain:** `schawarma-time.de` (DNS doğrulamalı)
 - **Plan:** Free tier (aylık 3.000 email)
 
 ### Netlify

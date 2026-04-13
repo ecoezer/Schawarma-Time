@@ -1,4 +1,4 @@
-# Smash47 — Kurulum Kılavuzu
+# Schawarma-Time — Kurulum Kılavuzu
 
 > Sıfırdan tam çalışan bir kurulum için gereken her adım. Teknik bilgi varsayımı yapılmamıştır.
 
@@ -54,8 +54,8 @@ supabase --version
 
 ```bash
 # Projeyi klonlayın
-git clone https://github.com/ecoezer/Smash47.git
-cd Smash47/smash47-app
+git clone https://github.com/ecoezer/Schawarma-Time.git
+cd Schawarma-Time/schawarma-time-app
 
 # Bağımlılıkları yükleyin
 npm install
@@ -72,7 +72,7 @@ npm install
 ### 3.2 Yeni Proje Oluşturma
 1. **"New project"** butonuna tıklayın
 2. Ayarlar:
-   - **Name:** `smash47`
+   - **Name:** `schawarma-time`
    - **Database Password:** Güçlü bir şifre girin — **BU ŞİFREYİ KAYDEDIN!**
    - **Region:** `Frankfurt (eu-central-1)` — GDPR uyumu için
    - **Pricing Plan:** Free tier
@@ -98,7 +98,7 @@ Bu adım tek başına şunları oluşturur:
 - RLS güvenlik politikaları
 - Trigger fonksiyonları
 - View'lar ve RPC fonksiyonları
-- Başlangıç restoran ayarları (Smash47, Hildesheim)
+- Başlangıç restoran ayarları (Schawarma-Time, Hildesheim)
 - Demo kuponlar (`SMASH10`, `WILLKOMMEN`)
 
 ### 3.5 Ürün Verilerini Yükleme
@@ -113,11 +113,11 @@ Bu adım tek başına şunları oluşturur:
 1. Sol menü → **"Authentication"** → **"Settings"**
 2. **"Site URL"** alanına:
    ```
-   https://smash47.netlify.app
+   https://schawarma-time.netlify.app
    ```
 3. **"Redirect URLs"** bölümüne şunları ekleyin:
    ```
-   https://smash47.netlify.app/**
+   https://schawarma-time.netlify.app/**
    http://localhost:5173/**
    http://localhost:5174/**
    ```
@@ -139,7 +139,7 @@ Bu adım tek başına şunları oluşturur:
 1. Sol menü → **"Settings"** (çark ikonu) → **"Upload"** sekmesi
 2. Aşağı kaydırın → **"Upload presets"** → **"Add upload preset"**
 3. Ayarlar:
-   - **Preset name:** `smash47_speisekarte` ← tam bu ismi girin
+   - **Preset name:** `schawarma-time_speisekarte` ← tam bu ismi girin
    - **Signing mode:** `Unsigned` ← önemli!
 4. **"Save"**
 
@@ -155,13 +155,13 @@ Bu adım tek başına şunları oluşturur:
 
 ### 5.2 API Key Oluşturma
 1. Sol menü → **"API Keys"** → **"Create API Key"**
-2. **Name:** `smash47-production`
+2. **Name:** `schawarma-time-production`
 3. **Permission:** `Full access`
 4. Oluşturulan key'i kopyalayın: `re_XXXXXXXXXXXX` — **bir daha görmezsiniz, saklayın!**
 
 ### 5.3 Domain Ekleme
 1. Sol menü → **"Domains"** → **"Add Domain"**
-2. Domain adınızı girin (örn: `smash47.de`)
+2. Domain adınızı girin (örn: `schawarma-time.de`)
 3. Size DKIM ve SPF DNS kayıtları verilecek → bkz. [Bölüm 6](#6-dns-ayarları)
 
 ---
@@ -185,7 +185,7 @@ Ekledikten sonra Resend Dashboard'da **"Verify"** butonuna tıklayın.
 ## 7. Frontend .env Dosyası
 
 ```bash
-cd smash47-app
+cd schawarma-time-app
 cp .env.example .env
 ```
 
@@ -195,7 +195,7 @@ cp .env.example .env
 VITE_SUPABASE_URL=https://XXXXXXXXXXXX.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 VITE_CLOUDINARY_CLOUD_NAME=sizin-cloud-name
-VITE_CLOUDINARY_UPLOAD_PRESET=smash47_speisekarte
+VITE_CLOUDINARY_UPLOAD_PRESET=schawarma-time_speisekarte
 ```
 
 > ⚠️ `.env` dosyası `.gitignore`'da zaten var — Git'e gönderilmez.
@@ -205,7 +205,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET=smash47_speisekarte
 ## 8. Yerel Geliştirme
 
 ```bash
-cd smash47-app
+cd schawarma-time-app
 
 # Geliştirme sunucusunu başlat
 npm run dev
@@ -292,11 +292,11 @@ Ayarlar:
 
 ### 10.2 Siteyi Bağlama
 1. **"Add new site"** → **"Import an existing project"**
-2. **"GitHub"** seçin → Repository'nizi seçin (`Smash47`)
+2. **"GitHub"** seçin → Repository'nizi seçin (`Schawarma-Time`)
 3. Build ayarları:
-   - **Base directory:** `smash47-app`
+   - **Base directory:** `schawarma-time-app`
    - **Build command:** `npm run build`
-   - **Publish directory:** `smash47-app/dist`
+   - **Publish directory:** `schawarma-time-app/dist`
 4. **"Deploy site"** butonuna tıklayın
 
 ### 10.3 Ortam Değişkenlerini Ekleme
@@ -308,13 +308,13 @@ Ayarlar:
 | `VITE_SUPABASE_URL` | `https://XXXX.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | `eyJhbG...` |
 | `VITE_CLOUDINARY_CLOUD_NAME` | cloud adınız |
-| `VITE_CLOUDINARY_UPLOAD_PRESET` | `smash47_speisekarte` |
+| `VITE_CLOUDINARY_UPLOAD_PRESET` | `schawarma-time_speisekarte` |
 
 3. **"Deploys"** → **"Trigger deploy"** → **"Deploy site"**
 
 ### 10.4 Deploy Sonrası
 
-- Netlify size bir URL verir: `https://smash47.netlify.app`
+- Netlify size bir URL verir: `https://schawarma-time.netlify.app`
 - Supabase Auth ayarlarındaki Site URL'ini bu adresle güncelleyin (bkz. [Bölüm 3.6](#36-auth-ayarları))
 
 ---
@@ -342,7 +342,7 @@ Ayarlar:
 
 ### Altyapı
 - [ ] Node.js v18+ kurulu: `node --version`
-- [ ] `npm install` smash47-app/ içinde tamamlandı
+- [ ] `npm install` schawarma-time-app/ içinde tamamlandı
 - [ ] `.env` dosyası oluşturuldu ve 4 değişken dolduruldu
 
 ### Supabase
@@ -353,7 +353,7 @@ Ayarlar:
 
 ### Cloudinary
 - [ ] Cloudinary hesabı açıldı
-- [ ] Upload preset `smash47_speisekarte` oluşturuldu (Unsigned)
+- [ ] Upload preset `schawarma-time_speisekarte` oluşturuldu (Unsigned)
 
 ### Yerel Test
 - [ ] `npm run dev` çalışıyor → localhost:5173 açılıyor
@@ -364,7 +364,7 @@ Ayarlar:
 
 ### Netlify
 - [ ] GitHub repository Netlify'a bağlandı
-- [ ] Build ayarları doğru (base: `smash47-app`, publish: `smash47-app/dist`)
+- [ ] Build ayarları doğru (base: `schawarma-time-app`, publish: `schawarma-time-app/dist`)
 - [ ] 4 ortam değişkeni Netlify'a eklendi
 - [ ] Deploy başarılı — canlı site açılıyor
 
@@ -395,7 +395,7 @@ Ayarlar:
 → Edge function deploy edildi mi? Webhook doğru mu kuruldu? Resend'de domain doğrulandı mı?
 
 ### Build hatası: "VITE_ env var missing"
-→ `.env` dosyası `smash47-app/` içinde mi? 4 değişken var mı?
+→ `.env` dosyası `schawarma-time-app/` içinde mi? 4 değişken var mı?
 
 ### Netlify build başarısız
-→ Base directory `smash47-app` olarak ayarlı mı? Ortam değişkenleri Netlify'a eklendi mi?
+→ Base directory `schawarma-time-app` olarak ayarlı mı? Ortam değişkenleri Netlify'a eklendi mi?

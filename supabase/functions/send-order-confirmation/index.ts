@@ -14,9 +14,9 @@ const supabaseAdmin = createClient(
 )
 const DOMAIN_VERIFIED = Deno.env.get('RESEND_DOMAIN_VERIFIED') === 'true'
 const FROM_EMAIL = DOMAIN_VERIFIED
-  ? 'Smash47 <bestellung@smash47.de>'
-  : 'Smash47 <onboarding@resend.dev>'
-const RESTAURANT_EMAIL = 'smash47@skymail.de'
+  ? 'Schawarma-Time <bestellung@schawarma-time.de>'
+  : 'Schawarma-Time <onboarding@resend.dev>'
+const RESTAURANT_EMAIL = 'schawarma-time@skymail.de'
 
 // ── H-1: Timing-safe string comparison ───────────────────────────────────────
 // Prevents timing-based secret enumeration attacks on the webhook endpoint.
@@ -122,7 +122,7 @@ function buildEmailHtml(order: OrderRecord): string {
 
           <p style="margin:0 0 24px;font-size:16px;color:#333;">
             Hallo <strong>${safeName}</strong>,<br>
-            vielen Dank für deine Bestellung bei <strong>Smash47</strong>!
+            vielen Dank für deine Bestellung bei <strong>Schawarma-Time</strong>!
           </p>
 
           <!-- Order Number -->
@@ -198,8 +198,8 @@ function buildEmailHtml(order: OrderRecord): string {
         <!-- Footer -->
         <tr><td style="background:#f0f0f0;border-radius:0 0 16px 16px;padding:20px;text-align:center;">
           <p style="margin:0;font-size:12px;color:#999;">
-            Smash47 · Bahnhofsallee 14a · 31134 Hildesheim<br>
-            <a href="https://smash47.netlify.app" style="color:#142328;">smash47.netlify.app</a>
+            Schawarma-Time · Bahnhofsallee 14a · 31134 Hildesheim<br>
+            <a href="https://schawarma-time.netlify.app" style="color:#142328;">schawarma-time.netlify.app</a>
           </p>
         </td></tr>
 
@@ -243,7 +243,7 @@ function buildRejectedEmailHtml(order: OrderRecord): string {
             </a>
           </div>
           <p style="margin:0;font-size:13px;color:#999;text-align:center;">
-            Smash47 · Bahnhofsallee 14a · 31134 Hildesheim
+            Schawarma-Time · Bahnhofsallee 14a · 31134 Hildesheim
           </p>
         </td></tr>
       </table>
@@ -320,8 +320,8 @@ serve(async (req) => {
       to: toAddresses,
       ...(ccAddresses.length > 0 && { cc: ccAddresses }),
       subject: isConfirmed
-        ? `Bestellung ${escHtml(order.order_number)} bestätigt – Smash47`
-        : `Bestellung ${escHtml(order.order_number)} abgelehnt – Smash47`,
+        ? `Bestellung ${escHtml(order.order_number)} bestätigt – Schawarma-Time`
+        : `Bestellung ${escHtml(order.order_number)} abgelehnt – Schawarma-Time`,
       html,
     }
 

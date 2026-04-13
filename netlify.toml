@@ -1,5 +1,5 @@
 [build]
-  base = "smash47-app"
+  base = "schawarma-time-app"
   command = "npm run build"
   publish = "dist"
 

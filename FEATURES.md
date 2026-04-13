@@ -1,4 +1,4 @@
-# Smash47 — Web App Özellik Listesi
+# Schawarma-Time — Web App Özellik Listesi
 
 > Tek restoran için UberEats benzeri sipariş sistemi
 > Dil: Almanca (DE)

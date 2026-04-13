@@ -1,0 +1,27 @@
+import { Link } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
+
+export function ImpressumPage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-8 transition-colors">
+          <ChevronLeft size={16} /> Zurück zur Startseite
+        </Link>
+        <div className="bg-white rounded-2xl shadow-sm p-8">
+          <h1 className="text-3xl font-black text-[#142328] mb-6">Impressum</h1>
+          <div className="prose prose-sm max-w-none text-gray-700 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Angaben gemäß § 5 TMG</h2>
+            <p><strong>Schawarma-Time</strong><br />Bahnhofsallee 14a<br />31134 Hildesheim<br />Deutschland</p>
+            <h2 className="text-lg font-bold text-gray-900 mt-6">Kontakt</h2>
+            <p>Telefon: 05121 3030551<br />E-Mail: info@schawarma-time.de</p>
+            <h2 className="text-lg font-bold text-gray-900 mt-6">Umsatzsteuer-ID</h2>
+            <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz: DE000000000</p>
+            <h2 className="text-lg font-bold text-gray-900 mt-6">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+            <p>Schawarma-Time<br />Bahnhofsallee 14a<br />31134 Hildesheim</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

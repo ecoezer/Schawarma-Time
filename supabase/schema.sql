@@ -73,7 +73,7 @@ REVOKE EXECUTE ON FUNCTION public.is_admin()       FROM anon, authenticated;
 -- ── restaurant_settings ──────────────────────────────────────────────────────
 CREATE TABLE restaurant_settings (
   id                    UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name                  TEXT        NOT NULL DEFAULT 'Smash47',
+  name                  TEXT        NOT NULL DEFAULT 'Schawarma-Time',
   description           TEXT,
   address               TEXT        NOT NULL,
   phone                 TEXT,
@@ -1060,11 +1060,11 @@ INSERT INTO restaurant_settings (
   delivery_fee, min_order_amount, estimated_delivery_time,
   is_halal_certified, hours
 ) VALUES (
-  'Smash47',
+  'Schawarma-Time',
   'Die besten Smash Burger in Hildesheim – frisch, saftig und unwiderstehlich!',
   'Bahnhofsallee 14a, 31134 Hildesheim',
   '05121 3030551',
-  'info@smash47.de',
+  'info@schawarma-time.de',
   4.8, 30, TRUE, 2.00, 15.00, 35, TRUE,
   '{"monday":{"open":"11:30","close":"22:00","is_closed":false},"tuesday":{"open":"11:30","close":"22:00","is_closed":false},"wednesday":{"open":"11:30","close":"22:00","is_closed":false},"thursday":{"open":"11:30","close":"22:00","is_closed":false},"friday":{"open":"11:30","close":"23:00","is_closed":false},"saturday":{"open":"11:30","close":"23:00","is_closed":false},"sunday":{"open":"11:30","close":"22:00","is_closed":false}}'
 );
