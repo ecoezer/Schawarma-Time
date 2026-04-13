@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
@@ -20,21 +20,19 @@ export function AdminOrders() {
   const isLoading = useOrderStore(state => state.isLoading)
   const error = useOrderStore(state => state.error)
   const { soundEnabled, setSoundEnabled, fetchOrders, patchOrder } = useOrderStore()
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
+
+  // Derive selectedOrder from store — always in sync, no useEffect needed
+  const selectedOrder = useMemo(
+    () => selectedOrderId ? (orders.find(o => o.id === selectedOrderId) ?? null) : null,
+    [orders, selectedOrderId]
+  )
 
   const statusCounts = orders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1
     return acc
   }, {} as Record<string, number>)
-
-  // Keep selectedOrder in sync with store updates
-  useEffect(() => {
-    if (selectedOrder) {
-      const updated = orders.find(o => o.id === selectedOrder.id)
-      if (updated && updated !== selectedOrder) setSelectedOrder(updated)
-    }
-  }, [orders])
 
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
@@ -51,7 +49,7 @@ export function AdminOrders() {
 
   const cancelOrder = (orderId: string) => {
     updateStatus(orderId, 'cancelled')
-    setSelectedOrder(null)
+    setSelectedOrderId(null)
   }
 
   const getNextStatus = (current: OrderStatus): OrderStatus | null => {
@@ -155,7 +153,7 @@ export function AdminOrders() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  onClick={() => setSelectedOrder(order)}
+                  onClick={() => setSelectedOrderId(order.id)}
                   className={cn(
                     "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md",
                     selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent',
@@ -211,14 +209,14 @@ export function AdminOrders() {
           >
             <div className="flex items-center justify-between mb-4">
               <button 
-                onClick={() => setSelectedOrder(null)}
+                onClick={() => setSelectedOrderId(null)}
                 className="lg:hidden flex items-center gap-2 text-sm font-bold text-gray-500"
               >
                 <ChevronLeft size={18} />
                 Zurück
               </button>
               <h2 className="font-bold text-gray-900">{selectedOrder.order_number}</h2>
-              <button onClick={() => setSelectedOrder(null)} className="hidden lg:block p-1 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setSelectedOrderId(null)} className="hidden lg:block p-1 hover:bg-gray-100 rounded-lg">
                 <XCircle size={18} className="text-gray-400" />
               </button>
             </div>
