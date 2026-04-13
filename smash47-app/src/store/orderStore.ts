@@ -53,7 +53,10 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
         }
         onNewOrder?.(order)
       } else if (eventType === 'UPDATE') {
-        set(state => ({ orders: state.orders.map(o => o.id === next.id ? next as Order : o) }))
+        // Postgres realtime payload doesn't include joined items — fetch the full order
+        orderService.fetchOrderById(next.id).then(full => {
+          if (full) set(state => ({ orders: state.orders.map(o => o.id === full.id ? full : o) }))
+        })
       } else if (eventType === 'DELETE') {
         set(state => ({ orders: state.orders.filter(o => o.id !== old.id) }))
       }
