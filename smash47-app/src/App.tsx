@@ -86,7 +86,7 @@ function App() {
     })
 
     return () => { subscription.unsubscribe() }
-  }, [fetchSettings, refreshUser])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <ErrorBoundary>

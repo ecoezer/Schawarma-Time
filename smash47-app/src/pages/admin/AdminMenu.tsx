@@ -32,7 +32,7 @@ export function AdminMenu() {
 
   useEffect(() => {
     fetchMenu()
-  }, [fetchMenu])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (categories.length > 0 && !activeCategory) {

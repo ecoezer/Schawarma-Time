@@ -51,7 +51,7 @@ export function HomePage() {
 
   useEffect(() => {
     fetchMenu()
-  }, [fetchMenu])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set initial active category
   useEffect(() => {
