@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const SUPABASE_HOST = 'https://*.supabase.co'
+const CLOUDINARY_HOSTS = 'https://api.cloudinary.com https://res.cloudinary.com'
 
 export default defineConfig({
   plugins: [
@@ -27,8 +28,8 @@ export default defineConfig({
         `default-src 'self'`,
         `script-src 'self' 'unsafe-inline'`,   // unsafe-inline needed for Vite HMR in dev
         `style-src 'self' 'unsafe-inline'`,
-        `connect-src 'self' ${SUPABASE_HOST} wss://*.supabase.co`,
-        `img-src 'self' data: blob: ${SUPABASE_HOST}`,
+        `connect-src 'self' ${SUPABASE_HOST} wss://*.supabase.co ${CLOUDINARY_HOSTS}`,
+        `img-src 'self' data: blob: ${SUPABASE_HOST} ${CLOUDINARY_HOSTS}`,
         `font-src 'self'`,
         `frame-ancestors 'none'`,
       ].join('; '),

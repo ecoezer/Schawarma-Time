@@ -33,6 +33,15 @@ export async function updateCategory(id: string, updates: Partial<Category>): Pr
   if (error) throw error
 }
 
+export async function updateCategoryPositions(updates: { id: string, position: number }[]): Promise<void> {
+  // Upsert in Supabase allows updating multiple rows by PK (id) if we only provide id and the fields to update
+  const { error } = await supabase
+    .from('categories')
+    .upsert(updates)
+
+  if (error) throw error
+}
+
 export async function deleteCategory(id: string): Promise<void> {
   const { error } = await supabase
     .from('categories')

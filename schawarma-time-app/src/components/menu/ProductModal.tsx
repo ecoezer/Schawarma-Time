@@ -13,7 +13,8 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ product, onClose }: ProductModalProps) {
-  const [selectedExtras, setSelectedExtras] = useState<CartExtra[]>([])
+   const [selectedExtras, setSelectedExtras] = useState<CartExtra[]>([])
+  const [selectedSizeId, setSelectedSizeId] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [note, setNote] = useState('')
   const [showStickyHeader, setShowStickyHeader] = useState(false)
@@ -30,6 +31,12 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       setQuantity(1)
       setNote('')
       setShowStickyHeader(false)
+      // Default to first size if available
+      if (product.sizes?.length > 0) {
+        setSelectedSizeId(product.sizes[0].id)
+      } else {
+        setSelectedSizeId(null)
+      }
       if (scrollRef.current) {
         scrollRef.current.scrollTop = 0
       }
@@ -106,19 +113,26 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
     return selectedExtras.some((e) => group.extras.some((x: any) => x.id === e.id))
   }
 
+   const selectedSize = product.sizes?.find(s => s.id === selectedSizeId)
+  const basePrice = selectedSize ? selectedSize.price : product.price
   const extrasTotal = selectedExtras.reduce((sum, e) => sum + e.price, 0)
-  const totalPrice = (product.price + extrasTotal) * quantity
-  const isValid = product.extra_groups.every((group) => isGroupSatisfied(group))
+  const totalPrice = (basePrice + extrasTotal) * quantity
+  
+  const isSizeValid = product.sizes?.length > 0 ? !!selectedSizeId : true
+  const isGroupsValid = product.extra_groups.every((group) => isGroupSatisfied(group))
+  const isValid = isSizeValid && isGroupsValid
 
   const handleAddToCart = () => {
     if (!isValid) return
     const success = addItem({
       product_id: product.id,
       name: product.name,
-      price: product.price,
+      price: basePrice, // Use size price if available
       image_url: product.image_url,
       quantity,
       selected_extras: selectedExtras,
+      selected_size_id: selectedSizeId ?? undefined,
+      selected_size_name: selectedSize?.name,
       note,
     }, settings)
 
@@ -227,11 +241,58 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                     </div>
                   )}
                   
-                  {/* Popularity Tag */}
+                   {/* Popularity Tag */}
                   <div className="inline-flex items-center justify-center bg-[#f3f3f3] px-3 py-1.5 rounded-md mt-1">
                     <span className="text-[13px] font-medium text-black tracking-tight">Beliebtester: 3</span>
                   </div>
                 </div>
+
+                {/* Sizes Selection */}
+                {product.sizes?.length > 0 && (
+                  <div className="w-full mb-4">
+                    <div className="px-6 md:pl-3 md:pr-10 py-6 bg-white shrink-0 mt-2">
+                      <div className="text-[24px] md:text-[28px] font-bold text-black tracking-tight leading-tight">
+                        Größe wählen
+                      </div>
+                      <div className="text-[15px] text-[#545454] mt-1">
+                        Verpflichtend
+                      </div>
+                    </div>
+                    <div className="flex flex-col w-full">
+                      {product.sizes.map((size) => {
+                        const isSelected = selectedSizeId === size.id
+                        return (
+                          <div 
+                            key={size.id} 
+                            className="w-full px-6 md:pl-3 md:pr-10 flex flex-col group/item transition-colors hover:bg-[#f6f6f6] cursor-pointer" 
+                            onClick={() => setSelectedSizeId(size.id)}
+                          >
+                             <hr className="border-[#e8e8e8] border-t-1 m-0" />
+                             <div className="w-full flex items-center justify-between py-5">
+                               <div className="flex-1 pr-6 flex flex-col">
+                                 <div className="text-[16px] font-medium text-black">
+                                   {size.name}
+                                 </div>
+                                 <div className="text-[14px] text-[#545454] mt-1">
+                                   {formatPrice(size.price)}
+                                 </div>
+                               </div>
+                               <div className="shrink-0 flex items-center justify-center">
+                                 <div className={cn(
+                                   "w-[24px] h-[24px] border-[3px] rounded-full transition-all flex items-center justify-center",
+                                   isSelected ? "border-black bg-black" : "border-[#545454] group-hover:border-black"
+                                 )}>
+                                   {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                                 </div>
+                               </div>
+                             </div>
+                          </div>
+                        )
+                      })}
+                      <div className="px-6 md:pl-3 md:pr-10"><hr className="border-[#e8e8e8] border-t-1 m-0" /></div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Selection Options Groups */}
                 <ul className="flex flex-col w-full list-none p-0 m-0">

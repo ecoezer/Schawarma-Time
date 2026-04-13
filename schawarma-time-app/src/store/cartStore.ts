@@ -45,8 +45,23 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item, settings) => {
         if (!isStoreOpen(settings)) {
-          toast.error('Wir haben aktuell geschlossen oder nehmen keine Bestellungen an.')
+          toast.error('Wir haben aktuell geschlossen veya...')
           return false
+        }
+
+        // Check for existing item with same product_id, size and extras
+        const existingItemIndex = get().items.findIndex(existing => 
+          existing.product_id === item.product_id &&
+          existing.selected_size_id === item.selected_size_id &&
+          existing.selected_extras.length === item.selected_extras.length &&
+          existing.selected_extras.every(e => item.selected_extras.some(se => se.id === e.id)) &&
+          existing.note === item.note
+        )
+
+        if (existingItemIndex > -1) {
+          const existing = get().items[existingItemIndex]
+          get().updateQuantity(existing.id, existing.quantity + item.quantity)
+          return true
         }
 
         const id = generateId()

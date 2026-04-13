@@ -15,6 +15,7 @@ interface MenuStore {
   createCategory: (name: string, slug: string) => Promise<void>
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>
   deleteCategory: (id: string) => Promise<void>
+  reorderCategories: (newOrder: Category[]) => Promise<void>
 }
 
 export const useMenuStore = create<MenuStore>((set, get) => ({
@@ -75,5 +76,25 @@ export const useMenuStore = create<MenuStore>((set, get) => ({
   deleteCategory: async (id) => {
     await productService.deleteCategory(id)
     set({ categories: get().categories.filter(c => c.id !== id) })
+  },
+  
+  reorderCategories: async (newOrder) => {
+    // 1. Optimistic update (with positions updated to match index)
+    const updated = newOrder.map((c, i) => ({ ...c, position: i + 1 }))
+    set({ categories: updated })
+
+    try {
+      const updates = updated.map(c => ({ 
+        id: c.id, 
+        name: c.name, 
+        slug: c.slug, 
+        position: c.position 
+      }))
+      await productService.updateCategoryPositions(updates)
+    } catch (err) {
+      handleError(err, 'Kategorien neu ordnen')
+      // 2. Re-fetch on actual failure to stay in sync with DB
+      get().fetchMenu()
+    }
   },
 }))

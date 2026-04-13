@@ -28,6 +28,12 @@ export interface ExtraGroup {
   extras: Extra[]
 }
 
+export interface ProductSize {
+  id: string
+  name: string
+  price: number
+}
+
 export interface Product {
   id: string
   category_id: string
@@ -43,6 +49,7 @@ export interface Product {
   allergens: string[]
   calories: number | null
   extra_groups: ExtraGroup[]
+  sizes: ProductSize[]
   position: number
   created_at: string
   category?: Category
@@ -67,6 +74,8 @@ export interface CartItem {
   image_url: string | null
   quantity: number
   selected_extras: CartExtra[]
+  selected_size_id?: string
+  selected_size_name?: string
   note: string
   total: number
 }

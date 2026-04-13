@@ -15,7 +15,7 @@ import toast from 'react-hot-toast'
 
 export function AdminMenu() {
   const { categories, products, isLoading, fetchMenu, patchProductLocally, updateProduct,
-          createCategory, updateCategory, deleteCategory } = useMenuStore()
+          createCategory, updateCategory, deleteCategory, reorderCategories } = useMenuStore()
   const [activeCategory, setActiveCategory] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -30,6 +30,10 @@ export function AdminMenu() {
   const [catForm, setCatForm] = useState({ name: '', slug: '' })
   const [isCatSubmitting, setIsCatSubmitting] = useState(false)
 
+  // Drag and Drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+
   useEffect(() => {
     fetchMenu()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -40,10 +44,37 @@ export function AdminMenu() {
     }
   }, [categories, activeCategory])
 
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    setDragOverIndex(index)
+  }
+
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) {
+      setDraggedIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    const newOrder = [...categories]
+    const [removed] = newOrder.splice(draggedIndex, 1)
+    newOrder.splice(index, 0, removed)
+
+    reorderCategories(newOrder)
+    setDraggedIndex(null)
+    setDragOverIndex(null)
+  }
+
   const [form, setForm] = useState({
     name: '', description: '', price: '', category_id: '',
     calories: '', is_most_liked: false, is_vegetarian: false, is_vegan: false, is_halal: true,
     image_url: '',
+    useSizes: false,
+    sizes: [] as { id: string, name: string, price: string }[]
   })
 
   const filteredProducts = products.filter((p) => {
@@ -74,7 +105,9 @@ export function AdminMenu() {
     setForm({ 
       name: '', description: '', price: '', category_id: activeCategory, 
       calories: '', is_most_liked: false, is_vegetarian: false, 
-      is_vegan: false, is_halal: true, image_url: '' 
+      is_vegan: false, is_halal: true, image_url: '',
+      useSizes: false,
+      sizes: []
     })
     setIsModalOpen(true)
   }
@@ -88,21 +121,31 @@ export function AdminMenu() {
       is_vegan: product.is_vegan, is_halal: product.is_halal,
       // If no image, use sentinel so Kein Bild checkbox is pre-checked
       image_url: product.image_url ?? '__KEIN_BILD__',
+      useSizes: (product.sizes?.length ?? 0) > 0,
+      sizes: (product.sizes ?? []).map(s => ({ ...s, price: s.price.toString() }))
     })
     setIsModalOpen(true)
   }
 
   const handleSave = async () => {
-    if (!form.name || !form.price) { toast.error('Name und Preis sind erforderlich'); return }
+    if (!form.name) { toast.error('Name ist erforderlich'); return }
+    if (!form.useSizes && !form.price) { toast.error('Preis ist erforderlich'); return }
+    if (form.useSizes && form.sizes.length < 2) { toast.error('Bitte mindestens 2 Größen hinzufügen'); return }
+    
     setIsSubmitting(true)
 
     try {
       const imageUrl = form.image_url === '__KEIN_BILD__' || !form.image_url ? null : form.image_url
 
+      // If sizes are used, the base price is the price of the first size
+      const basePrice = form.useSizes 
+        ? parseFloat(form.sizes[0].price)
+        : parseFloat(form.price)
+
       const productData = {
         name: form.name,
         description: form.description || null,
-        price: parseFloat(form.price),
+        price: basePrice,
         category_id: form.category_id,
         calories: form.calories ? parseInt(form.calories) : null,
         is_most_liked: form.is_most_liked,
@@ -110,6 +153,11 @@ export function AdminMenu() {
         is_vegan: form.is_vegan,
         is_halal: form.is_halal,
         image_url: imageUrl,
+        sizes: form.useSizes ? form.sizes.map(s => ({
+          id: s.id || crypto.randomUUID(),
+          name: s.name,
+          price: parseFloat(s.price)
+        })) : []
       }
 
       if (editProduct) {
@@ -225,18 +273,37 @@ export function AdminMenu() {
               </button>
             </div>
 
-            {categories.map((cat) => {
+            {categories.map((cat, index) => {
               const count = products.filter((p) => p.category_id === cat.id).length
               const isActive = activeCategory === cat.id
+              const isDragging = draggedIndex === index
+              const isOver = dragOverIndex === index && !isDragging
+
               return (
-                <div key={cat.id} className="group relative">
+                <div 
+                  key={cat.id} 
+                  className={`group relative transition-all ${isOver ? 'pt-8' : ''}`}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={() => { setDraggedIndex(null); setDragOverIndex(null) }}
+                  onDrop={() => handleDrop(index)}
+                >
+                  {/* Drop Indicator */}
+                  {isOver && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-[#06c167] rounded-full animate-pulse" />
+                  )}
+
                   <button
                     onClick={() => setActiveCategory(cat.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                       isActive ? 'bg-[#142328] text-white' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                    } ${isDragging ? 'opacity-30 scale-95' : ''}`}
                   >
-                    <span className="truncate pr-1">{cat.name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GripVertical size={14} className={`shrink-0 ${isActive ? 'text-white/40' : 'text-gray-300'} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                      <span className="truncate pr-1">{cat.name}</span>
+                    </div>
                     <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
                       {count}
                     </span>
@@ -490,9 +557,85 @@ export function AdminMenu() {
             />
           </div>
 
+          {/* Größen-Optionen Toggle */}
+          <div className="bg-gray-50 p-4 rounded-xl space-y-4 border border-gray-100">
+            <Toggle 
+              checked={form.useSizes} 
+              onChange={(v) => {
+                // Initialize with 2 sizes if activating and list is empty
+                const sizes = v && form.sizes.length === 0 
+                  ? [{ id: crypto.randomUUID(), name: 'Normal', price: form.price || '' }, { id: crypto.randomUUID(), name: 'Groß', price: '' }] 
+                  : form.sizes
+                setForm({ ...form, useSizes: v, sizes })
+              }} 
+              label="Größen-Optionen aktivieren" 
+            />
+            
+            <AnimatePresence>
+              {form.useSizes && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden space-y-3 pt-2"
+                >
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Größen & Preise</p>
+                  {form.sizes.map((size, idx) => (
+                    <div key={size.id} className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <Input 
+                          placeholder="Name (z.B. Normal)" 
+                          value={size.name} 
+                          onChange={(e) => {
+                            const newSizes = [...form.sizes]
+                            newSizes[idx].name = e.target.value
+                            setForm({ ...form, sizes: newSizes })
+                          }} 
+                        />
+                      </div>
+                      <div className="w-24">
+                        <Input 
+                          type="number" 
+                          placeholder="7.50" 
+                          value={size.price} 
+                          onChange={(e) => {
+                            const newSizes = [...form.sizes]
+                            newSizes[idx].price = e.target.value
+                            setForm({ ...form, sizes: newSizes })
+                          }} 
+                        />
+                      </div>
+                      {form.sizes.length > 2 && (
+                        <button 
+                          onClick={() => setForm({ ...form, sizes: form.sizes.filter((_, i) => i !== idx) })}
+                          className="mb-2.5 p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {form.sizes.length < 4 && (
+                    <button 
+                      onClick={() => setForm({ 
+                        ...form, 
+                        sizes: [...form.sizes, { id: crypto.randomUUID(), name: '', price: '' }] 
+                      })}
+                      className="text-xs font-bold text-[#142328] hover:opacity-75 flex items-center gap-1 mt-1"
+                    >
+                      <Plus size={12} /> Größe hinzufügen
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Preis (€)" type="number" step="0.50" placeholder="7.50" required
-              value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+            {!form.useSizes && (
+              <Input label="Preis (€)" type="number" step="0.50" placeholder="7.50" required
+                value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+            )}
             <Input label="Kalorien (kcal)" type="number" placeholder="650"
               value={form.calories} onChange={(e) => setForm({ ...form, calories: e.target.value })} />
           </div>

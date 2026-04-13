@@ -130,7 +130,14 @@ export function CartSidebar() {
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-bold text-gray-900">{item.name}</p>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-gray-900 leading-tight truncate">{item.name}</p>
+                              {item.selected_size_name && (
+                                <p className="text-[11px] font-bold text-[#142328] mt-0.5 uppercase tracking-wider">
+                                  Größe: {item.selected_size_name}
+                                </p>
+                              )}
+                            </div>
                             <span className="shrink-0 bg-[#142328] text-white text-xs font-black px-2 py-0.5 rounded-full">×{item.quantity}</span>
                           </div>
                           {item.selected_extras.length > 0 && (

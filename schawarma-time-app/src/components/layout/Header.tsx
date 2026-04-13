@@ -2,11 +2,39 @@ import { Link } from 'react-router-dom'
 import { ShoppingCart, Search, Phone } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
+import { useRestaurantStore } from '@/store/restaurantStore'
 
 export function Header() {
   const { totalQuantity, toggleCart } = useCartStore()
   const { user, isLoading, isInitialized } = useAuthStore()
+  const { settings } = useRestaurantStore()
   const itemCount = totalQuantity()
+
+  // Get restaurant name and phone from settings or fallback to defaults
+  const restaurantName = settings?.name || 'Schawarma-Time'
+  const restaurantPhone = settings?.phone || '05121 3030551'
+  
+  // Logic to split name for two-tone styling (bold + medium)
+  // Splits by the first space or hyphen if found, otherwise splits in half
+  const splitName = () => {
+    const name = restaurantName
+    const splitIndex = name.indexOf(' ') !== -1 ? name.indexOf(' ') : name.indexOf('-')
+    
+    if (splitIndex !== -1) {
+      return {
+        prefix: name.substring(0, splitIndex),
+        suffix: name.substring(splitIndex)
+      }
+    }
+    
+    const mid = Math.ceil(name.length / 2)
+    return {
+      prefix: name.substring(0, mid),
+      suffix: name.substring(mid)
+    }
+  }
+
+  const { prefix, suffix } = splitName()
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-[72px] lg:h-[80px]">
@@ -16,14 +44,14 @@ export function Header() {
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <div className="flex flex-col items-start shrink-0">
             <Link to="/" className="text-[26px] tracking-tight text-black leading-tight hover:opacity-75 transition-opacity">
-              <span className="font-bold">Smash</span><span className="font-medium">47</span>
+              <span className="font-bold">{prefix}</span><span className="font-medium">{suffix}</span>
             </Link>
             <a 
-              href="tel:051213030551"
+              href={`tel:${restaurantPhone.replace(/[^0-9+]/g, '')}`}
               className="flex items-center gap-1.5 text-black mt-1 hover:opacity-75 transition-opacity"
             >
               <Phone size={12} className="text-black" fill="currentColor" />
-              <span className="text-[15px] font-bold tracking-tight">05121 3030551</span>
+              <span className="text-[15px] font-bold tracking-tight">{restaurantPhone}</span>
             </a>
           </div>
         </div>

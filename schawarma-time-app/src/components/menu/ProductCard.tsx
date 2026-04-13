@@ -37,7 +37,7 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
             {product.name}
           </h3>
           <div className="text-[14px] font-medium text-black mt-1">
-            {formatPrice(product.price)}
+            {product.sizes?.length > 0 ? `Ab ${formatPrice(product.price)}` : formatPrice(product.price)}
           </div>
           {product.description && (
             <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug">

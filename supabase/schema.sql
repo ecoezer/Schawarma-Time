@@ -10,8 +10,8 @@
 --
 -- REIHENFOLGE:
 --   1. Extensions
---   2. Hilfsfunktionen (has_role, is_admin)
---   3. Tabellen
+--   2. Tabellen
+--   3. Hilfsfunktionen (has_role, is_admin)
 --   4. Trigger-Funktionen
 --   5. Trigger
 --   6. RLS-Policies
@@ -31,43 +31,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 2. HILFSFUNKTIONEN
--- ─────────────────────────────────────────────────────────────────────────────
-
--- has_role: prüft ob der aktuelle Benutzer eine der angegebenen Rollen hat.
--- Wird intern von RLS-Policies genutzt — kein direkter RPC-Zugriff für Clients.
-CREATE OR REPLACE FUNCTION public.has_role(required_roles TEXT[])
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND role = ANY(required_roles)
-  );
-$$;
-
--- is_admin: Kurzform — true für manager, cashier, kitchen
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT public.has_role(ARRAY['manager', 'cashier', 'kitchen']);
-$$;
-
--- Direkte RPC-Aufrufe durch Clients sperren (RLS-Interna bleiben funktionsfähig)
-REVOKE EXECUTE ON FUNCTION public.has_role(text[]) FROM anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.is_admin()       FROM anon, authenticated;
-
-
--- ─────────────────────────────────────────────────────────────────────────────
--- 3. TABELLEN
+-- 2. TABELLEN
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── restaurant_settings ──────────────────────────────────────────────────────
@@ -245,7 +209,43 @@ ALTER TABLE restaurant_settings REPLICA IDENTITY FULL;
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime FOR TABLE orders, restaurant_settings;
-COMMIT;
+ COMMIT;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 3. HILFSFUNKTIONEN
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- has_role: prüft ob der aktuelle Benutzer eine der angegebenen Rollen hat.
+-- Wird intern von RLS-Policies genutzt — kein direkter RPC-Zugriff für Clients.
+CREATE OR REPLACE FUNCTION public.has_role(required_roles TEXT[])
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND role = ANY(required_roles)
+  );
+$$;
+
+-- is_admin: Kurzform — true für manager, cashier, kitchen
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT public.has_role(ARRAY['manager', 'cashier', 'kitchen']);
+$$;
+
+-- Direkte RPC-Aufrufe durch Clients sperren (RLS-Interna bleiben funktionsfähig)
+REVOKE EXECUTE ON FUNCTION public.has_role(text[]) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_admin()       FROM anon, authenticated;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
