@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings,
-  LogOut, Menu, X, Bell, Tag, Users
+  LogOut, Menu, X, Bell, Tag, Users, Lock, Eye, EyeOff
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useOrderStore } from '@/store/orderStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
+import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -26,7 +27,48 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [showPwModal, setShowPwModal] = useState(false)
+  const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' })
+  const [showPw, setShowPw] = useState({ new: false, confirm: false })
+  const [isSavingPw, setIsSavingPw] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (pwForm.newPassword.length < 10) {
+      toast.error('Passwort muss mindestens 10 Zeichen lang sein.')
+      return
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      toast.error('Passwörter stimmen nicht überein.')
+      return
+    }
+    setIsSavingPw(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwForm.newPassword })
+      if (error) throw error
+      toast.success('Passwort erfolgreich geändert!')
+      setShowPwModal(false)
+      setPwForm({ newPassword: '', confirmPassword: '' })
+    } catch (err: any) {
+      toast.error(err.message ?? 'Fehler beim Ändern des Passworts.')
+    } finally {
+      setIsSavingPw(false)
+    }
+  }
 
   const user = useAuthStore(state => state.user)
   const { signOut } = useAuthStore()
@@ -155,10 +197,118 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Bell size={20} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#06c167] rounded-full" />
           </button>
-          <div className="w-8 h-8 bg-[#142328] rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {user?.full_name?.charAt(0) || 'A'}
+
+          {/* Profile dropdown */}
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setProfileOpen(v => !v)}
+              className="w-8 h-8 bg-[#142328] rounded-full flex items-center justify-center text-white text-sm font-bold hover:opacity-80 transition-opacity"
+            >
+              {user?.full_name?.charAt(0) || 'A'}
+            </button>
+            <AnimatePresence>
+              {profileOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                >
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-bold text-gray-900 truncate">{user?.full_name}</p>
+                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowPwModal(true); setProfileOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Lock size={15} className="text-gray-400" />
+                    Passwort ändern
+                  </button>
+                  <div className="border-t border-gray-100">
+                    <button
+                      onClick={() => { setProfileOpen(false); handleLogout() }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={15} />
+                      Abmelden
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </header>
+
+        {/* Passwort ändern Modal */}
+        <AnimatePresence>
+          {showPwModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setShowPwModal(false)}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 16 }}
+                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10"
+              >
+                <h2 className="text-lg font-black text-gray-900 mb-5">Passwort ändern</h2>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Neues Passwort</label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type={showPw.new ? 'text' : 'password'}
+                        value={pwForm.newPassword}
+                        onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+                        placeholder="Mindestens 10 Zeichen"
+                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#142328]"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowPw(s => ({ ...s, new: !s.new }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPw.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Passwort bestätigen</label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type={showPw.confirm ? 'text' : 'password'}
+                        value={pwForm.confirmPassword}
+                        onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                        placeholder="Passwort wiederholen"
+                        className="w-full pl-9 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#142328]"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowPw(s => ({ ...s, confirm: !s.confirm }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPw.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button type="button" onClick={() => setShowPwModal(false)}
+                      className="flex-1 py-2.5 text-sm font-bold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                      Abbrechen
+                    </button>
+                    <button type="submit" disabled={isSavingPw}
+                      className="flex-1 py-2.5 text-sm font-bold bg-[#142328] text-white rounded-xl hover:bg-[#1e3540] transition-colors disabled:opacity-50">
+                      {isSavingPw ? 'Wird gespeichert...' : 'Speichern'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Diagnostic Panel — only in development */}
         {import.meta.env.DEV && (
