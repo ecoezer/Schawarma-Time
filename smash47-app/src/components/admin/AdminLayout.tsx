@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings,
@@ -92,7 +92,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     window.location.href = '/admin/login'
   }
 
-  const pendingOrders = useOrderStore(state => state.orders.filter(o => o.status === 'pending'))
+  const allOrders = useOrderStore(state => state.orders)
+  const pendingOrders = useMemo(() => allOrders.filter(o => o.status === 'pending'), [allOrders])
   const pendingCount = pendingOrders.length
 
   const isActive = (path: string, exact?: boolean) => {

@@ -10,7 +10,7 @@
   for = "/*"
   [headers.values]
     # CSP: lock down script/connect sources; allow Cloudinary images + Supabase WebSocket
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://res.cloudinary.com https://tb-static.uber.com data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.cloudinary.com; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://res.cloudinary.com https://tb-static.uber.com https://maps.googleapis.com data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.cloudinary.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
