@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
--- SMASH47 — Vollständiges Datenbankschema (v12, Stand: 2026-04-12)
+-- SCHAWARMA-TIME — Vollständiges Datenbankschema (v12, Stand: 2026-04-12)
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Dieses Skript erstellt das gesamte Datenbankschema von Grund auf neu.
 -- Es ersetzt alle security_fixes_vX.sql Dateien und die alte supabase_schema.sql.

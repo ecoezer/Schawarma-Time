@@ -64,7 +64,7 @@ export function AdminOrders() {
       <html><head><title>Bestellung ${escHtml(order.order_number)}</title>
       <style>body{font-family:monospace;padding:20px;font-size:14px}h2{text-align:center}hr{border:1px dashed #000}table{width:100%}</style>
       </head><body>
-      <h2>SMASH47</h2><p style="text-align:center">${escHtml(order.order_number)}</p><hr/>
+      <h2>SCHAWARMA-TIME</h2><p style="text-align:center">${escHtml(order.order_number)}</p><hr/>
       <p><b>Kunde:</b> ${escHtml(order.customer_name)}</p>
       <p><b>Tel:</b> ${escHtml(order.customer_phone)}</p>
       <p><b>Adresse:</b> ${escHtml(order.delivery_address)}</p>

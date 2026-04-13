@@ -1,5 +1,5 @@
 -- =============================================
--- SMASH47 — Product Seed Data + Hero Image
+-- SCHAWARMA-TIME — Product Seed Data + Hero Image
 -- Run this in Supabase SQL Editor
 -- =============================================
 
