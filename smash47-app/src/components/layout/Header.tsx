@@ -58,13 +58,18 @@ export function Header() {
             {!isInitialized || isLoading ? (
               <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-full" />
             ) : user ? (
-              <Link to="/profil" className="flex items-center gap-4 hover:opacity-75 transition-opacity group">
+              <Link
+                to={['manager','cashier','kitchen'].includes(user.role ?? '') ? '/admin' : '/profil'}
+                className="flex items-center gap-4 hover:opacity-75 transition-opacity group"
+              >
                 <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-sm font-bold text-gray-900 group-hover:text-black">{user.full_name}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Mein Profil</span>
+                  <span className="text-sm font-bold text-gray-900 group-hover:text-black">{user.full_name || user.email}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    {['manager','cashier','kitchen'].includes(user.role ?? '') ? 'Admin Panel' : 'Mein Profil'}
+                  </span>
                 </div>
                 <div className="w-10 h-10 bg-[#142328] rounded-2xl flex items-center justify-center text-white font-bold shadow-lg shadow-[#142328]/10 group-hover:scale-105 transition-transform">
-                  {user.full_name?.charAt(0) || 'U'}
+                  {(user.full_name ?? user.email ?? 'A').charAt(0).toUpperCase()}
                 </div>
               </Link>
             ) : (
