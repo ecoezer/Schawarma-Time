@@ -52,8 +52,24 @@ export function ProfilePage() {
       navigate('/login')
       return
     }
-    // v11: userId parameter removed — RLS scopes the query to auth.uid() automatically
     orderService.fetchUserOrders().then(setOrders).catch(() => {})
+
+    // Realtime: status updates appear instantly without page refresh
+    const unsub = orderService.subscribeToOrders((payload) => {
+      const { eventType, new: next, old } = payload
+      if (eventType === 'UPDATE' && next.user_id === user.id) {
+        orderService.fetchOrderById(next.id).then(full => {
+          if (full) setOrders(prev => prev.map(o => o.id === full.id ? full : o))
+        })
+      } else if (eventType === 'INSERT' && next.user_id === user.id) {
+        orderService.fetchOrderById(next.id).then(full => {
+          if (full) setOrders(prev => [full, ...prev])
+        })
+      } else if (eventType === 'DELETE') {
+        setOrders(prev => prev.filter(o => o.id !== old.id))
+      }
+    })
+    return unsub
   }, [user])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
