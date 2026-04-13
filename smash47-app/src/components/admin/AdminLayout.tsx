@@ -28,19 +28,20 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
   const [showPwModal, setShowPwModal] = useState(false)
   const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' })
   const [showPw, setShowPw] = useState({ new: false, confirm: false })
   const [isSavingPw, setIsSavingPw] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+  const bellRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false)
-      }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -91,8 +92,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     window.location.href = '/admin/login'
   }
 
-  // Use centralized orderStore for pending count
-  const pendingCount = useOrderStore(state => state.orders.filter(o => o.status === 'pending').length)
+  const pendingOrders = useOrderStore(state => state.orders.filter(o => o.status === 'pending'))
+  const pendingCount = pendingOrders.length
 
   const isActive = (path: string, exact?: boolean) => {
     if (exact) return location.pathname === path
@@ -193,10 +194,74 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Menu size={20} />
           </button>
           <div className="flex-1" />
-          <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#06c167] rounded-full" />
-          </button>
+
+          {/* Bell — pending orders dropdown */}
+          <div className="relative" ref={bellRef}>
+            <button
+              onClick={() => { setBellOpen(v => !v); setProfileOpen(false) }}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Bell size={20} />
+              {pendingCount > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </span>
+              )}
+            </button>
+            <AnimatePresence>
+              {bellOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                >
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <p className="text-sm font-bold text-gray-900">Ausstehende Bestellungen</p>
+                    {pendingCount > 0 && (
+                      <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount}</span>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {pendingOrders.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm text-gray-400">
+                        <Bell size={24} className="mx-auto mb-2 opacity-30" />
+                        Keine ausstehenden Bestellungen
+                      </div>
+                    ) : (
+                      pendingOrders.map(order => (
+                        <Link
+                          key={order.id}
+                          to="/admin/bestellungen"
+                          onClick={() => setBellOpen(false)}
+                          className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                        >
+                          <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                            <ShoppingBag size={14} className="text-yellow-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900">{order.order_number}</p>
+                            <p className="text-xs text-gray-500 truncate">{order.customer_name}</p>
+                            <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} · {order.total.toFixed(2).replace('.', ',')} €</p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                  {pendingOrders.length > 0 && (
+                    <Link
+                      to="/admin/bestellungen"
+                      onClick={() => setBellOpen(false)}
+                      className="block text-center text-xs font-bold text-[#142328] py-3 border-t border-gray-100 hover:bg-gray-50 transition-colors"
+                    >
+                      Alle Bestellungen anzeigen →
+                    </Link>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Profile dropdown */}
           <div className="relative" ref={profileRef}>
