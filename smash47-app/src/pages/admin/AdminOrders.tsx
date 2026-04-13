@@ -19,7 +19,7 @@ export function AdminOrders() {
   const orders = useOrderStore(state => state.orders)
   const isLoading = useOrderStore(state => state.isLoading)
   const error = useOrderStore(state => state.error)
-  const { soundEnabled, setSoundEnabled, fetchOrders } = useOrderStore()
+  const { soundEnabled, setSoundEnabled, fetchOrders, patchOrder } = useOrderStore()
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
 
@@ -39,10 +39,12 @@ export function AdminOrders() {
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
   const updateStatus = async (orderId: string, status: OrderStatus) => {
+    patchOrder(orderId, { status })   // optimistic — instant UI update
     try {
       await orderService.updateOrderStatus(orderId, status)
       toast.success(`Status aktualisiert: ${getStatusLabel(status)}`)
     } catch (err) {
+      patchOrder(orderId, { status: selectedOrder?.status ?? status })  // revert on error
       handleError(err, 'Status aktualisieren')
     }
   }

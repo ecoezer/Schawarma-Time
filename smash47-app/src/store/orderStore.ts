@@ -16,6 +16,7 @@ interface OrderStore {
   soundEnabled: boolean
 
   fetchOrders: () => Promise<void>
+  patchOrder: (id: string, changes: Partial<Order>) => void
   setSoundEnabled: (enabled: boolean) => void
   initRealtime: (onNewOrder?: (order: Order) => void) => () => void
 }
@@ -36,6 +37,9 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
       set({ isLoading: false, error: msg })
     }
   },
+
+  patchOrder: (id, changes) =>
+    set(state => ({ orders: state.orders.map(o => o.id === id ? { ...o, ...changes } : o) })),
 
   setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
 
