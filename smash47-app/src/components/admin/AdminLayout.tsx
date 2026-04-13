@@ -84,7 +84,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       toast.success(`Neue Bestellung: ${order.order_number}`)
     })
     return unsubOrders
-  }, [fetchOrders, initRealtime, fetchSettings])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = async () => {
     await signOut()
