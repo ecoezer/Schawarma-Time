@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, User, Phone, ArrowRight, CheckCircle, KeyRound } from 'lucide-react'
+import { Mail, Lock, User, Phone, ArrowRight, CheckCircle, KeyRound, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import * as authService from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase'
+import { generateId } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 // Alle Supabase-Fehlermeldungen auf Deutsch übersetzen
@@ -50,6 +51,9 @@ export function AuthPage() {
     password: '',
     fullName: '',
     phone: '',
+    street: '',
+    postalCode: '',
+    city: 'Hildesheim',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -63,9 +67,10 @@ export function AuthPage() {
     else if (!isLogin && formData.password.length < 10) errs.password = 'Passwort muss mindestens 10 Zeichen lang sein'
     if (!isLogin) {
       if (!formData.fullName) errs.fullName = 'Name ist erforderlich'
-      if (!formData.phone) {
-        errs.phone = 'Telefon ist erforderlich'
-      }
+      if (!formData.phone) errs.phone = 'Telefon ist erforderlich'
+      if (!formData.street) errs.street = 'Straße ist erforderlich'
+      if (!formData.postalCode) errs.postalCode = 'PLZ ist erforderlich'
+      if (!formData.city) errs.city = 'Stadt ist erforderlich'
     }
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -127,6 +132,20 @@ export function AuthPage() {
           full_name: formData.fullName,
           phone: formData.phone,
         })
+
+        // Save address to profile after signup if provided
+        if (data.user && formData.street) {
+          const address = {
+            id: generateId(),
+            label: 'Zuhause',
+            street: formData.street,
+            city: formData.city,
+            postal_code: formData.postalCode,
+            lat: null,
+            lng: null,
+          }
+          await authService.updateProfile(data.user.id, { addresses: [address] }).catch(() => {})
+        }
 
         if (data.user) {
           if (data.session) {
@@ -247,6 +266,33 @@ export function AuthPage() {
                   error={errors.phone}
                   required
                 />
+                <Input
+                  label="Straße & Hausnummer"
+                  placeholder="Bahnhofsallee 14a"
+                  value={formData.street}
+                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  leftIcon={<MapPin size={18} className="text-gray-400" />}
+                  error={errors.street}
+                  required
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="PLZ"
+                    placeholder="31134"
+                    value={formData.postalCode}
+                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                    error={errors.postalCode}
+                    required
+                  />
+                  <Input
+                    label="Stadt"
+                    placeholder="Hildesheim"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    error={errors.city}
+                    required
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
