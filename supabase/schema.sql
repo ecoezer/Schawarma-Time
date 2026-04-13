@@ -561,7 +561,8 @@ CREATE VIEW public.restaurant_info AS
     name, description, address, phone, email,
     rating, review_count, is_delivery_active,
     delivery_fee, min_order_amount, estimated_delivery_time,
-    is_halal_certified, hours, is_announcement_active, announcement, tags
+    is_halal_certified, hours, is_announcement_active, announcement, tags,
+    hero_images
     -- Bewusst ausgelassen: revenue_goal_daily, delivery_zones (interne Konfiguration)
   FROM restaurant_settings;
 
