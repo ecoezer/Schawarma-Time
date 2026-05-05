@@ -79,6 +79,7 @@ export function AdminMenu() {
     name: '', description: '', price: '', category_id: '',
     calories: '', is_most_liked: false, is_vegetarian: false, is_vegan: false, is_halal: true,
     image_url: '',
+    image_url_modal: '',
     useSizes: false,
     sizes: [] as { id: string, name: string, price: string }[]
   })
@@ -99,11 +100,11 @@ export function AdminMenu() {
     setIsCropModalOpen(true)
   }
 
-  const handleCropConfirm = (croppedUrl: string) => {
-    setForm({ ...form, image_url: croppedUrl })
+  const handleCropConfirm = (croppedUrl: string, modalUrl?: string) => {
+    setForm({ ...form, image_url: croppedUrl, image_url_modal: modalUrl || '' })
     setIsCropModalOpen(false)
     setTempImageForCrop('')
-    toast.success('Bild zugeschnitten und gespeichert!')
+    toast.success('Bilder zugeschnitten ve gespeichert!')
   }
 
   const openAddModal = () => {
@@ -127,6 +128,7 @@ export function AdminMenu() {
       is_vegan: product.is_vegan, is_halal: product.is_halal,
       // If no image, use sentinel so Kein Bild checkbox is pre-checked
       image_url: product.image_url ?? '__KEIN_BILD__',
+      image_url_modal: product.image_url_modal || '',
       useSizes: (product.sizes?.length ?? 0) > 0,
       sizes: (product.sizes ?? []).map(s => ({ ...s, price: s.price.toString() }))
     })
@@ -183,6 +185,7 @@ export function AdminMenu() {
         is_vegan: form.is_vegan,
         is_halal: form.is_halal,
         image_url: imageUrl,
+        image_url_modal: form.image_url_modal || null,
         sizes: form.useSizes ? form.sizes.map(s => ({
           id: s.id || crypto.randomUUID(),
           name: s.name,

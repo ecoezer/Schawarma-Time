@@ -16,7 +16,7 @@ interface ImageCropModalProps {
   isOpen: boolean
   imageUrl: string
   onClose: () => void
-  onConfirm: (croppedUrl: string) => void
+  onConfirm: (croppedUrl: string, modalUrl?: string) => void
   productInfo?: ProductInfo
 }
 
@@ -35,46 +35,70 @@ const ASPECT_PRESETS = [
 // Helper: generate a cropped canvas from image + crop area
 function getCroppedCanvas(
   image: HTMLImageElement,
-  crop: PixelCrop,
-  rotation: number
+  crop: PixelCrop, // We will treat this as percentages
+  rotation: number,
+  contain: boolean = false,
+  targetAspect: number = CARD_ASPECT,
+  zoom: number = 1
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')!
 
-  // For rotation, we draw the rotated image onto a temp canvas first
-  let source: HTMLCanvasElement | HTMLImageElement = image
-  if (rotation !== 0) {
-    const tempCanvas = document.createElement('canvas')
-    const tempCtx = tempCanvas.getContext('2d')!
-    const rad = (rotation * Math.PI) / 180
-    const isSwapped = Math.abs(rotation % 180) === 90
-
-    tempCanvas.width = isSwapped ? image.naturalHeight : image.naturalWidth
-    tempCanvas.height = isSwapped ? image.naturalWidth : image.naturalHeight
-
-    tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2)
-    tempCtx.rotate(rad)
-    tempCtx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2)
-    source = tempCanvas
+  const imgW = image.naturalWidth || 100
+  const imgH = image.naturalHeight || 100
+  
+  // Holder aspect is what the user is cropping against
+  const holderAspect = targetAspect || (imgW / imgH)
+  
+  // Logical holder dimensions (in image pixels)
+  let holderW = imgW
+  let holderH = imgH
+  if (imgW / imgH > holderAspect) {
+    holderH = imgW / holderAspect
+  } else {
+    holderW = imgH * holderAspect
   }
 
-  const sourceW = source instanceof HTMLCanvasElement ? source.width : source.naturalWidth
-  const sourceH = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight
+  // Set canvas size (proportional to crop percentage of holder)
+  const finalW = (crop.width / 100) * holderW
+  const finalH = (crop.height / 100) * holderH
+  
+  canvas.width = Math.max(1, finalW)
+  canvas.height = Math.max(1, finalH)
 
-  // Scale from display coords to natural coords
-  const scaleX = sourceW / image.width
-  const scaleY = sourceH / image.height
+  // 1. Fill background
+  ctx.fillStyle = '#f9f9f9'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  const cropX = crop.x * scaleX
-  const cropY = crop.y * scaleY
-  const cropW = crop.width * scaleX
-  const cropH = crop.height * scaleY
-
-  canvas.width = cropW
-  canvas.height = cropH
-
-  ctx.drawImage(source, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH)
-
+  // 2. Setup transformation
+  ctx.save()
+  
+  // Move to the logical center of the holder on the canvas
+  // If crop starts at 10% and width is 80%, holder center (50%) is at (50-10)/80 of canvas
+  const centerX = ((50 - crop.x) / crop.width) * canvas.width
+  const centerY = ((50 - crop.y) / crop.height) * canvas.height
+  
+  ctx.translate(centerX, centerY)
+  ctx.rotate((rotation * Math.PI) / 180)
+  
+  // Scale factor to map image pixels to canvas pixels
+  // baseScale makes image fit in holder
+  const baseScale = Math.min(holderW / imgW, holderH / imgH)
+  // zoom is the user's manual scale
+  // scaleToCanvas maps holder pixels to canvas pixels
+  const scaleToCanvas = canvas.width / (crop.width / 100 * holderW)
+  
+  const finalScale = scaleToCanvas * baseScale * zoom
+  
+  ctx.drawImage(
+    image,
+    -imgW / 2 * finalScale,
+    -imgH / 2 * finalScale,
+    imgW * finalScale,
+    imgH * finalScale
+  )
+  
+  ctx.restore()
   return canvas
 }
 
@@ -85,8 +109,12 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
   const [isProcessing, setIsProcessing] = useState(false)
   const isProcessingRef = useRef(false)
   const [rotation, setRotation] = useState(0)
+  const [isContainMode, setIsContainMode] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const [modalZoom, setModalZoom] = useState(1)
   const [activePreset, setActivePreset] = useState(0) // Default to "Produktkarte" (index 0)
   const [imageSrc, setImageSrc] = useState('')
+  const [previewUrlModal, setPreviewUrlModal] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
   const imgRef = useRef<HTMLImageElement | null>(null)
 
@@ -124,27 +152,36 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
     imgRef.current = img
     setImageLoaded(true)
 
-    const { width, height } = img
-    const aspect = activeAspect || CARD_ASPECT
-    const defaultCrop = centerCrop(
-      makeAspectCrop({ unit: '%', width: 85 }, aspect, width, height),
-      width, height
-    )
-    setCrop(defaultCrop)
+    // Initially, we just set the image as the "active" reference
+    // The container will handle the actual crop bounds
+    if (img) {
+      const aspect = activeAspect || CARD_ASPECT
+      const defaultCrop = centerCrop(
+        makeAspectCrop({ unit: '%', width: 90 }, aspect, 100, 100), // Percent of container
+        100, 100
+      )
+      setCrop(defaultCrop)
+    }
   }, [activeAspect])
 
-  // Update preview whenever crop or rotation changes
+  // Update Previews
   useEffect(() => {
     if (!completedCrop || !imgRef.current || !imageLoaded) return
-    if (!completedCrop.width || !completedCrop.height) return
 
     try {
-      const canvas = getCroppedCanvas(imgRef.current, completedCrop, rotation)
-      setPreviewUrl(canvas.toDataURL('image/jpeg', 0.9))
-    } catch {
+      // Generate Card Image
+      const canvasCard = getCroppedCanvas(imgRef.current, completedCrop, rotation, isContainMode, activeAspect || CARD_ASPECT, zoom)
+      setPreviewUrl(canvasCard.toDataURL('image/jpeg', 0.9))
+
+      // Generate Modal Image
+      const canvasModal = getCroppedCanvas(imgRef.current, completedCrop, rotation, isContainMode, 1, modalZoom)
+      setPreviewUrlModal(canvasModal.toDataURL('image/jpeg', 0.9))
+    } catch (err) {
+      console.warn('Preview error:', err)
       setPreviewUrl(null)
+      setPreviewUrlModal(null)
     }
-  }, [completedCrop, rotation, imageLoaded])
+  }, [completedCrop, rotation, imageLoaded, isContainMode, activeAspect, zoom, modalZoom])
 
   // Reset state on open
   useEffect(() => {
@@ -152,8 +189,11 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
       setCrop(undefined)
       setCompletedCrop(null)
       setPreviewUrl(null)
-      setIsProcessing(false)
+      setPreviewUrlModal(null)
       setRotation(0)
+      setIsContainMode(false)
+      setZoom(1)
+      setModalZoom(1)
       setActivePreset(0) // Default: Produktkarte
       setImageLoaded(false)
       imgRef.current = null
@@ -180,6 +220,9 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
 
   const handleReset = () => {
     setRotation(0)
+    setIsContainMode(false)
+    setZoom(1)
+    setModalZoom(1)
     setActivePreset(0)
     if (!imgRef.current) return
     const { width, height } = imgRef.current
@@ -195,34 +238,42 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
     isProcessingRef.current = true
     setIsProcessing(true)
     try {
-      const canvas = getCroppedCanvas(imgRef.current, completedCrop, rotation)
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob failed')), 'image/jpeg', 0.92)
+      // Generate Card Image
+      const canvasCard = getCroppedCanvas(imgRef.current, completedCrop, rotation, isContainMode, activeAspect || CARD_ASPECT, zoom)
+      const blobCard = await new Promise<Blob>((resolve, reject) => {
+        canvasCard.toBlob(b => b ? resolve(b) : reject(new Error('Blob failed')), 'image/jpeg', 0.92)
+      })
+
+      // Generate Modal Image
+      const canvasModal = getCroppedCanvas(imgRef.current, completedCrop, rotation, isContainMode, 1, modalZoom)
+      const blobModal = await new Promise<Blob>((resolve, reject) => {
+        canvasModal.toBlob(b => b ? resolve(b) : reject(new Error('Blob failed')), 'image/jpeg', 0.92)
       })
 
       const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
       const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
       if (cloudName && uploadPreset) {
-        const formData = new FormData()
-        formData.append('file', blob, 'cropped.jpg')
-        formData.append('upload_preset', uploadPreset)
+        const upload = async (blob: Blob) => {
+          const formData = new FormData()
+          formData.append('file', blob, 'cropped.jpg')
+          formData.append('upload_preset', uploadPreset)
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: 'POST', body: formData,
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data?.error?.message || 'Upload fehlgeschlagen')
+          return data.secure_url as string
+        }
 
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-          method: 'POST', body: formData,
-        })
+        const [urlCard, urlModal] = await Promise.all([
+          upload(blobCard),
+          upload(blobModal)
+        ])
 
-        const data = await res.json()
-
-        if (!res.ok) throw new Error(data?.error?.message || 'Upload fehlgeschlagen')
-
-        const parts = data.secure_url.split('/upload/')
-        const finalUrl = parts.length === 2
-          ? `${parts[0]}/upload/f_auto,q_auto,w_800/${parts[1]}`
-          : data.secure_url
-        onConfirm(finalUrl)
+        onConfirm(urlCard, urlModal)
       } else {
-        onConfirm(canvas.toDataURL('image/jpeg', 0.92))
+        onConfirm(canvasCard.toDataURL('image/jpeg', 0.92), canvasModal.toDataURL('image/jpeg', 0.92))
       }
     } catch (err) {
       console.error('Crop/Upload error:', err)
@@ -295,8 +346,55 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                   ))}
                 </div>
 
+                {/* Zoom Sliders */}
+                <div className="flex items-center gap-4 pl-3 border-l border-gray-100 flex-1">
+                  {/* Card Zoom */}
+                  <div className="flex items-center gap-2 min-w-[140px]">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 leading-none mb-1">Karte</span>
+                      <div className="flex items-center gap-2">
+                        <ImageIcon size={12} className="text-gray-400 shrink-0" />
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="2.0"
+                          step="0.05"
+                          value={zoom}
+                          onChange={(e) => setZoom(parseFloat(e.target.value))}
+                          className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#142328]"
+                        />
+                        <span className="text-[10px] font-mono text-gray-500 w-8 text-right shrink-0">
+                          {Math.round(zoom * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Zoom */}
+                  <div className="flex items-center gap-2 pl-4 border-l border-gray-100 min-w-[140px]">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 leading-none mb-1">Detail (Modal)</span>
+                      <div className="flex items-center gap-2">
+                        <ImageIcon size={12} className="text-gray-400 shrink-0" />
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="2.0"
+                          step="0.05"
+                          value={modalZoom}
+                          onChange={(e) => setModalZoom(parseFloat(e.target.value))}
+                          className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#1a6b3d]"
+                        />
+                        <span className="text-[10px] font-mono text-gray-500 w-8 text-right shrink-0">
+                          {Math.round(modalZoom * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Rotation controls */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 pl-3 border-l border-gray-100">
                   <button onClick={() => handleRotate('ccw')}
                     className="p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
                     title="90° gegen Uhrzeigersinn">
@@ -311,28 +409,59 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                     <span className="text-[10px] font-mono text-gray-400 ml-0.5">{rotation}°</span>
                   )}
                 </div>
+
+                {/* Contain Toggle */}
+                <div className="flex items-center gap-2 pl-3 border-l border-gray-100">
+                  <button
+                    onClick={() => setIsContainMode(!isContainMode)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+                      isContainMode 
+                        ? 'bg-[#e7f3ee] text-[#1a6b3d] ring-1 ring-[#1a6b3d]/20'
+                        : 'text-gray-500 hover:bg-gray-100'
+                    )}
+                    title="Das Bild in den gewählten Rahmen einpassen (Hintergrund füllen)"
+                  >
+                    <div className={cn(
+                      'w-4 h-4 rounded border flex items-center justify-center transition-colors',
+                      isContainMode ? 'bg-[#1a6b3d] border-[#1a6b3d]' : 'bg-white border-gray-300'
+                    )}>
+                      {isContainMode && <Check size={12} className="text-white" />}
+                    </div>
+                    Einpassen
+                  </button>
+                </div>
               </div>
 
               {/* Crop Canvas */}
               <div className="flex-1 p-4 flex items-center justify-center overflow-auto">
-                <div className="max-w-md w-full">
+                <div className="max-w-xl w-full">
                   {imageSrc ? (
-                    <ReactCrop
-                      crop={crop}
-                      onChange={(c) => setCrop(c)}
-                      onComplete={(c) => setCompletedCrop(c)}
-                      aspect={activeAspect}
-                      className="max-w-full rounded-xl overflow-hidden shadow-lg [&_.ReactCrop__crop-selection]:!border-[#142328] [&_.ReactCrop__crop-selection]:!border-2"
-                    >
-                      <img
-                        src={imageSrc}
-                        alt="Zuschneiden"
-                        onLoad={onImageLoad}
-                        className="max-w-full max-h-[45vh] block"
-                        style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined}
-                        crossOrigin="anonymous"
-                      />
-                    </ReactCrop>
+                    <div className="bg-white rounded-2xl p-4 shadow-xl border border-gray-100">
+                      {/* The "Holder" container that defines the crop area */}
+                      <ReactCrop
+                        crop={crop}
+                        onChange={(c, percentCrop) => setCrop(percentCrop)}
+                        onComplete={(c, percentCrop) => setCompletedCrop(percentCrop)}
+                        aspect={activeAspect}
+                        className="w-full rounded-xl overflow-hidden bg-[#f9f9f9] border border-gray-200"
+                        style={{ aspectRatio: activeAspect ? `${activeAspect}` : '1.25' }}
+                      >
+                        <div className="w-full h-full flex items-center justify-center p-8 min-h-[300px]">
+                          <img
+                            src={imageSrc}
+                            alt="Zuschneiden"
+                            onLoad={onImageLoad}
+                            className="max-w-full max-h-full object-contain transition-all duration-200 ease-out shadow-sm"
+                            style={{ 
+                              transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                              transformOrigin: 'center center'
+                            }}
+                            crossOrigin="anonymous"
+                          />
+                        </div>
+                      </ReactCrop>
+                    </div>
                   ) : (
                     <div className="flex items-center justify-center h-48 text-gray-400">
                       <div className="text-center">
@@ -376,26 +505,23 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                     <div className="text-[14px] font-medium text-black mt-1">
                       {productInfo ? formatPrice(productInfo.price) : '€ 0,00'}
                     </div>
-                    {productInfo?.description ? (
-                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug">
-                        {productInfo.description}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug opacity-40">
-                        Beschreibung...
-                      </div>
-                    )}
                   </div>
                   <div
                     className="relative shrink-0 bg-[#f3f3f3] h-full overflow-hidden"
                     style={{ aspectRatio: '1.25' }}
                   >
-                    <img src={preview} alt="" className="w-full h-full object-cover" />
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon size={24} className="text-gray-200" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Mobile ProductCard — EXACT match to ProductCard.tsx mobile */}
+              {/* Mobile ProductCard */}
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
                   <Smartphone size={14} className="text-gray-400" />
@@ -409,21 +535,18 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                     <div className="text-[14px] font-medium text-black mt-1">
                       {productInfo ? formatPrice(productInfo.price) : '€ 0,00'}
                     </div>
-                    {productInfo?.description ? (
-                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug">
-                        {productInfo.description}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-[13px] text-[#545454] line-clamp-2 leading-snug opacity-40">
-                        Beschreibung...
-                      </div>
-                    )}
                   </div>
                   <div
                     className="relative shrink-0 bg-[#f3f3f3] h-full overflow-hidden"
                     style={{ aspectRatio: '1.25' }}
                   >
-                    <img src={preview} alt="" className="w-full h-full object-cover" />
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon size={20} className="text-gray-200" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -434,8 +557,12 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
                   <ImageIcon size={14} className="text-gray-400" />
                   <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Produktdetail (Modal)</span>
                 </div>
-                <div className="bg-[#f3f3f3] rounded-xl overflow-hidden aspect-square shadow-sm">
-                  <img src={preview} alt="" className="w-full h-full object-cover" />
+                <div className="bg-[#f3f3f3] rounded-xl overflow-hidden aspect-square shadow-sm flex items-center justify-center">
+                  {previewUrlModal ? (
+                    <img src={previewUrlModal} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon size={48} className="text-gray-200" />
+                  )}
                 </div>
                 {productInfo && (
                   <div className="mt-2 px-0.5">

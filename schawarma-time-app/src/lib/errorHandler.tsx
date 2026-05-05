@@ -8,6 +8,24 @@ export function handleError(err: unknown, context: string): string {
   const message = extractMessage(err)
   console.error(`[Schawarma-Time:${context}]`, message)
   
+  // IGNORE LIST: Do not show these technical errors to the user as popups
+  const technicalErrorsToIgnore = [
+    'lock:sb-',
+    'auth-token',
+    'was released because another request stole it',
+    'Load failed',
+    'Failed to fetch dynamically imported module',
+    'MIME type',
+  ]
+
+  const isTechnicalError = technicalErrorsToIgnore.some(techErr => 
+    message.toLowerCase().includes(techErr.toLowerCase())
+  )
+
+  if (isTechnicalError) {
+    return message
+  }
+
   // Persistent toast with a close button (X)
   toast.error((t) => (
     <span className="flex items-center gap-2 text-sm font-medium">
