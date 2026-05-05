@@ -24,7 +24,7 @@ export function Header() {
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <div className="flex items-center gap-4 shrink-0">
             <Link to="/" className="hover:opacity-75 transition-opacity">
-              <img src={logo} alt={restaurantName} className="h-20 w-auto" />
+              <img src={logo} alt={restaurantName} className="h-16 w-auto" />
             </Link>
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-1">Kontakt</span>
