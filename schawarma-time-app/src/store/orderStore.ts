@@ -3,11 +3,7 @@ import type { Order } from '@/types'
 import * as orderService from '@/services/orderService'
 import { handleError } from '@/lib/errorHandler'
 
-// Lazy-initialized to avoid issues in test/non-browser environments
-let notificationAudio: HTMLAudioElement | null = null
-function getAudio(): HTMLAudioElement {
-  return (notificationAudio ??= new Audio('/order-notification.mp3'))
-}
+import { soundService } from '@/services/soundService'
 
 interface OrderStore {
   orders: Order[]
@@ -50,14 +46,11 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
   checkSound: () => {
     const { orders, soundEnabled } = get()
     const hasPending = orders.some(o => o.status === 'pending')
-    const audio = getAudio()
     
     if (hasPending && soundEnabled) {
-      audio.loop = true
-      audio.play().catch(e => console.warn('Audio play failed:', e))
+      soundService.startNotification()
     } else {
-      audio.pause()
-      audio.currentTime = 0
+      soundService.stopNotification()
     }
   },
 
