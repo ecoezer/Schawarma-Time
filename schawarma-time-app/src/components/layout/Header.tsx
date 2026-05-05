@@ -22,7 +22,7 @@ export function Header() {
         
         {/* Left Section */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-          <div className="flex flex-col items-start shrink-0">
+          <div className="flex flex-col items-center shrink-0">
             <Link to="/" className="hover:opacity-75 transition-opacity">
               <img src={logo} alt={restaurantName} className="h-16 w-auto" />
             </Link>
