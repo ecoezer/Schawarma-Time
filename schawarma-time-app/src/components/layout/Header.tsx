@@ -24,7 +24,7 @@ export function Header() {
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <div className="flex flex-col items-start shrink-0">
             <Link to="/" className="hover:opacity-75 transition-opacity">
-              <img src={logo} alt={restaurantName} className="h-12 w-auto object-contain" />
+              <img src={logo} alt={restaurantName} className="h-16 w-auto object-contain" />
             </Link>
             <a 
               href={`tel:${restaurantPhone.replace(/[^0-9+]/g, '')}`}

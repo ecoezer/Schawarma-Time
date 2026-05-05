@@ -141,7 +141,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Logo */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
           <Link to="/admin" className="flex items-center gap-3">
-            <img src={logo} alt="Schawarma-Time" className="h-10 w-auto object-contain bg-white rounded-lg p-1" />
+            <img src={logo} alt="Schawarma-Time" className="h-14 w-auto object-contain" />
             <div>
               <p className="font-black text-sm leading-tight">Schawarma-Time</p>
               <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Admin Panel</p>
