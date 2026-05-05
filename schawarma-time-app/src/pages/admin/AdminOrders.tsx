@@ -9,6 +9,7 @@ import { handleError } from '@/lib/errorHandler'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { Modal } from '@/components/ui/Modal'
 import { Capacitor } from '@capacitor/core'
+import { SunmiPrinter } from '@kduma-autoid/capacitor-sunmi-printer'
 import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
@@ -41,71 +42,54 @@ export function AdminOrders() {
 
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
-  const printOrderToSunmi = (order: Order) => {
-    console.log('>>> STARTING SUNMI PRINT PROCESS')
+  const printOrderToSunmi = async (order: Order) => {
+    console.log('>>> STARTING KDUMA SUNMI PRINT')
     
     if (!Capacitor.isNativePlatform()) {
-      console.warn('>>> NOT A NATIVE PLATFORM - SKIPPING PRINT')
+      console.warn('>>> NOT NATIVE - SKIPPING PRINT')
       return
     }
 
-    const printer = (window as any).sunmiPrinter
-    if (!printer) {
-      console.error('>>> ERROR: sunmiPrinter object NOT FOUND on window')
-      toast.error('Drucker-Software nicht gefunden!')
-      return
-    }
-
-    console.log('>>> PRINTER OBJECT FOUND, INITIALIZING...')
-    
     try {
-      // Some versions use printerInit, some don't need it
-      if (typeof printer.printerInit === 'function') {
-        printer.printerInit()
-      }
-
-      // Check for common print methods
-      const printLine = (text: string) => {
-        if (typeof printer.printText === 'function') {
-          printer.printText(text + "\n", null, null)
-        } else if (typeof printer.printString === 'function') {
-          printer.printString(text + "\n", null, null)
-        } else {
-          console.error('>>> NO PRINT METHOD FOUND ON PRINTER OBJECT')
-        }
-      }
-
-      printer.setAlignment(1) // Center
-      printLine("SCHAWARMA-TIME")
-      printLine("--------------------------------")
-      printLine(`Bestellung: ${order.order_number}`)
+      await SunmiPrinter.printerInit()
+      // alignment: 0=LEFT, 1=CENTER, 2=RIGHT
+      await SunmiPrinter.setAlignment({ alignment: 1 as any }) 
+      await SunmiPrinter.printText({ text: "SCHAWARMA-TIME\n" })
+      await SunmiPrinter.printText({ text: "--------------------------------\n" })
+      await SunmiPrinter.printText({ text: `Bestellung: ${order.order_number}\n` })
+      await SunmiPrinter.lineWrap({ lines: 1 })
       
-      printer.setAlignment(0) // Left
-      printLine(`Kunde: ${order.customer_name}`)
-      printLine(`Tel: ${order.customer_phone}`)
-      printLine(`Adresse: ${order.delivery_address}`)
-      printLine("--------------------------------")
+      await SunmiPrinter.setAlignment({ alignment: 0 as any }) 
+      await SunmiPrinter.printText({ text: `Kunde: ${order.customer_name}\n` })
+      await SunmiPrinter.printText({ text: `Tel: ${order.customer_phone}\n` })
+      await SunmiPrinter.printText({ text: `Adresse: ${order.delivery_address}\n` })
+      await SunmiPrinter.printText({ text: "--------------------------------\n" })
       
-      order.items.forEach(item => {
-        printLine(`${item.quantity}x ${item.product_name}`)
+      for (const item of order.items) {
+        await SunmiPrinter.printText({ text: `${item.quantity}x ${item.product_name}\n` })
         if (item.extras && item.extras.length > 0) {
-          item.extras.forEach(extra => {
-            printLine(`  + ${extra.name}`)
-          })
+          for (const extra of item.extras) {
+            await SunmiPrinter.printText({ text: `  + ${extra.name}\n` })
+          }
         }
-      })
+      }
       
-      printLine("--------------------------------")
-      printer.setAlignment(2) // Right
-      printLine(`GESAMT: ${formatPrice(order.total)}`)
+      await SunmiPrinter.printText({ text: "--------------------------------\n" })
+      await SunmiPrinter.setAlignment({ alignment: 2 as any }) 
+      await SunmiPrinter.printText({ text: `GESAMT: ${formatPrice(order.total)}\n` })
       
-      if (typeof printer.lineFeed === 'function') printer.lineFeed(4)
-      if (typeof printer.cutPaper === 'function') printer.cutPaper()
+      await SunmiPrinter.lineWrap({ lines: 4 })
       
-      console.log('>>> PRINT COMMANDS SENT SUCCESSFULLY')
+      try {
+        await SunmiPrinter.cutPaper()
+      } catch (e) {
+        console.warn('Cut paper not supported on this model')
+      }
+      
+      console.log('>>> PRINT COMPLETED SUCCESSFULLY')
     } catch (e) {
-      console.error('>>> SUNMI PRINT CRITICAL ERROR:', e)
-      toast.error('Druckfehler!')
+      console.error('>>> KDUMA PRINT ERROR:', e)
+      toast.error('Druckfehler! Bitte erneut versuchen.')
     }
   }
 
