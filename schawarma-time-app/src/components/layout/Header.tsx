@@ -28,7 +28,7 @@ export function Header() {
             </Link>
             <a 
               href={`tel:${restaurantPhone.replace(/[^0-9+]/g, '')}`}
-              className="flex items-center gap-1.5 text-black mt-1 hover:opacity-75 transition-opacity"
+              className="flex items-center gap-1.5 text-black -mt-1 hover:opacity-75 transition-opacity"
             >
               <Phone size={12} className="text-black" fill="currentColor" />
               <span className="text-[15px] font-bold tracking-tight">{restaurantPhone}</span>
