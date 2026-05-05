@@ -65,7 +65,8 @@ export function AdminOrders() {
       setPendingConfirmId(orderId)
       setIsTimeModalOpen(true)
     } else {
-      updateStatus(orderId, next)
+      toast.loading('Wird aktualisiert...', { id: 'status-update' })
+      updateStatus(orderId, next).finally(() => toast.dismiss('status-update'))
     }
   }
 
@@ -314,14 +315,13 @@ export function AdminOrders() {
             {/* Actions */}
             <div className="space-y-2">
               {getNextStatus(selectedOrder.status) && (
-                <Button
-                  variant="secondary"
-                  fullWidth
+                <button
                   onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
+                  className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-[#06c167] text-white rounded-xl font-bold active:scale-95 transition-transform"
                 >
-                  <CheckCircle size={16} />
+                  <CheckCircle size={18} />
                   {getStatusLabel(getNextStatus(selectedOrder.status)!)}
-                </Button>
+                </button>
               )}
               <Button
                 variant="ghost"
@@ -362,6 +362,7 @@ export function AdminOrders() {
         isOpen={isTimeModalOpen} 
         onClose={() => setIsTimeModalOpen(false)}
         title="Lieferzeit wählen"
+        className="z-[9999]"
       >
         <div className="p-4 text-center">
           <p className="text-sm text-gray-500 mb-6">Wie lange dauert die Lieferung voraussichtlich? Der Kunde wird darüber informiert.</p>
@@ -374,7 +375,7 @@ export function AdminOrders() {
                   setIsTimeModalOpen(false)
                   setPendingConfirmId(null)
                 }}
-                className="py-3 px-4 rounded-xl border-2 border-gray-100 hover:border-[#142328] hover:bg-gray-50 transition-all font-bold text-[#142328]"
+                className="py-5 px-4 rounded-2xl border-2 border-gray-200 bg-white text-xl font-black text-[#142328] shadow-sm active:bg-gray-100 active:scale-95 transition-all"
               >
                 {mins} Min.
               </button>
