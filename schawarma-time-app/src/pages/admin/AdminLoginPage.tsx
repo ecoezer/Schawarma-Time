@@ -8,6 +8,7 @@ import * as authService from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
 import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
+import logo from '@/assets/logo.png'
 
 export function AdminLoginPage() {
   const navigate = useNavigate()
@@ -55,8 +56,8 @@ export function AdminLoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#142328] rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <span className="text-white font-black text-lg">S47</span>
+          <div className="mb-4 flex justify-center">
+            <img src={logo} alt="Logo" className="h-16 w-auto object-contain" />
           </div>
           <h1 className="text-xl font-black text-gray-900">Admin Panel</h1>
           <p className="text-sm text-gray-500 mt-1">Schawarma-Time Restaurant</p>

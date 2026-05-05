@@ -368,6 +368,34 @@ export function AdminSettings() {
         </div>
       </div>
 
+      {/* Payment Methods */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Euro size={18} className="text-[#142328]" />
+          Zahlungsmethoden
+        </h2>
+        <div className="space-y-4">
+          <Toggle
+            checked={localSettings.payment_methods?.cash ?? true}
+            onChange={(v) => update('payment_methods', { ...localSettings.payment_methods, cash: v })}
+            label="Barzahlung bei Lieferung"
+            description="Kunden können bar an der Haustür bezahlen"
+          />
+          <Toggle
+            checked={localSettings.payment_methods?.card_on_delivery ?? true}
+            onChange={(v) => update('payment_methods', { ...localSettings.payment_methods, card_on_delivery: v })}
+            label="Kartenzahlung bei Lieferung"
+            description="Kunden können mit EC-Karte/Kreditkarte an der Haustür bezahlen"
+          />
+          {(!localSettings.payment_methods?.cash && !localSettings.payment_methods?.card_on_delivery) && (
+            <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 text-red-700 text-xs">
+              <Bell size={14} className="mt-0.5 shrink-0" />
+              <p>Achtung: Du hast alle Zahlungsmethoden deaktiviert. Kunden können keine Bestellungen abschließen!</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Opening Hours */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">

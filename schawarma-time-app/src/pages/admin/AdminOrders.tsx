@@ -8,6 +8,7 @@ import { useOrderStore } from '@/store/orderStore'
 import * as orderService from '@/services/orderService'
 import { handleError } from '@/lib/errorHandler'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { Modal } from '@/components/ui/Modal'
 import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
@@ -25,6 +26,8 @@ export function AdminOrders() {
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null)
+  const [isTimeModalOpen, setIsTimeModalOpen] = useState(false)
+  const [pendingConfirmId, setPendingConfirmId] = useState<string | null>(null)
 
   // Derive selectedOrder from store — always in sync, no useEffect needed
   const selectedOrder = useMemo(
@@ -39,14 +42,29 @@ export function AdminOrders() {
 
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
-  const updateStatus = async (orderId: string, status: OrderStatus) => {
-    patchOrder(orderId, { status })   // optimistic — instant UI update
+  const updateStatus = async (orderId: string, status: OrderStatus, deliveryTime?: number) => {
+    patchOrder(orderId, { 
+      status, 
+      ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}) 
+    })
     try {
-      await orderService.updateOrderStatus(orderId, status)
+      await orderService.updateOrderStatus(orderId, status, deliveryTime)
       toast.success(`Status aktualisiert: ${getStatusLabel(status)}`)
     } catch (err) {
-      patchOrder(orderId, { status: selectedOrder?.status ?? status })  // revert on error
+      patchOrder(orderId, { status: orders.find(o => o.id === orderId)?.status ?? status })
       handleError(err, 'Status aktualisieren')
+    }
+  }
+
+  const handleStatusTransition = (orderId: string, currentStatus: OrderStatus) => {
+    const next = getNextStatus(currentStatus)
+    if (!next) return
+
+    if (next === 'confirmed') {
+      setPendingConfirmId(orderId)
+      setIsTimeModalOpen(true)
+    } else {
+      updateStatus(orderId, next)
     }
   }
 
@@ -280,7 +298,7 @@ export function AdminOrders() {
                 <Button
                   variant="secondary"
                   fullWidth
-                  onClick={() => updateStatus(selectedOrder.id, getNextStatus(selectedOrder.status)!)}
+                  onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
                 >
                   <CheckCircle size={16} />
                   {getStatusLabel(getNextStatus(selectedOrder.status)!)}
@@ -314,11 +332,37 @@ export function AdminOrders() {
         onClose={() => { setIsCancelConfirmOpen(false); setOrderToCancel(null) }}
         onConfirm={performCancel}
         title="Bestellung stornieren?"
-        message="Möchtest du diese Bestellung wirklich stornieren? Der Kunde wird über die Stornierung benachrichtigt."
+        message="Möchtest du diese Bestellung wirklich stornieren? Der Kunde wird per E-Mail benachrichtigt."
         confirmText="Ja, stornieren"
         cancelText="Abbrechen"
         isDangerous={true}
       />
+
+      {/* Delivery Time Selection Modal */}
+      <Modal 
+        isOpen={isTimeModalOpen} 
+        onClose={() => setIsTimeModalOpen(false)}
+        title="Lieferzeit wählen"
+      >
+        <div className="p-4 text-center">
+          <p className="text-sm text-gray-500 mb-6">Wie lange dauert die Lieferung voraussichtlich? Der Kunde wird darüber informiert.</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[15, 30, 45, 60, 75, 90].map((mins) => (
+              <button
+                key={mins}
+                onClick={() => {
+                  if (pendingConfirmId) updateStatus(pendingConfirmId, 'confirmed', mins)
+                  setIsTimeModalOpen(false)
+                  setPendingConfirmId(null)
+                }}
+                className="py-3 px-4 rounded-xl border-2 border-gray-100 hover:border-[#142328] hover:bg-gray-50 transition-all font-bold text-[#142328]"
+              >
+                {mins} Min.
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, User, Phone, ArrowRight, CheckCircle, KeyRound, MapPin } from 'lucide-react'
+import { Mail, Lock, User, Phone, ArrowRight, CheckCircle, KeyRound, MapPin, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import * as authService from '@/services/authService'
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase'
 import { generateId } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import logo from '@/assets/logo.png'
 
 // Alle Supabase-Fehlermeldungen auf Deutsch übersetzen
 function translateAuthError(err: any): string {
@@ -16,7 +17,7 @@ function translateAuthError(err: any): string {
   const code = err?.code ?? ''
   if (msg === 'Failed to fetch') return 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.'
   if (code === 'email_address_invalid' || msg.toLowerCase().includes('invalid email')) return 'Ungültige E-Mail-Adresse.'
-  if (code === 'weak_password') return 'Das Passwort ist zu schwach (min. 10 Zeichen).'
+  if (code === 'weak_password') return 'Das Passwort ist zu schwach (min. 8 Zeichen).'
   if (code === 'email_not_confirmed' || msg.toLowerCase().includes('email not confirmed')) return '__resend__'
   if (msg.toLowerCase().includes('invalid login credentials') || msg.toLowerCase().includes('invalid credentials') || code === 'invalid_credentials') return 'Falsche E-Mail-Adresse oder falsches Passwort.'
   if (msg.toLowerCase().includes('user already registered') || code === 'user_already_exists') return 'Diese E-Mail-Adresse ist bereits registriert.'
@@ -29,6 +30,7 @@ function translateAuthError(err: any): string {
 
 export function AuthPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
   const { setUser, setSession, user, isInitialized } = useAuthStore()
@@ -39,12 +41,19 @@ export function AuthPage() {
     return null
   }
 
-  const [isLogin, setIsLogin] = useState(true)
+  const [isLogin, setIsLogin] = useState(location.pathname !== '/register')
   const [isForgotPassword, setIsForgotPassword] = useState(false)
+
+  // Sync state with URL changes (e.g. clicking header links while already on auth page)
+  useEffect(() => {
+    setIsLogin(location.pathname !== '/register')
+  }, [location.pathname])
+
   const [forgotEmail, setForgotEmail] = useState('')
   const [isSendingReset, setIsSendingReset] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const [formData, setFormData] = useState({
     email: '',
@@ -64,7 +73,7 @@ export function AuthPage() {
     const errs: Record<string, string> = {}
     if (!formData.email) errs.email = 'E-Mail ist erforderlich'
     if (!formData.password) errs.password = 'Passwort ist erforderlich'
-    else if (!isLogin && formData.password.length < 10) errs.password = 'Passwort muss mindestens 10 Zeichen lang sein'
+    else if (!isLogin && formData.password.length < 8) errs.password = 'Passwort muss mindestens 8 Zeichen lang sein'
     if (!isLogin) {
       if (!formData.fullName) errs.fullName = 'Name ist erforderlich'
       if (!formData.phone) errs.phone = 'Telefon ist erforderlich'
@@ -203,8 +212,8 @@ export function AuthPage() {
         className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#142328] rounded-2xl flex items-center justify-center mx-auto mb-4 text-white font-black text-xl shadow-lg shadow-black/10">
-            S47
+          <div className="mb-6 flex justify-center">
+            <img src={logo} alt="Logo" className="h-16 w-auto object-contain" />
           </div>
           <h1 className="text-2xl font-black text-gray-900">
             {isForgotPassword ? 'Passwort zurücksetzen' : isLogin ? 'Willkommen zurück' : 'Konto erstellen'}
@@ -334,11 +343,21 @@ export function AuthPage() {
           <div>
             <Input
               label="Passwort"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               leftIcon={<Lock size={18} className="text-gray-400" />}
+              rightIcon={
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                  className="hover:text-gray-600 transition-colors focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              }
               error={errors.password}
               required
             />
@@ -388,7 +407,7 @@ export function AuthPage() {
             {isLogin ? 'Noch kein Konto?' : 'Bereits ein Konto?'}
           </span>
           <button
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => navigate(isLogin ? '/register' : '/login', { replace: true })}
             className="ml-2 font-bold text-[#142328] hover:underline"
           >
             {isLogin ? 'Jetzt registrieren' : 'Hier anmelden'}

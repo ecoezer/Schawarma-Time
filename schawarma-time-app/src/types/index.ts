@@ -159,6 +159,10 @@ export interface RestaurantSettings {
   is_search_active: boolean
   revenue_goal_daily: number
   tags: string[]
+  payment_methods: {
+    cash: boolean
+    card_on_delivery: boolean
+  }
 }
 
 export interface DeliveryZone {

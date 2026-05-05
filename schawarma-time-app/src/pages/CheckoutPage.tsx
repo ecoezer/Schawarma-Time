@@ -7,6 +7,7 @@ import { useRestaurantStore } from '@/store/restaurantStore'
 import { useAuthStore } from '@/store/authStore'
 import * as couponService from '@/services/couponService'
 import * as orderService from '@/services/orderService'
+import { updateProfile } from '@/services/authService'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -21,7 +22,7 @@ type OrderStatus = 'form' | 'pending_confirmation' | 'success' | 'rejected'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, updateProfile, addAddress } = useAuthStore()
   const { items, totalPrice, clearCart } = useCartStore()
   const { settings } = useRestaurantStore()
 
@@ -30,21 +31,44 @@ export function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [orderNumber, setOrderNumber] = useState<string>('')  // set by server after order creation
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    settings?.payment_methods?.cash ? 'cash' : 'card_on_delivery'
+  )
   const [couponCode, setCouponCode] = useState('')
   const [discount, setDiscount] = useState(0)
 
-  // Prefill user data if available — use first saved address if exists
-  const defaultAddress = user?.addresses?.[0]
   const [form, setForm] = useState({
-    name: user?.full_name || '',
-    phone: user?.phone || '',
-    email: user?.email || '',
-    street: defaultAddress?.street || '',
-    city: defaultAddress?.city || 'Nordstemmen',
-    postalCode: defaultAddress?.postal_code || '31171',
+    name: '',
+    phone: '',
+    email: '',
+    street: '',
+    city: 'Nordstemmen',
+    postalCode: '31171',
     note: '',
   })
+
+  // Redirect if cart is empty (v11 fix: moved to useEffect to avoid render-phase navigation)
+  useEffect(() => {
+    if (items.length === 0 && status !== 'success') {
+      navigate('/')
+    }
+  }, [items.length, status, navigate])
+
+  // Sync form with user data when it's loaded
+  useEffect(() => {
+    if (user && !isLoading) { // Don't overwrite while loading/submitting
+      const defaultAddress = user.addresses?.[0]
+      setForm(prev => ({
+        ...prev,
+        name: prev.name || user.full_name || '',
+        phone: prev.phone || user.phone || '',
+        email: prev.email || user.email || '',
+        street: prev.street || defaultAddress?.street || '',
+        city: (prev.city === 'Nordstemmen' || !prev.city) ? (defaultAddress?.city || 'Nordstemmen') : prev.city,
+        postalCode: (prev.postalCode === '31171' || !prev.postalCode) ? (defaultAddress?.postal_code || '31171') : prev.postalCode,
+      }))
+    }
+  }, [user])
   const [errors, setErrors] = useState<Partial<typeof form>>({})
   const [warningModal, setWarningModal] = useState<{ title: string; message: string; icon?: string } | null>(null)
 
@@ -105,7 +129,8 @@ export function CheckoutPage() {
   const deliveryFee = activeZone?.delivery_fee ?? settings?.delivery_fee ?? 2.00
   const total = subtotal + deliveryFee - discount
 
-  const canOrder = isOpen && isDeliveryActive && isAboveMinOrder && isZoneValid
+  const hasPaymentMethod = (settings?.payment_methods?.cash ?? true) || (settings?.payment_methods?.card_on_delivery ?? true)
+  const canOrder = isOpen && isDeliveryActive && isAboveMinOrder && isZoneValid && hasPaymentMethod
 
   const selectAddress = (addr: UserAddress) => {
     setForm(prev => ({
@@ -181,6 +206,12 @@ export function CheckoutPage() {
                 message: 'Leider liefern wir aktuell nicht an die angegebene PLZ. Bitte prüfe deine Eingabe.',
                 icon: '📍'
               })
+            } else if (!hasPaymentMethod) {
+              setWarningModal({
+                title: 'Zahlungsmethoden',
+                message: 'Aktuell sind keine Zahlungsmethoden verfügbar. Bitte kontaktiere uns telefonisch.',
+                icon: '💳'
+              })
             }
         }
         return
@@ -211,7 +242,32 @@ export function CheckoutPage() {
       // Server returns { id, order_number } — set both from result
       setOrderId(result.id)
       setOrderNumber(result.order_number)
-      setStatus('pending_confirmation')
+      
+      // Save address to profile if user is logged in and doesn't have this address yet
+      if (user) {
+        const hasAddress = user.addresses?.some(a => 
+          a.street.toLowerCase() === form.street.toLowerCase() && 
+          a.postal_code === form.postalCode
+        )
+        
+        if (!hasAddress) {
+          await addAddress({
+            label: user.addresses?.length === 0 ? 'Zuhause' : `Adresse ${user.addresses.length + 1}`,
+            street: form.street,
+            city: form.city,
+            postal_code: form.postalCode,
+            lat: null,
+            lng: null
+          })
+        }
+        
+        // Also save phone if profile is missing it
+        if (!user.phone && form.phone) {
+          await updateProfile({ phone: form.phone })
+        }
+      }
+
+      toast.success('Bestellung erfolgreich aufgegeben!')
       toast.success('Bestellung eingegangen! Wir bestätigen gleich.')
     } catch (err) {
       // Surface friendly coupon-specific message for phone-hash rejection
@@ -296,7 +352,6 @@ export function CheckoutPage() {
   }
 
   if (items.length === 0 && status !== 'success') {
-    navigate('/')
     return null
   }
 
@@ -443,9 +498,9 @@ export function CheckoutPage() {
               <h2 className="font-bold text-gray-900 mb-4">Zahlungsmethode</h2>
               <div className="space-y-2">
                 {[
-                  { id: 'cash', icon: <Banknote size={18} />, label: 'Barzahlung bei Lieferung' },
-                  { id: 'card_on_delivery', icon: <CreditCard size={18} />, label: 'Kartenzahlung bei Lieferung' },
-                ] .map((method) => (
+                  { id: 'cash', icon: <Banknote size={18} />, label: 'Barzahlung bei Lieferung', active: settings?.payment_methods?.cash ?? true },
+                  { id: 'card_on_delivery', icon: <CreditCard size={18} />, label: 'Kartenzahlung bei Lieferung', active: settings?.payment_methods?.card_on_delivery ?? true },
+                ].filter(m => m.active).map((method) => (
                   <button
                     key={method.id}
                     onClick={() => setPaymentMethod(method.id as PaymentMethod)}

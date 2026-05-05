@@ -94,10 +94,13 @@ export async function fetchPendingCount(): Promise<number> {
 
 // v11: updated_at removed from client payload — DB trigger sets it to NOW() server-side.
 // Sending updated_at from the client allowed staff to backdate order timestamps.
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+export async function updateOrderStatus(orderId: string, status: OrderStatus, deliveryTime?: number): Promise<void> {
   const { error } = await supabase
     .from('orders')
-    .update({ status })
+    .update({ 
+      status,
+      ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {})
+    })
     .eq('id', orderId)
 
   if (error) throw error

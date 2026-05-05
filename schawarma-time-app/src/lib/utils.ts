@@ -23,7 +23,7 @@ export function generateOrderNumber(): string {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
     .toUpperCase()
-  return `S47-${timestamp}-${random}`
+  return `ST-${timestamp}-${random}`
 }
 
 export function generateId(): string {
