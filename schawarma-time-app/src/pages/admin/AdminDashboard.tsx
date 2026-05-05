@@ -225,8 +225,8 @@ export function AdminDashboard() {
       {/* Status summary */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {[
-          { label: 'Ausstehend', count: pendingCount, icon: AlertCircle, color: 'text-yellow-500 bg-yellow-50' },
-          { label: 'Bestätigt', count: confirmedCount, icon: CheckCircle, color: 'text-green-500 bg-green-50' },
+          { label: 'Ausstehend', count: pendingCount, icon: AlertCircle, color: 'text-yellow-500 bg-yellow-50', fullWidthMobile: false },
+          { label: 'Bestätigt', count: confirmedCount, icon: CheckCircle, color: 'text-green-500 bg-green-50', fullWidthMobile: false },
         ].map((item) => (
           <div 
             key={item.label} 
