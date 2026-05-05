@@ -42,42 +42,69 @@ export function AdminOrders() {
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
   const printOrderToSunmi = (order: Order) => {
-    if (!Capacitor.isNativePlatform() || !(window as any).sunmiPrinter) return
+    console.log('>>> STARTING SUNMI PRINT PROCESS')
+    
+    if (!Capacitor.isNativePlatform()) {
+      console.warn('>>> NOT A NATIVE PLATFORM - SKIPPING PRINT')
+      return
+    }
 
     const printer = (window as any).sunmiPrinter
+    if (!printer) {
+      console.error('>>> ERROR: sunmiPrinter object NOT FOUND on window')
+      toast.error('Drucker-Software nicht gefunden!')
+      return
+    }
+
+    console.log('>>> PRINTER OBJECT FOUND, INITIALIZING...')
+    
     try {
-      printer.printerInit()
+      // Some versions use printerInit, some don't need it
+      if (typeof printer.printerInit === 'function') {
+        printer.printerInit()
+      }
+
+      // Check for common print methods
+      const printLine = (text: string) => {
+        if (typeof printer.printText === 'function') {
+          printer.printText(text + "\n", null, null)
+        } else if (typeof printer.printString === 'function') {
+          printer.printString(text + "\n", null, null)
+        } else {
+          console.error('>>> NO PRINT METHOD FOUND ON PRINTER OBJECT')
+        }
+      }
+
       printer.setAlignment(1) // Center
-      printer.lineFeed(1)
-      printer.printText("SCHAWARMA-TIME\n", null, null)
-      printer.printText("--------------------------------\n", null, null)
-      printer.printText(`Bestellung: ${order.order_number}\n`, null, null)
-      printer.lineFeed(1)
+      printLine("SCHAWARMA-TIME")
+      printLine("--------------------------------")
+      printLine(`Bestellung: ${order.order_number}`)
+      
       printer.setAlignment(0) // Left
-      printer.printText(`Kunde: ${order.customer_name}\n`, null, null)
-      printer.printText(`Tel: ${order.customer_phone}\n`, null, null)
-      printer.printText(`Adresse: ${order.delivery_address}\n`, null, null)
-      printer.printText("--------------------------------\n", null, null)
+      printLine(`Kunde: ${order.customer_name}`)
+      printLine(`Tel: ${order.customer_phone}`)
+      printLine(`Adresse: ${order.delivery_address}`)
+      printLine("--------------------------------")
       
       order.items.forEach(item => {
-        printer.printText(`${item.quantity}x ${item.product_name}\n`, null, null)
+        printLine(`${item.quantity}x ${item.product_name}`)
         if (item.extras && item.extras.length > 0) {
           item.extras.forEach(extra => {
-            printer.printText(`  + ${extra.name}\n`, null, null)
+            printLine(`  + ${extra.name}`)
           })
         }
       })
       
-      printer.printText("--------------------------------\n", null, null)
+      printLine("--------------------------------")
       printer.setAlignment(2) // Right
-      printer.printText(`GESAMT: ${formatPrice(order.total)}\n`, null, null)
-      printer.lineFeed(2)
-      printer.setAlignment(1) // Center
-      printer.printText("Vielen Dank!\n", null, null)
-      printer.lineFeed(4) // Extra space for tearing
-      printer.cutPaper()
+      printLine(`GESAMT: ${formatPrice(order.total)}`)
+      
+      if (typeof printer.lineFeed === 'function') printer.lineFeed(4)
+      if (typeof printer.cutPaper === 'function') printer.cutPaper()
+      
+      console.log('>>> PRINT COMMANDS SENT SUCCESSFULLY')
     } catch (e) {
-      console.error('Sunmi Print Error:', e)
+      console.error('>>> SUNMI PRINT CRITICAL ERROR:', e)
       toast.error('Druckfehler!')
     }
   }
