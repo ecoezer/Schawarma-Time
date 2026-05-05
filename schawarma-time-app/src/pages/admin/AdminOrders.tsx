@@ -13,7 +13,7 @@ import { SunmiPrinter } from '@kduma-autoid/capacitor-sunmi-printer'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
-const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
+const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed']
 
 function escHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -252,10 +252,7 @@ export function AdminOrders() {
         </div>
 
         <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sticky top-14 z-10 bg-gray-50/95 backdrop-blur-md py-2">
-          {(isPosMode 
-            ? (['all', 'pending', 'confirmed', 'cancelled'] as const)
-            : (['all', 'pending', 'confirmed', 'preparing', 'on_the_way', 'delivered', 'cancelled'] as const)
-          ).map((s) => (
+          {(['all', 'pending', 'confirmed', 'cancelled'] as const).map((s) => (
             <button
               key={s}
               type="button"

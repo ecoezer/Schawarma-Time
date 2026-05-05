@@ -60,21 +60,20 @@ export function AdminDashboard() {
     setIsLoading(false)
   }
 
-  const activeOrders = orders.filter((o) => !['cancelled', 'delivered'].includes(o.status))
+  const activeOrders = orders.filter((o) => o.status === 'pending')
   const todayRevenue = orders
     .filter((o) => o.status !== 'cancelled')
     .reduce((sum, o) => sum + (o.total || 0), 0)
   const avgOrderValue = orders.length > 0 ? todayRevenue / orders.filter((o) => o.status !== 'cancelled').length : 0
   const goal = settings?.revenue_goal_daily || 500
 
-  const { pendingCount, preparingCount, deliveredCount } = orders.reduce(
+  const { pendingCount, confirmedCount } = orders.reduce(
     (acc, o) => {
       if (o.status === 'pending') acc.pendingCount++
-      if (o.status === 'preparing' || o.status === 'confirmed') acc.preparingCount++
-      if (o.status === 'delivered') acc.deliveredCount++
+      if (o.status === 'confirmed') acc.confirmedCount++
       return acc
     },
-    { pendingCount: 0, preparingCount: 0, deliveredCount: 0 }
+    { pendingCount: 0, confirmedCount: 0 }
   )
 
   const recentOrders = orders.slice(0, 4)
@@ -224,11 +223,10 @@ export function AdminDashboard() {
       </div>
 
       {/* Status summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {[
           { label: 'Ausstehend', count: pendingCount, icon: AlertCircle, color: 'text-yellow-500 bg-yellow-50' },
-          { label: 'In Zubereitung', count: preparingCount, icon: Clock, color: 'text-orange-500 bg-orange-50' },
-          { label: 'Geliefert', count: deliveredCount, icon: CheckCircle, color: 'text-green-500 bg-green-50', fullWidthMobile: true },
+          { label: 'Bestätigt', count: confirmedCount, icon: CheckCircle, color: 'text-green-500 bg-green-50' },
         ].map((item) => (
           <div 
             key={item.label} 
