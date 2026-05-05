@@ -55,19 +55,39 @@ export function AdminOrders() {
 
     try {
       await SunmiPrinter.printerInit()
-      await SunmiPrinter.setAlignment({ alignment: 1 as any }) 
+      
+      // Shop Name: Bold, Italic, Centered
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
+      await SunmiPrinter.setBold({ enable: true })
+      await SunmiPrinter.setItalicPrintStyle({ enable: true })
+      await SunmiPrinter.setFontSize({ size: 32 })
       await SunmiPrinter.printText({ text: "SCHAWARMA-TIME\n" })
+      
+      // Reset styles
+      await SunmiPrinter.setBold({ enable: false })
+      await SunmiPrinter.setItalicPrintStyle({ enable: false })
+      await SunmiPrinter.setFontSize({ size: 24 })
+      
       await SunmiPrinter.printText({ text: "--------------------------------\n" })
-      await SunmiPrinter.printText({ text: `Bestellung: ${order.order_number}\n` })
+      
+      // Order Number with ST- prefix
+      const orderNum = order.order_number.replace('S47', 'ST-')
+      await SunmiPrinter.printText({ text: `Bestellung: ${orderNum}\n` })
       await SunmiPrinter.lineWrap({ lines: 1 })
       
       await SunmiPrinter.setAlignment({ alignment: 0 as any }) 
       await SunmiPrinter.printText({ text: `Kunde: ${order.customer_name}\n` })
       await SunmiPrinter.printText({ text: `Tel: ${order.customer_phone}\n` })
-      await SunmiPrinter.printText({ text: `Adresse: ${order.delivery_address}\n` })
+      
+      // Address
+      await SunmiPrinter.printText({ text: `Adresse:\n${order.delivery_address}\n` })
+      
       await SunmiPrinter.printText({ text: "--------------------------------\n" })
       
+      // Items
+      let itemsTotal = 0
       for (const item of order.items) {
+        itemsTotal += (item.unit_price || 0) * item.quantity
         await SunmiPrinter.printText({ text: `${item.quantity}x ${item.product_name}\n` })
         if (item.extras && item.extras.length > 0) {
           for (const extra of item.extras) {
@@ -78,30 +98,43 @@ export function AdminOrders() {
       
       await SunmiPrinter.printText({ text: "--------------------------------\n" })
       
-      // Calculate and print delivery time
+      // Price Breakdown
+      await SunmiPrinter.setAlignment({ alignment: 2 as any }) 
+      await SunmiPrinter.printText({ text: `Zwischensumme: ${formatPrice(itemsTotal)}\n` })
+      
+      const deliveryFee = (order as any).delivery_fee || 0
+      if (deliveryFee > 0) {
+        await SunmiPrinter.printText({ text: `Lieferkosten: ${formatPrice(deliveryFee)}\n` })
+      }
+      
+      await SunmiPrinter.setBold({ enable: true })
+      await SunmiPrinter.printText({ text: `GESAMT: ${formatPrice(order.total)}\n` })
+      await SunmiPrinter.setBold({ enable: false })
+      
+      // Delivery Time
       const mins = deliveryTimeMins || order.estimated_delivery_time || 0
       if (mins > 0) {
         const deliveryDate = new Date(new Date().getTime() + mins * 60000)
+        await SunmiPrinter.lineWrap({ lines: 1 })
         await SunmiPrinter.setAlignment({ alignment: 1 as any })
-        await SunmiPrinter.printText({ text: `ESTIMATED DELIVERY TIME:\n` })
+        await SunmiPrinter.printText({ text: `LIEFERZEIT (CA.):\n` })
         await SunmiPrinter.setFontSize({ size: 40 })
+        await SunmiPrinter.setBold({ enable: true })
         await SunmiPrinter.printText({ text: `${format(deliveryDate, 'HH:mm')}\n` })
-        await SunmiPrinter.setFontSize({ size: 24 }) // Reset font
-        await SunmiPrinter.printText({ text: "--------------------------------\n" })
+        await SunmiPrinter.setBold({ enable: false })
+        await SunmiPrinter.setFontSize({ size: 24 })
+        await SunmiPrinter.printText({ text: "Vielen Dank!\n" })
       }
-
-      await SunmiPrinter.setAlignment({ alignment: 2 as any }) 
-      await SunmiPrinter.printText({ text: `GESAMT: ${formatPrice(order.total)}\n` })
       
       await SunmiPrinter.lineWrap({ lines: 4 })
       
       try {
         await SunmiPrinter.cutPaper()
       } catch (e) {
-        console.warn('Cut paper not supported on this model')
+        console.warn('Cut paper not supported')
       }
       
-      console.log('>>> PRINT COMPLETED SUCCESSFULLY')
+      console.log('>>> PRINT COMPLETED')
     } catch (e) {
       console.error('>>> KDUMA PRINT ERROR:', e)
       toast.error('Druckfehler!')
@@ -208,7 +241,7 @@ export function AdminOrders() {
                 filter === s ? 'bg-[#142328] text-white' : 'bg-white text-gray-600 border border-gray-100'
               )}
             >
-              {s === 'all' ? 'Alle' : s === 'confirmed' ? (isPosMode ? 'Kabul Edildi' : 'Bestätigt') : getStatusLabel(s)}
+              {s === 'all' ? 'Alle' : s === 'confirmed' ? 'Bestätigt' : getStatusLabel(s)}
             </button>
           ))}
         </div>
@@ -231,9 +264,9 @@ export function AdminOrders() {
                 )}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-black text-base">{order.order_number}</span>
+                  <span className="font-black text-base">{order.order_number.replace('S47', 'ST-')}</span>
                   <span className={cn("text-xs px-2 py-1 rounded-lg font-black", getStatusColor(order.status))}>
-                    {order.status === 'confirmed' ? 'KABUL EDILDI' : getStatusLabel(order.status)}
+                    {order.status === 'confirmed' ? 'BESTÄTIGT' : getStatusLabel(order.status)}
                   </span>
                 </div>
                 <p className="font-bold text-gray-800">{order.customer_name}</p>
@@ -310,7 +343,7 @@ export function AdminOrders() {
                     className="w-full flex items-center justify-center gap-3 py-6 bg-[#06c167] text-white rounded-3xl text-xl font-black shadow-xl shadow-green-100"
                   >
                     <CheckCircle size={24} />
-                    KABUL ET
+                    BESTÄTIGEN
                   </button>
                   <button
                     type="button"
@@ -318,13 +351,13 @@ export function AdminOrders() {
                     className="w-full flex items-center justify-center gap-2 py-5 bg-red-50 text-red-600 rounded-2xl font-black"
                   >
                     <XCircle size={20} />
-                    REDDET / İPTAL
+                    STORNO / ABLEHNEN
                   </button>
                 </>
               ) : (
                 <div className="space-y-3">
                   <div className="w-full py-4 bg-gray-100 text-[#142328] rounded-2xl text-center font-black">
-                    BU SİPARİŞ KABUL EDİLDİ
+                    BESTELLUNG BESTÄTIGT
                   </div>
                   <button
                     type="button"
@@ -332,7 +365,7 @@ export function AdminOrders() {
                     className="w-full flex items-center justify-center gap-2 py-6 bg-[#142328] text-white rounded-3xl font-black"
                   >
                     <Printer size={24} />
-                    BONU TEKRAR YAZDIR
+                    BON REPRINT
                   </button>
                 </div>
               )
@@ -395,7 +428,7 @@ export function AdminOrders() {
         onClose={() => setIsCancelConfirmOpen(false)}
         onConfirm={performCancel}
         title="Stornieren?"
-        message="Bist du sicher?"
+        message="Bist du sicher, dass du diese Bestellung stornieren möchtest?"
       />
     </div>
   )
