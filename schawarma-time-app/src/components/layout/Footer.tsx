@@ -11,8 +11,8 @@ export function Footer() {
             <div className="flex items-center gap-2 mb-4">
               <span className="text-xl font-black">Schawarma-Time</span>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Die besten Smash Burger in Hildesheim – frisch, saftig und unwiderstehlich!
+            <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+              Schawarma-Time - Dein Geschmackserlebnis in Nordstemmen.
             </p>
           </div>
 
