@@ -227,7 +227,7 @@ export function CheckoutPage() {
         customer_name:    form.name,
         customer_phone:   form.phone,
         customer_email:   form.email,
-        delivery_address: isAbholung ? 'Selbstabholung im Restaurant' : `${form.street}, ${form.postalCode} ${form.city}`,
+        delivery_address: isAbholung ? 'Selbstabholung' : `${form.street}, ${form.postalCode} ${form.city}`,
         // Only IDs + quantities — prices calculated server-side
         items: items.map(item => ({
           product_id: item.product_id,
