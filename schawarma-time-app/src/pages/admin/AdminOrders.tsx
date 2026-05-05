@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
 import { formatPrice, getStatusColor, getStatusLabel, cn } from '@/lib/utils'
@@ -23,7 +23,14 @@ export function AdminOrders() {
   const orders = useOrderStore(state => state.orders)
   const isLoading = useOrderStore(state => state.isLoading)
   const error = useOrderStore(state => state.error)
-  const { soundEnabled, setSoundEnabled, fetchOrders, patchOrder } = useOrderStore()
+  const { soundEnabled, setSoundEnabled, fetchOrders, patchOrder, initRealtime } = useOrderStore()
+
+  useEffect(() => {
+    fetchOrders()
+    const unsubscribe = initRealtime()
+    return () => unsubscribe()
+  }, [fetchOrders, initRealtime])
+
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)

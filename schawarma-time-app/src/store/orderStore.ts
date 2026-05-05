@@ -18,6 +18,7 @@ interface OrderStore {
   fetchOrders: () => Promise<void>
   patchOrder: (id: string, changes: Partial<Order>) => void
   setSoundEnabled: (enabled: boolean) => void
+  checkSound: () => void
   initRealtime: (onNewOrder?: (order: Order) => void) => () => void
 }
 
@@ -41,29 +42,48 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
   patchOrder: (id, changes) =>
     set(state => ({ orders: state.orders.map(o => o.id === id ? { ...o, ...changes } : o) })),
 
-  setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+  setSoundEnabled: (enabled) => {
+    set({ soundEnabled: enabled })
+    get().checkSound()
+  },
+
+  checkSound: () => {
+    const { orders, soundEnabled } = get()
+    const hasPending = orders.some(o => o.status === 'pending')
+    const audio = getAudio()
+    
+    if (hasPending && soundEnabled) {
+      audio.loop = true
+      audio.play().catch(e => console.warn('Audio play failed:', e))
+    } else {
+      audio.pause()
+      audio.currentTime = 0
+    }
+  },
 
   initRealtime: (onNewOrder) => {
+    // Initial sound check
+    get().checkSound()
+
     return orderService.subscribeToOrders((payload) => {
       const { eventType, new: next, old } = payload
 
       if (eventType === 'INSERT') {
         const order = next as Order
         set(state => ({ orders: [order, ...state.orders] }))
-        if (get().soundEnabled) {
-          const audio = getAudio()
-          audio.currentTime = 0
-          audio.play().catch(e => console.warn('Audio play failed:', e))
-        }
         onNewOrder?.(order)
       } else if (eventType === 'UPDATE') {
-        // Postgres realtime payload doesn't include joined items — fetch the full order
         orderService.fetchOrderById(next.id).then(full => {
-          if (full) set(state => ({ orders: state.orders.map(o => o.id === full.id ? full : o) }))
+          if (full) {
+            set(state => ({ orders: state.orders.map(o => o.id === full.id ? full : o) }))
+          }
         })
       } else if (eventType === 'DELETE') {
         set(state => ({ orders: state.orders.filter(o => o.id !== old.id) }))
       }
+      
+      // Re-check sound after any change
+      get().checkSound()
     })
   },
 }))
