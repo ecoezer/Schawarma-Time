@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
 import { formatPrice, getStatusColor, getStatusLabel, cn } from '@/lib/utils'
@@ -30,7 +29,6 @@ export function AdminOrders() {
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false)
   const [pendingConfirmId, setPendingConfirmId] = useState<string | null>(null)
 
-  // Derive selectedOrder from store — always in sync, no useEffect needed
   const selectedOrder = useMemo(
     () => selectedOrderId ? (orders.find(o => o.id === selectedOrderId) ?? null) : null,
     [orders, selectedOrderId]
@@ -91,8 +89,6 @@ export function AdminOrders() {
   const handlePrint = (order: Order) => {
     if (Capacitor.isNativePlatform()) {
       toast.success('Drucker-Anbindung wird vorbereitet...')
-      console.log('Sunmi Print Order:', order.order_number)
-      // Placeholder for Sunmi Native Print SDK
       return
     }
 
@@ -139,10 +135,10 @@ export function AdminOrders() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-full relative">
+    <div className="flex flex-col lg:flex-row gap-4 h-full relative bg-gray-50">
       {/* Orders List */}
       <div className={cn(
-        "flex-1 min-w-0 transition-all",
+        "flex-1 min-w-0 p-4",
         selectedOrder ? "hidden lg:block" : "block"
       )}>
         <div className="flex items-center justify-between mb-4">
@@ -157,21 +153,19 @@ export function AdminOrders() {
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title={soundEnabled ? 'Ton ausschalten' : 'Ton einschalten'}
             >
               {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
             </button>
           </div>
         </div>
 
-        {/* Filter tabs */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
           {(['all', 'pending', 'preparing', 'on_the_way', 'delivered', 'cancelled'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                filter === s ? 'bg-[#142328] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                filter === s ? 'bg-[#142328] text-white' : 'bg-white border border-gray-200 text-gray-600'
               }`}
             >
               {s === 'all' ? 'Alle' : getStatusLabel(s)}
@@ -184,7 +178,6 @@ export function AdminOrders() {
           ))}
         </div>
 
-        {/* Order cards */}
         <div className="space-y-3 pb-20">
           {isLoading ? (
             <div className="text-center py-20 text-gray-400">Lädt...</div>
@@ -194,48 +187,42 @@ export function AdminOrders() {
               <Button variant="outline" size="sm" onClick={() => fetchOrders()}>Erneut versuchen</Button>
             </div>
           ) : (
-            <AnimatePresence initial={false}>
-              {filteredOrders.map((order) => (
-                <motion.div
-                  key={order.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  onClick={() => setSelectedOrderId(order.id)}
-                  className={cn(
-                    "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md",
-                    selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent',
-                    order.status === 'pending' ? 'border-l-4 border-l-yellow-400' : ''
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
-                      <ShoppingBag size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-bold text-sm">{order.order_number}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700 mt-0.5">{order.customer_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-sm font-black">{formatPrice(order.total)}</span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <Clock size={11} />
-                          {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-xs text-gray-400">{order.items.length} Artikel</span>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-gray-400 shrink-0 mt-1" />
+            filteredOrders.map((order) => (
+              <div
+                key={order.id}
+                onClick={() => setSelectedOrderId(order.id)}
+                className={cn(
+                  "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all",
+                  selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent',
+                  order.status === 'pending' ? 'border-l-4 border-l-yellow-400' : ''
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-[#142328] rounded-xl flex items-center justify-center text-white shrink-0">
+                    <ShoppingBag size={16} />
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-sm">{order.order_number}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(order.status)}`}>
+                        {getStatusLabel(order.status)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-0.5">{order.customer_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-sm font-black">{formatPrice(order.total)}</span>
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <Clock size={11} />
+                        {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className="text-xs text-gray-400">{order.items.length} Artikel</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 shrink-0 mt-1" />
+                </div>
+              </div>
+            ))
           )}
 
           {!isLoading && filteredOrders.length === 0 && (
@@ -247,104 +234,91 @@ export function AdminOrders() {
         </div>
       </div>
 
-      {/* Order Detail Panel - Full screen overlay on mobile, sidebar on desktop */}
-      <AnimatePresence>
-        {selectedOrder && (
-          <motion.div
-            initial={{ opacity: 0, x: 20, y: 0 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            exit={{ opacity: 0, x: 20, y: 0 }}
-            className="fixed inset-0 z-[60] bg-white lg:relative lg:inset-auto lg:z-0 lg:w-80 lg:shrink-0 lg:rounded-2xl lg:shadow-sm lg:border lg:border-gray-200 p-5 overflow-y-auto"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <button 
-                onClick={() => setSelectedOrderId(null)}
-                className="lg:hidden flex items-center gap-2 text-sm font-bold text-gray-500"
-              >
-                <ChevronLeft size={18} />
-                Zurück
-              </button>
-              <h2 className="font-bold text-gray-900">{selectedOrder.order_number}</h2>
-              <button onClick={() => setSelectedOrderId(null)} className="hidden lg:block p-1 hover:bg-gray-100 rounded-lg">
-                <XCircle size={18} className="text-gray-400" />
-              </button>
-            </div>
+      {/* Order Detail Panel - Full screen on mobile */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col lg:relative lg:inset-auto lg:z-0 lg:w-96 lg:shrink-0 lg:rounded-2xl lg:shadow-sm lg:border lg:border-gray-200">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <button 
+              onClick={() => setSelectedOrderId(null)}
+              className="lg:hidden flex items-center gap-2 text-sm font-bold text-gray-500"
+            >
+              <ChevronLeft size={18} />
+              Zurück
+            </button>
+            <h2 className="font-bold text-gray-900">{selectedOrder.order_number}</h2>
+            <button onClick={() => setSelectedOrderId(null)} className="hidden lg:block p-1 hover:bg-gray-100 rounded-lg">
+              <XCircle size={18} className="text-gray-400" />
+            </button>
+          </div>
 
+          <div className="flex-1 overflow-y-auto p-5">
             {/* Customer info */}
-            <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1 text-sm">
-              <p className="font-semibold">{selectedOrder.customer_name}</p>
-              <p className="text-gray-500">{selectedOrder.customer_phone}</p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-1 text-sm">
+              <p className="font-bold text-base">{selectedOrder.customer_name}</p>
+              <p className="text-gray-500 font-medium">{selectedOrder.customer_phone}</p>
               <p className="text-gray-500">{selectedOrder.delivery_address}</p>
               {selectedOrder.notes && (
-                <p className="text-amber-700 bg-amber-50 px-2 py-1 rounded-lg text-xs mt-1">
+                <div className="mt-3 p-3 bg-amber-50 text-amber-800 rounded-lg text-xs font-semibold leading-relaxed">
                   📝 {selectedOrder.notes}
-                </p>
+                </div>
               )}
             </div>
 
-            <div className="space-y-3 mb-4">
+            <div className="space-y-4 mb-6">
               {selectedOrder.items.map((item, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-sm font-bold text-gray-900 leading-tight">
+                <div key={i} className="pb-3 border-b border-gray-50 last:border-0">
+                  <div className="flex justify-between text-sm font-bold text-gray-900 mb-1">
                     <span>{item.quantity}× {item.product_name}</span>
                     <span>{formatPrice(item.subtotal)}</span>
                   </div>
                   {item.extras && item.extras.length > 0 && (
                     <div className="pl-4 space-y-0.5">
                       {item.extras.map((extra, idx) => (
-                        <div key={idx} className="flex justify-between text-[11px] text-gray-500 font-medium">
+                        <div key={idx} className="flex justify-between text-xs text-gray-500">
                           <span>+ {extra.name}</span>
                           {extra.price > 0 && <span>{formatPrice(extra.price * item.quantity)}</span>}
                         </div>
                       ))}
                     </div>
                   )}
-                  {item.note && (
-                    <p className="text-[11px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md italic">
-                      "{item.note}"
-                    </p>
-                  )}
                 </div>
               ))}
-              <div className="border-t pt-2 flex justify-between font-black">
+              <div className="pt-2 flex justify-between text-lg font-black text-gray-900">
                 <span>Gesamt</span>
                 <span>{formatPrice(selectedOrder.total)}</span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-2">
+            <div className="space-y-3 pb-5">
               {getNextStatus(selectedOrder.status) && (
                 <button
                   onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
-                  className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-[#06c167] text-white rounded-xl font-bold active:scale-95 transition-transform"
+                  className="w-full flex items-center justify-center gap-2 py-5 bg-[#06c167] text-white rounded-2xl text-lg font-black shadow-lg shadow-green-100 active:scale-95 transition-transform"
                 >
-                  <CheckCircle size={18} />
+                  <CheckCircle size={22} />
                   {getStatusLabel(getNextStatus(selectedOrder.status)!)}
                 </button>
               )}
-              <Button
-                variant="ghost"
-                fullWidth
+              <button
                 onClick={() => handlePrint(selectedOrder)}
+                className="w-full flex items-center justify-center gap-2 py-4 border-2 border-gray-100 text-gray-700 rounded-2xl font-bold active:bg-gray-50"
               >
-                <Printer size={16} />
+                <Printer size={18} />
                 Bon drucken
-              </Button>
+              </button>
               {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
-                <Button
-                  variant="danger"
-                  fullWidth
+                <button
                   onClick={() => cancelOrder(selectedOrder.id)}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-red-50 text-red-600 rounded-2xl font-bold active:bg-red-100"
                 >
-                  <XCircle size={16} />
+                  <XCircle size={18} />
                   Stornieren
-                </Button>
+                </button>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={isCancelConfirmOpen}
@@ -357,7 +331,6 @@ export function AdminOrders() {
         isDangerous={true}
       />
 
-      {/* Delivery Time Selection Modal */}
       <Modal 
         isOpen={isTimeModalOpen} 
         onClose={() => setIsTimeModalOpen(false)}
@@ -365,8 +338,8 @@ export function AdminOrders() {
         className="z-[9999]"
       >
         <div className="p-4 text-center">
-          <p className="text-sm text-gray-500 mb-6">Wie lange dauert die Lieferung voraussichtlich? Der Kunde wird darüber informiert.</p>
-          <div className="grid grid-cols-2 gap-3">
+          <p className="text-sm text-gray-500 mb-6 font-medium">Wie lange dauert die Lieferung voraussichtlich? Der Kunde wird per E-Mail informiert.</p>
+          <div className="grid grid-cols-2 gap-4">
             {[15, 30, 45, 60, 75, 90].map((mins) => (
               <button
                 key={mins}
@@ -375,7 +348,7 @@ export function AdminOrders() {
                   setIsTimeModalOpen(false)
                   setPendingConfirmId(null)
                 }}
-                className="py-5 px-4 rounded-2xl border-2 border-gray-200 bg-white text-xl font-black text-[#142328] shadow-sm active:bg-gray-100 active:scale-95 transition-all"
+                className="py-6 px-4 rounded-2xl border-2 border-gray-200 bg-white text-2xl font-black text-[#142328] shadow-sm active:bg-gray-100 active:scale-95 transition-all"
               >
                 {mins} Min.
               </button>
