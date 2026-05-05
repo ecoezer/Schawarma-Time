@@ -36,6 +36,9 @@ export function AdminOrders() {
     [orders, selectedOrderId]
   )
 
+  // Detect if we are on a Sunmi/Android POS device
+  const isPosMode = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform()
+
   const statusCounts = orders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1
     return acc
@@ -194,7 +197,10 @@ export function AdminOrders() {
         </div>
 
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-          {(['all', 'pending', 'confirmed', 'cancelled'] as const).map((s) => (
+          {(isPosMode 
+            ? (['all', 'pending', 'confirmed', 'cancelled'] as const)
+            : (['all', 'pending', 'confirmed', 'preparing', 'on_the_way', 'delivered', 'cancelled'] as const)
+          ).map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
@@ -203,7 +209,7 @@ export function AdminOrders() {
                 filter === s ? 'bg-[#142328] text-white' : 'bg-white text-gray-600 border border-gray-100'
               )}
             >
-              {s === 'all' ? 'Alle' : s === 'confirmed' ? 'Kabul Edildi' : getStatusLabel(s)}
+              {s === 'all' ? 'Alle' : s === 'confirmed' ? (isPosMode ? 'Kabul Edildi' : 'Bestätigt') : getStatusLabel(s)}
             </button>
           ))}
         </div>
@@ -295,48 +301,76 @@ export function AdminOrders() {
           </div>
 
           <div className="fixed bottom-0 left-0 right-0 p-5 bg-white border-t-2 border-gray-50 flex flex-col gap-3">
-            {selectedOrder.status === 'pending' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
-                  className="w-full flex items-center justify-center gap-3 py-6 bg-[#06c167] text-white rounded-3xl text-xl font-black shadow-xl shadow-green-100"
-                >
-                  <CheckCircle size={24} />
-                  KABUL ET
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cancelOrder(selectedOrder.id)}
-                  className="w-full flex items-center justify-center gap-2 py-5 bg-red-50 text-red-600 rounded-2xl font-black"
-                >
-                  <XCircle size={20} />
-                  REDDET / İPTAL
-                </button>
-              </>
-            ) : (
-              <div className="space-y-3">
-                <div className="w-full py-4 bg-gray-100 text-[#142328] rounded-2xl text-center font-black">
-                  BU SİPARİŞ KABUL EDİLDİ
+            {isPosMode ? (
+              // SIMPLE UI FOR SUNMI
+              selectedOrder.status === 'pending' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
+                    className="w-full flex items-center justify-center gap-3 py-6 bg-[#06c167] text-white rounded-3xl text-xl font-black shadow-xl shadow-green-100"
+                  >
+                    <CheckCircle size={24} />
+                    KABUL ET
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cancelOrder(selectedOrder.id)}
+                    className="w-full flex items-center justify-center gap-2 py-5 bg-red-50 text-red-600 rounded-2xl font-black"
+                  >
+                    <XCircle size={20} />
+                    REDDET / İPTAL
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="w-full py-4 bg-gray-100 text-[#142328] rounded-2xl text-center font-black">
+                    BU SİPARİŞ KABUL EDİLDİ
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => printOrderToSunmi(selectedOrder)}
+                    className="w-full flex items-center justify-center gap-2 py-6 bg-[#142328] text-white rounded-3xl font-black"
+                  >
+                    <Printer size={24} />
+                    BONU TEKRAR YAZDIR
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => printOrderToSunmi(selectedOrder)}
-                  className="w-full flex items-center justify-center gap-2 py-6 bg-[#142328] text-white rounded-3xl font-black"
-                >
-                  <Printer size={24} />
-                  BONU TEKRAR YAZDIR
-                </button>
-              </div>
-            )}
-            {selectedOrder.status !== 'pending' && selectedOrder.status !== 'confirmed' && (
-              <button
-                type="button"
-                onClick={() => handlePrint(selectedOrder)}
-                className="w-full py-4 border-2 border-gray-100 rounded-2xl font-bold"
-              >
-                YAZDIR
-              </button>
+              )
+            ) : (
+              // COMPLEX UI FOR IOS / WEB
+              <>
+                {getNextStatus(selectedOrder.status) && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
+                    className="w-full flex items-center justify-center gap-3 py-6 bg-[#06c167] text-white rounded-3xl text-xl font-black shadow-xl shadow-green-100"
+                  >
+                    <CheckCircle size={24} />
+                    {getStatusLabel(getNextStatus(selectedOrder.status)!)}
+                  </button>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => printOrderToSunmi(selectedOrder)}
+                    className="flex items-center justify-center gap-2 py-5 bg-gray-100 text-gray-700 rounded-2xl font-black"
+                  >
+                    <Printer size={20} />
+                    BON
+                  </button>
+                  {selectedOrder.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => cancelOrder(selectedOrder.id)}
+                      className="flex items-center justify-center gap-2 py-5 bg-red-50 text-red-600 rounded-2xl font-black"
+                    >
+                      <XCircle size={20} />
+                      STORNO
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
