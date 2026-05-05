@@ -482,17 +482,7 @@ export function ProfilePage() {
                                         active ? 'bg-white border-white text-[#142328] scale-110 shadow-lg shadow-white/20' :
                                                  'bg-white/10 border-white/20 text-white/40'
                                       }`}>
-                                        {done ? '✓' : active ? (() => {
-                                          if (step.key === 'pending')
-                                            return <motion.span animate={{ rotate: [0, 360] }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>🕐</motion.span>
-                                          if (step.key === 'confirmed')
-                                            return <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}>✅</motion.span>
-                                          if (step.key === 'preparing')
-                                            return <motion.span animate={{ rotate: [-15, 15, -15] }} transition={{ repeat: Infinity, duration: 0.5 }}>👨‍🍳</motion.span>
-                                          if (step.key === 'on_the_way')
-                                            return <motion.span animate={{ x: [0, 3, 0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.5 }}>🛵</motion.span>
-                                          return <span>{step.icon}</span>
-                                        })() : step.icon}
+                                        {done ? '✓' : step.icon}
                                       </div>
                                       <span className={`text-[9px] font-black uppercase tracking-wide text-center whitespace-nowrap ${
                                         active ? 'text-white' : done ? 'text-[#06c167]' : 'text-white/30'
@@ -501,20 +491,7 @@ export function ProfilePage() {
                                     {/* Connector */}
                                     {idx < steps.length - 1 && (
                                       <div className="flex-1 h-0.5 mx-1 mb-4 rounded-full overflow-hidden bg-white/10">
-                                        {idx < currentIdx ? (
-                                          // Tamamlanan çizgi — tam dolu yeşil
-                                          <div className="h-full w-full bg-[#06c167]" />
-                                        ) : idx === currentIdx ? (
-                                          // Aktif çizgi — akan animasyon
-                                          <motion.div
-                                            animate={{ x: ['-100%', '100%'] }}
-                                            transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
-                                            className="h-full w-1/2 bg-gradient-to-r from-transparent via-[#06c167] to-transparent"
-                                          />
-                                        ) : (
-                                          // Gelecek çizgi — boş
-                                          <div className="h-full w-0" />
-                                        )}
+                                        <div className={`h-full ${idx < currentIdx ? 'bg-[#06c167] w-full' : 'w-0'}`} />
                                       </div>
                                     )}
                                   </div>
