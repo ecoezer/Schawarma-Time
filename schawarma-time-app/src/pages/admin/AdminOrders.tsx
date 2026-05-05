@@ -304,6 +304,7 @@ export function AdminOrders() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="font-bold text-gray-900 truncate">{order.customer_name}</p>
+                    <p className="text-[11px] font-bold text-gray-400 leading-none mt-0.5">{order.customer_phone}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       {order.delivery_address === 'Selbstabholung' ? (
                         <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-black flex items-center gap-1">
