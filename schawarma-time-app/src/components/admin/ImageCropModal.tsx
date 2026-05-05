@@ -35,7 +35,7 @@ const ASPECT_PRESETS = [
 // Helper: generate a cropped canvas from image + crop area
 function getCroppedCanvas(
   image: HTMLImageElement,
-  crop: PixelCrop, // We will treat this as percentages
+  crop: Crop, // We will treat this as percentages
   rotation: number,
   contain: boolean = false,
   targetAspect: number = CARD_ASPECT,

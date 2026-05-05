@@ -213,7 +213,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
               >
                 {product.image_url_modal || product.image_url ? (
                   <img
-                    src={product.image_url_modal || product.image_url}
+                    src={product.image_url_modal || product.image_url || undefined}
                     alt={product.name}
                     style={{ transformOrigin }}
                     className={cn(
