@@ -104,7 +104,7 @@ function getCroppedCanvas(
 
 export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productInfo }: ImageCropModalProps) {
   const [crop, setCrop] = useState<Crop>()
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null)
+  const [completedCrop, setCompletedCrop] = useState<Crop | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const isProcessingRef = useRef(false)

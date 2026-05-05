@@ -40,8 +40,8 @@ export interface Product {
   name: string
   description: string | null
   price: number
-  image_url: string
-  image_url_modal?: string
+  image_url: string | null
+  image_url_modal?: string | null
   is_active: boolean
   is_most_liked: boolean
   is_vegetarian: boolean

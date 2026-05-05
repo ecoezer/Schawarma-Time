@@ -112,7 +112,7 @@ export function AdminMenu() {
     setForm({ 
       name: '', description: '', price: '', category_id: activeCategory, 
       calories: '', is_most_liked: false, is_vegetarian: false, 
-      is_vegan: false, is_halal: true, image_url: '',
+      is_vegan: false, is_halal: true, image_url: '', image_url_modal: '',
       useSizes: false,
       sizes: []
     })
