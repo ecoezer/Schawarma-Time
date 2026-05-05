@@ -58,69 +58,88 @@ export function AdminOrders() {
       
       // Global Settings
       await SunmiPrinter.setBold({ enable: true })
-      await SunmiPrinter.setAlignment({ alignment: 1 as any }) // CENTER ALL
       
       // HEADER
-      await SunmiPrinter.setFontSize({ size: 30 }) // Reduced header
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
+      await SunmiPrinter.setFontSize({ size: 38 }) // +25%
       await SunmiPrinter.printText({ text: "SCHAWARMA-TIME\n" })
-      await SunmiPrinter.setFontSize({ size: 20 }) // Reduced URL
+      
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
+      await SunmiPrinter.setFontSize({ size: 25 }) // +25%
       await SunmiPrinter.printText({ text: "www.schawarma-time.de\n" })
       
-      await SunmiPrinter.setFontSize({ size: 24 }) // Balanced general font
-      await SunmiPrinter.printText({ text: "----------\n" }) // Simplified line
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
+      await SunmiPrinter.setFontSize({ size: 30 }) // +25%
+      await SunmiPrinter.printText({ text: "----------\n" }) 
       
       // Order Number
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
       const orderNum = order.order_number.replace('S47', 'ST-')
       await SunmiPrinter.printText({ text: `${orderNum}\n` })
       await SunmiPrinter.lineWrap({ lines: 1 })
       
       // Customer (No "KUNDE" prefix, Centered)
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
       await SunmiPrinter.printText({ text: `${order.customer_name}\n` })
       await SunmiPrinter.lineWrap({ lines: 1 }) // Empty line between Name and Address
       
       // Address (No "ADRESSE" prefix, Split into 2 lines)
       const addrLines = order.delivery_address.split(',').map(s => s.trim())
       if (addrLines.length >= 2) {
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `${addrLines[0]}\n` }) // Street & No
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `${addrLines.slice(1).join(', ')}\n` }) // ZIP & City
       } else {
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `${order.delivery_address}\n` })
       }
       
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
       await SunmiPrinter.printText({ text: "----------\n" })
       
-      // ITEMS
+      // ITEMS (Centered)
       let itemsTotal = 0
       for (const item of order.items) {
         itemsTotal += (item.unit_price || 0) * item.quantity
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `${item.quantity}x ${item.product_name}\n` })
         if (item.extras && item.extras.length > 0) {
           for (const extra of item.extras) {
+            await SunmiPrinter.setAlignment({ alignment: 1 as any })
             await SunmiPrinter.printText({ text: `+ ${extra.name}\n` })
           }
         }
       }
       
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
       await SunmiPrinter.printText({ text: "----------\n" })
       
       // PRICE BREAKDOWN (Centered)
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
       await SunmiPrinter.printText({ text: `Zwischensumme: ${formatPrice(itemsTotal)}\n` })
       
       const deliveryFee = (order as any).delivery_fee || 0
       if (deliveryFee > 0) {
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `Lieferkosten: ${formatPrice(deliveryFee)}\n` })
       }
       
-      await SunmiPrinter.setFontSize({ size: 32 }) // Emphasis for Total
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
+      await SunmiPrinter.setFontSize({ size: 40 }) // Emphasis for Total (+25%)
       await SunmiPrinter.printText({ text: `GESAMT: ${formatPrice(order.total)}\n` })
-      await SunmiPrinter.setFontSize({ size: 24 }) 
       
+      await SunmiPrinter.setAlignment({ alignment: 1 as any })
+      await SunmiPrinter.setFontSize({ size: 30 }) 
       await SunmiPrinter.printText({ text: "----------\n" })
-
-      // ANWEISUNGEN (No "NOTIZ")
+      
+      // ANWEISUNGEN
       if (order.notes) {
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `ANWEISUNGEN:\n` })
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `${order.notes}\n` })
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: "----------\n" })
       }
       
@@ -128,10 +147,14 @@ export function AdminOrders() {
       const mins = deliveryTimeMins || order.estimated_delivery_time || 0
       if (mins > 0) {
         const deliveryDate = new Date(new Date().getTime() + mins * 60000)
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
         await SunmiPrinter.printText({ text: `LIEFERZEIT (CA.):\n` })
-        await SunmiPrinter.setFontSize({ size: 40 }) // Balanced time font
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
+        await SunmiPrinter.setFontSize({ size: 50 }) // +25%
         await SunmiPrinter.printText({ text: `${format(deliveryDate, 'HH:mm')}\n` })
-        await SunmiPrinter.setFontSize({ size: 22 })
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
+        await SunmiPrinter.setFontSize({ size: 28 })
         await SunmiPrinter.printText({ text: "Vielen Dank!\n" })
       }
       
