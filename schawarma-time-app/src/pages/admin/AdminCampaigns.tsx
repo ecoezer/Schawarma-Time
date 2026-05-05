@@ -169,18 +169,18 @@ export function AdminCampaigns() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-black text-gray-900">{coupons.length}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Gutscheine gesamt</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center">
+          <p className="text-xl sm:text-2xl font-black text-gray-900">{coupons.length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 uppercase font-bold tracking-tight">Gesamt</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-black text-[#06c167]">{coupons.filter(c => c.is_active && !isExpired(c)).length}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Aktiv</p>
+        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center">
+          <p className="text-xl sm:text-2xl font-black text-[#06c167]">{coupons.filter(c => c.is_active && !isExpired(c)).length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 uppercase font-bold tracking-tight">Aktiv</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-black text-gray-900">{coupons.reduce((s, c) => s + c.used_count, 0)}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Einlösungen gesamt</p>
+        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center col-span-2 sm:col-span-1">
+          <p className="text-xl sm:text-2xl font-black text-gray-900">{coupons.reduce((s, c) => s + c.used_count, 0)}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 uppercase font-bold tracking-tight">Einlösungen</p>
         </div>
       </div>
 
@@ -222,22 +222,24 @@ export function AdminCampaigns() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-lg font-black font-mono text-[#142328] tracking-wider">
                         {coupon.code}
                       </span>
-                      {coupon.is_active && !isExpired(coupon) && !isMaxedOut(coupon) ? (
-                        <Badge variant="success">Aktiv</Badge>
-                      ) : isExpired(coupon) ? (
-                        <Badge variant="danger">Abgelaufen</Badge>
-                      ) : isMaxedOut(coupon) ? (
-                        <Badge variant="warning">Aufgebraucht</Badge>
-                      ) : (
-                        <Badge variant="default">Inaktiv</Badge>
-                      )}
-                      {coupon.is_first_order_only && (
-                        <Badge variant="info">Nur Erstbestellung</Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {coupon.is_active && !isExpired(coupon) && !isMaxedOut(coupon) ? (
+                          <Badge variant="success">Aktiv</Badge>
+                        ) : isExpired(coupon) ? (
+                          <Badge variant="danger">Abgelaufen</Badge>
+                        ) : isMaxedOut(coupon) ? (
+                          <Badge variant="warning">Aufgebraucht</Badge>
+                        ) : (
+                          <Badge variant="default">Inaktiv</Badge>
+                        )}
+                        {coupon.is_first_order_only && (
+                          <Badge variant="info">Erstbestellung</Badge>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-gray-500">
@@ -266,24 +268,31 @@ export function AdminCampaigns() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Toggle
-                      checked={coupon.is_active}
-                      onChange={() => toggleCoupon(coupon)}
-                      size="sm"
-                    />
-                    <button
-                      onClick={() => openEditModal(coupon)}
-                      className="p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(coupon)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 shrink-0 border-t sm:border-t-0 border-gray-50 pt-3 sm:pt-0">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                      <span className="sm:hidden text-[10px] font-bold text-gray-400 uppercase">Status</span>
+                      <Toggle
+                        checked={coupon.is_active}
+                        onChange={() => toggleCoupon(coupon)}
+                        size="sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditModal(coupon)}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 sm:gap-0 p-2 sm:p-1.5 text-gray-400 hover:text-[#142328] hover:bg-gray-100 rounded-lg transition-colors border sm:border-0 border-gray-100"
+                      >
+                        <Edit2 size={16} />
+                        <span className="sm:hidden text-xs font-bold">Bearbeiten</span>
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(coupon)}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 sm:gap-0 p-2 sm:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border sm:border-0 border-gray-100"
+                      >
+                        <Trash2 size={16} />
+                        <span className="sm:hidden text-xs font-bold">Löschen</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

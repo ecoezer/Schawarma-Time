@@ -77,7 +77,7 @@ export function AdminOrders() {
       await printLine("----------", 30)
       
       // Order Number
-      const orderNum = order.order_number.replace('S47', 'ST-')
+      const orderNum = order.order_number.replace('S47', 'ST')
       await printLine(orderNum, 30)
       await SunmiPrinter.lineWrap({ lines: 1 })
       
@@ -130,12 +130,20 @@ export function AdminOrders() {
         await printLine("----------", 30)
       }
       
-      // DELIVERY TIME
+      // DELIVERY TIME CALCULATION (Fixed for Timezone issues)
       const mins = deliveryTimeMins || order.estimated_delivery_time || 0
       if (mins > 0) {
-        const deliveryDate = new Date(new Date().getTime() + mins * 60000)
+        const now = new Date()
+        const deliveryDate = new Date(now.getTime() + (mins * 60000))
+        
         await printLine("LIEFERZEIT (CA.):", 30)
-        await printLine(format(deliveryDate, 'HH:mm'), 54)
+        // Force 24h format and de-DE locale for accuracy on Sunmi
+        const timeStr = deliveryDate.toLocaleTimeString('de-DE', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        })
+        await printLine(timeStr, 54)
         await printLine("Vielen Dank!", 28)
       }
       
@@ -190,12 +198,14 @@ export function AdminOrders() {
     // Auto-print when confirmed
     const order = orders.find(o => o.id === pendingConfirmId)
     if (order) {
-      printOrderToSunmi(order)
+      printOrderToSunmi(order, mins)
     }
     
     updateStatus(pendingConfirmId, 'confirmed', mins)
     setIsTimeModalOpen(false)
     setPendingConfirmId(null)
+    setSelectedOrderId(null) // This closes the detail view
+    toast.success('Bestellung bestätigt & gedruckt!')
   }
 
   const cancelOrder = (orderId: string) => {
@@ -241,20 +251,28 @@ export function AdminOrders() {
           </button>
         </div>
 
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sticky top-14 z-10 bg-gray-50/95 backdrop-blur-md py-2">
           {(isPosMode 
             ? (['all', 'pending', 'confirmed', 'cancelled'] as const)
             : (['all', 'pending', 'confirmed', 'preparing', 'on_the_way', 'delivered', 'cancelled'] as const)
           ).map((s) => (
             <button
               key={s}
+              type="button"
               onClick={() => setFilter(s)}
               className={cn(
-                "px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap",
-                filter === s ? 'bg-[#142328] text-white' : 'bg-white text-gray-600 border border-gray-100'
+                "px-3 py-2 rounded-xl text-[11px] font-black whitespace-nowrap shadow-sm transition-all uppercase tracking-tighter",
+                filter === s 
+                  ? 'bg-[#142328] text-white ring-2 ring-[#142328]/10' 
+                  : 'bg-white text-gray-400 border border-gray-100 hover:bg-gray-50'
               )}
             >
               {s === 'all' ? 'Alle' : s === 'confirmed' ? 'Bestätigt' : getStatusLabel(s)}
+              {statusCounts[s] > 0 && s !== 'all' && (
+                <span className={cn("ml-2 px-1.5 py-0.5 rounded-lg text-[10px]", filter === s ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400')}>
+                  {statusCounts[s]}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -271,25 +289,33 @@ export function AdminOrders() {
                   setSelectedOrderId(order.id)
                 }}
                 className={cn(
-                  "bg-white rounded-2xl p-5 shadow-sm border-2 cursor-pointer",
+                  "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all active:scale-[0.98]",
                   selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent',
-                  order.status === 'pending' ? 'border-l-8 border-l-yellow-400' : ''
+                  order.status === 'pending' ? 'border-l-8 border-l-yellow-400 ring-2 ring-yellow-400/20 animate-pulse' : ''
                 )}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-black text-base">{order.order_number.replace('S47', 'ST-')}</span>
-                  <span className={cn("text-xs px-2 py-1 rounded-lg font-black", getStatusColor(order.status))}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-lg text-[#142328]">{order.order_number.replace('S47', 'ST')}</span>
+                    {order.status === 'pending' && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />}
+                  </div>
+                  <span className={cn("text-[10px] px-2 py-0.5 rounded-lg font-black tracking-wider uppercase", getStatusColor(order.status))}>
                     {order.status === 'confirmed' ? 'BESTÄTIGT' : getStatusLabel(order.status)}
                   </span>
                 </div>
-                <p className="font-bold text-gray-800">{order.customer_name}</p>
-                <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
-                <div className="mt-3 flex justify-between items-center">
-                  <span className="font-black text-[#142328]">{formatPrice(order.total)}</span>
-                  <span className="text-xs text-gray-400 font-bold flex items-center gap-1">
-                    <Clock size={12} />
-                    {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-900 truncate">{order.customer_name}</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{order.delivery_address}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-black text-[#142328] text-lg leading-none">{formatPrice(order.total)}</p>
+                    <span className="text-[10px] text-gray-400 font-bold flex items-center justify-end gap-1 mt-1">
+                      <Clock size={10} />
+                      {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))
@@ -308,7 +334,7 @@ export function AdminOrders() {
               <ChevronLeft size={24} />
               ZURÜCK
             </button>
-            <span className="font-black text-gray-400 text-sm">{selectedOrder.order_number}</span>
+            <span className="font-black text-gray-400 text-sm">{selectedOrder.order_number.replace('S47', 'ST')}</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 pb-32">

@@ -1,5 +1,5 @@
 import { Toaster } from 'react-hot-toast'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
@@ -27,6 +27,7 @@ import { AdminCustomers } from '@/pages/admin/AdminCustomers'
 import { AdminCampaigns } from '@/pages/admin/AdminCampaigns'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import { useAuthStore } from '@/store/authStore'
+import { LoadingScreen } from '@/components/ui/LoadingScreen'
 
 function CustomerLayout() {
   return (
@@ -69,15 +70,22 @@ function AppContent() {
   const navigate = useNavigate()
   const { fetchSettings } = useRestaurantStore()
   const { refreshUser } = useAuthStore()
+  const [showSplash, setShowSplash] = useState(true)
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const timer = setTimeout(() => setShowSplash(false), 4000)
+      return () => clearTimeout(timer)
+    } else {
+      setShowSplash(false)
+    }
+  }, [])
 
   useEffect(() => {
     fetchSettings()
     refreshUser()
 
-    // v12: Auto-redirect to admin if on mobile/native app
-    if (Capacitor.isNativePlatform() && window.location.pathname === '/') {
-      navigate('/admin', { replace: true })
-    }
+    // Redirect logic moved to Route definition to prevent flicker
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
@@ -106,9 +114,10 @@ function AppContent() {
 
   return (
     <>
+      {showSplash && <LoadingScreen />}
       <Routes>
         <Route element={<CustomerLayout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/admin" replace /> : <HomePage />} />
           <Route path="/login" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
           <Route path="/passwort-zuruecksetzen" element={<ResetPasswordPage />} />

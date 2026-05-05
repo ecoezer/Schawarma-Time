@@ -78,7 +78,8 @@ export function AdminCustomers() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
@@ -101,26 +102,14 @@ export function AdminCustomers() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center text-red-500">
-                      <Mail size={32} className="mb-2 opacity-50" />
-                      <p className="font-bold">{error}</p>
-                      <button
-                        onClick={() => fetchCustomersData()}
-                        className="mt-4 text-sm underline hover:text-red-600"
-                      >
-                        Erneut versuchen
-                      </button>
-                    </div>
+                  <td colSpan={5} className="px-6 py-20 text-center text-red-500">
+                    {error}
                   </td>
                 </tr>
               ) : filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-20 text-center text-gray-400">
-                    <div className="flex flex-col items-center">
-                      <UserIcon size={40} className="mb-3 opacity-20" />
-                      <p>Keine Kunden gefunden</p>
-                    </div>
+                    Keine Kunden gefunden
                   </td>
                 </tr>
               ) : (
@@ -160,17 +149,14 @@ export function AdminCustomers() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-gray-400" />
-                        {format(new Date(customer.created_at), 'dd. MMM yyyy', { locale: de })}
-                      </div>
+                      {format(new Date(customer.created_at), 'dd. MMM yyyy', { locale: de })}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => openCustomerDetail(customer)}
                         className="text-sm font-bold text-[#142328] hover:underline"
                       >
-                        Details ansehen
+                        Details
                       </button>
                     </td>
                   </tr>
@@ -178,6 +164,41 @@ export function AdminCustomers() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View - Card based */}
+        <div className="md:hidden divide-y divide-gray-50">
+          {isLoading ? (
+            <div className="p-12 text-center text-gray-400">
+              <div className="w-8 h-8 border-4 border-[#142328] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              Wird geladen...
+            </div>
+          ) : filteredCustomers.map((customer) => (
+            <div 
+              key={customer.id} 
+              onClick={() => openCustomerDetail(customer)}
+              className="p-4 active:bg-gray-50 transition-colors flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                  <UserIcon size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900 truncate">{customer.full_name || 'Unbekannt'}</p>
+                  <p className="text-xs text-gray-500 truncate">{customer.email}</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <Badge className="bg-gray-100 text-gray-700 border-none">
+                  <ShoppingBag size={10} className="mr-1" />
+                  {customer.total_orders || 0}
+                </Badge>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-tight">
+                  {format(new Date(customer.created_at), 'dd.MM.yy', { locale: de })}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -217,18 +238,18 @@ export function AdminCustomers() {
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-gray-50 rounded-xl p-3 text-center">
                 <p className="text-xl font-black text-gray-900">{customerOrders.length}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Bestellungen</p>
+                <p className="text-xs text-gray-500 mt-0.5 uppercase font-bold tracking-tight">Bestellungen</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3 text-center">
                 <p className="text-xl font-black text-gray-900">{formatPrice(customerTotalSpent)}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Gesamtumsatz</p>
+                <p className="text-xs text-gray-500 mt-0.5 uppercase font-bold tracking-tight">Umsatz</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <div className="bg-gray-50 rounded-xl p-3 text-center col-span-2 sm:col-span-1">
                 <p className="text-xl font-black text-gray-900">{selectedCustomer.loyalty_points || 0}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Treuepunkte</p>
+                <p className="text-xs text-gray-500 mt-0.5 uppercase font-bold tracking-tight">Treuepunkte</p>
               </div>
             </div>
 

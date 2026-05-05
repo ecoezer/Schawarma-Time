@@ -130,8 +130,14 @@ export function AdminSettings() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-black text-gray-900">Einstellungen</h1>
+    <div className="flex flex-col gap-6 pb-24 relative">
+      <div className="flex items-center justify-between sticky top-0 z-30 bg-gray-50/90 backdrop-blur-md py-3 -mx-4 px-4 border-b border-gray-100">
+        <h1 className="text-xl sm:text-2xl font-black text-gray-900">Einstellungen</h1>
+        <Button variant="primary" size="sm" isLoading={isSaving} onClick={handleSave} className="shadow-lg shadow-[#142328]/10">
+          <Save size={16} />
+          <span className="hidden sm:inline ml-1">Speichern</span>
+        </Button>
+      </div>
 
       {/* Restaurant Info */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -402,35 +408,46 @@ export function AdminSettings() {
           <Clock size={18} className="text-[#142328]" />
           Öffnungszeiten
         </h2>
-        <div className="space-y-3">
+        <div className="divide-y divide-gray-50">
           {DAYS.map((day) => {
             const h = hours[day.key]
             return (
-              <div key={day.key} className="flex items-center gap-3">
-                <div className="w-24 text-sm font-medium text-gray-700">{day.label}</div>
-                <Toggle
-                  checked={!h?.is_closed}
-                  onChange={(v) => updateHours(day.key, 'is_closed', !v)}
-                  size="sm"
-                />
-                {!h?.is_closed ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <input
-                      type="time"
-                      value={h?.open || '11:30'}
-                      onChange={(e) => updateHours(day.key, 'open', e.target.value)}
-                      className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#142328]"
-                    />
-                    <span className="text-gray-400">–</span>
-                    <input
-                      type="time"
-                      value={h?.close || '22:00'}
-                      onChange={(e) => updateHours(day.key, 'close', e.target.value)}
-                      className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#142328]"
+              <div key={day.key} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-bold text-gray-900 w-24">{day.label}</span>
+                    <Toggle
+                      checked={!h?.is_closed}
+                      onChange={(v) => updateHours(day.key, 'is_closed', !v)}
+                      size="sm"
                     />
                   </div>
-                ) : (
-                  <span className="text-sm text-red-500 font-medium">Geschlossen</span>
+                  {h?.is_closed && (
+                    <span className="text-xs font-black text-red-500 uppercase tracking-wider bg-red-50 px-2 py-1 rounded-lg">Geschlossen</span>
+                  )}
+                </div>
+                
+                {!h?.is_closed && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">Von</span>
+                      <input
+                        type="time"
+                        value={h?.open || '11:30'}
+                        onChange={(e) => updateHours(day.key, 'open', e.target.value)}
+                        className="w-full text-sm font-bold border border-gray-200 rounded-xl pl-10 pr-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#142328] bg-gray-50/50"
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">Bis</span>
+                      <input
+                        type="time"
+                        value={h?.close || '22:00'}
+                        onChange={(e) => updateHours(day.key, 'close', e.target.value)}
+                        className="w-full text-sm font-bold border border-gray-200 rounded-xl pl-10 pr-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#142328] bg-gray-50/50"
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
             )
@@ -487,8 +504,16 @@ export function AdminSettings() {
         <a href="/admin/kampagnen" className="text-sm font-bold text-[#06c167] hover:underline">→ Zu Kampagnen</a>
       </div>
 
-      {/* Save */}
-      <div className="flex justify-end">
+      {/* Floating Save Bar for Mobile/POS */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-100 z-40 lg:hidden shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+        <Button variant="primary" fullWidth size="lg" isLoading={isSaving} onClick={handleSave} className="h-14 text-base shadow-xl shadow-[#142328]/20">
+          <Save size={20} />
+          Einstellungen speichern
+        </Button>
+      </div>
+
+      {/* Desktop Save Button */}
+      <div className="hidden lg:flex justify-end">
         <Button variant="primary" size="lg" isLoading={isSaving} onClick={handleSave}>
           <Save size={16} />
           Einstellungen speichern

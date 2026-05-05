@@ -59,11 +59,14 @@ class SoundService {
       this.playChime(1046, now + 0.12, 0.2);
     };
 
-    // Initial play
+    console.log("🔔 [SoundService] Starting notification loop...");
     playSequence();
     
     // Repeat every 1.5 seconds until stopped
-    this.intervalId = setInterval(playSequence, 1500);
+    this.intervalId = setInterval(() => {
+      console.log("🔔 [SoundService] Loop: Playing chime sequence...");
+      playSequence();
+    }, 1500);
   }
 
   public stopNotification() {

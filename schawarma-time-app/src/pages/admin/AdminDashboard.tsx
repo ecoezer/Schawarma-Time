@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, ShoppingBag, Users, Euro, Clock, AlertCircle, CheckCircle, Truck } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Users, Euro, Clock, AlertCircle, CheckCircle, Truck, RefreshCw } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from 'framer-motion'
 import { Toggle } from '@/components/ui/Toggle'
@@ -7,7 +7,7 @@ import { useOrderStore } from '@/store/orderStore'
 import * as orderService from '@/services/orderService'
 import * as customerService from '@/services/customerService'
 import { useRestaurantStore } from '@/store/restaurantStore'
-import { formatPrice, getStatusColor, getStatusLabel } from '@/lib/utils'
+import { formatPrice, getStatusColor, getStatusLabel, cn } from '@/lib/utils'
 
 const DAY_LABELS: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' }
 
@@ -89,18 +89,20 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">Guten Tag! Hier ist die Übersicht von heute.</p>
         </div>
 
         {/* Delivery Toggle – connected to Supabase via restaurantStore */}
-        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
-          <Truck size={18} className={settings?.is_delivery_active ? 'text-[#06c167]' : 'text-gray-400'} />
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Lieferung</p>
-            <p className="text-xs text-gray-500">{settings?.is_delivery_active ? 'Aktiv' : 'Inaktiv'}</p>
+        <div className="bg-white rounded-xl border border-gray-200 px-3 py-2 sm:px-4 sm:py-3 flex items-center gap-3 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-3">
+            <Truck size={18} className={settings?.is_delivery_active ? 'text-[#06c167]' : 'text-gray-400'} />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Lieferung</p>
+              <p className="text-xs text-gray-500">{settings?.is_delivery_active ? 'Aktiv' : 'Inaktiv'}</p>
+            </div>
           </div>
           <Toggle
             checked={!!settings?.is_delivery_active}
@@ -110,26 +112,28 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.07 }}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+            className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100"
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.color}`}>
-              <stat.icon size={20} />
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2 sm:mb-3 ${stat.color}`}>
+              <stat.icon size={18} />
             </div>
             {isLoading ? (
-              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse mb-1" />
+              <div className="flex items-center gap-2 h-8">
+                <RefreshCw size={16} className="animate-spin text-[#06c167]" />
+                <span className="text-xs text-gray-400 font-bold">Laden...</span>
+              </div>
             ) : (
-              <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+              <p className="text-xl sm:text-2xl font-black text-gray-900 truncate">{stat.value}</p>
             )}
-            <p className="text-xs text-gray-500 mt-0.5">{stat.label}</p>
-            <p className="text-xs text-[#142328] font-semibold mt-1">{stat.change}</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 uppercase tracking-wider font-bold truncate">{stat.label}</p>
+            <p className="text-[10px] sm:text-xs text-[#142328] font-black mt-1 truncate">{stat.change}</p>
           </motion.div>
         ))}
       </div>
@@ -140,11 +144,16 @@ export function AdminDashboard() {
           <h2 className="font-bold text-gray-900">Tagesziel</h2>
           <span className="text-sm text-gray-500">{formatPrice(todayRevenue)} / {formatPrice(goal)}</span>
         </div>
-        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden relative">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <RefreshCw size={12} className="animate-spin text-[#06c167]" />
+            </div>
+          )}
           <motion.div
             className="h-full bg-gradient-to-r from-[#06c167] to-[#142328] rounded-full"
             initial={{ width: 0 }}
-            animate={{ width: `${Math.min((todayRevenue / goal) * 100, 100)}%` }}
+            animate={{ width: isLoading ? 0 : `${Math.min((todayRevenue / goal) * 100, 100)}%` }}
             transition={{ duration: 1, delay: 0.3 }}
           />
         </div>
@@ -182,9 +191,10 @@ export function AdminDashboard() {
           </div>
           <div className="space-y-3">
             {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
-              ))
+              <div className="flex flex-col items-center justify-center py-10 gap-3 w-full">
+                <RefreshCw size={32} className="animate-spin text-[#06c167]" />
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Datenbank wird geladen...</p>
+              </div>
             ) : recentOrders.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <ShoppingBag size={32} className="mx-auto mb-2 opacity-30" />
@@ -214,22 +224,28 @@ export function AdminDashboard() {
       </div>
 
       {/* Status summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: 'Ausstehend', count: pendingCount, icon: AlertCircle, color: 'text-yellow-500 bg-yellow-50' },
           { label: 'In Zubereitung', count: preparingCount, icon: Clock, color: 'text-orange-500 bg-orange-50' },
-          { label: 'Geliefert heute', count: deliveredCount, icon: CheckCircle, color: 'text-green-500 bg-green-50' },
+          { label: 'Geliefert', count: deliveredCount, icon: CheckCircle, color: 'text-green-500 bg-green-50', fullWidthMobile: true },
         ].map((item) => (
-          <div key={item.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${item.color}`}>
-              <item.icon size={20} />
+          <div 
+            key={item.label} 
+            className={cn(
+              "bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center",
+              item.fullWidthMobile ? "col-span-2 sm:col-span-1" : "col-span-1"
+            )}
+          >
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${item.color}`}>
+              <item.icon size={18} />
             </div>
             {isLoading ? (
-              <div className="h-8 w-12 bg-gray-200 rounded animate-pulse mx-auto mb-1" />
+              <div className="h-7 w-10 bg-gray-200 rounded animate-pulse mx-auto mb-1" />
             ) : (
-              <p className="text-2xl font-black text-gray-900">{item.count}</p>
+              <p className="text-xl sm:text-2xl font-black text-gray-900">{item.count}</p>
             )}
-            <p className="text-xs text-gray-500 mt-0.5">{item.label}</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 font-bold uppercase tracking-tight">{item.label}</p>
           </div>
         ))}
       </div>
