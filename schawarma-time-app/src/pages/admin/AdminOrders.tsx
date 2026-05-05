@@ -343,7 +343,7 @@ export function AdminOrders() {
             <span className="font-black text-gray-400 text-sm">{selectedOrder.order_number.replace('S47', 'ST')}</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-5 pb-32">
+          <div className="flex-1 overflow-y-auto p-5 pb-56">
             <div className="bg-gray-50 rounded-3xl p-5 mb-6">
               <p className="font-black text-xl mb-1 text-[#142328]">{selectedOrder.customer_name}</p>
               <p className="text-gray-500 font-bold mb-2">{selectedOrder.customer_phone}</p>
@@ -416,7 +416,7 @@ export function AdminOrders() {
                     className="w-full flex items-center justify-center gap-2 py-6 bg-[#142328] text-white rounded-3xl font-black"
                   >
                     <Printer size={24} />
-                    BON REPRINT
+                    DRUCKEN
                   </button>
                 </div>
               )
