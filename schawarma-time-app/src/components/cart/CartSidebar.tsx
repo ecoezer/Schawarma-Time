@@ -12,17 +12,18 @@ import { Modal } from '@/components/ui/Modal'
 import { isRestaurantOpen } from '@/lib/utils'
 
 export function CartSidebar() {
-  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalQuantity, globalNote, setGlobalNote, clearCart } = useCartStore()
+  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalQuantity, globalNote, setGlobalNote, clearCart, orderType } = useCartStore()
   const { settings } = useRestaurantStore()
   const navigate = useNavigate()
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
   const [isClosedWarningOpen, setIsClosedWarningOpen] = useState(false)
 
+  const isAbholung = orderType === 'abholung'
   const total = totalPrice()
   const count = totalQuantity()
-  const deliveryFee = settings?.delivery_fee ?? 2.00
-  const minOrder = settings?.min_order_amount ?? 15.00
+  const deliveryFee = isAbholung ? 0 : (settings?.delivery_fee ?? 2.00)
+  const minOrder = isAbholung ? 0 : (settings?.min_order_amount ?? 15.00)
   const isMinOrderMet = total >= minOrder
   const grandTotal = total + (isMinOrderMet ? deliveryFee : 0)
 
@@ -254,8 +255,8 @@ export function CartSidebar() {
                       <span>{formatPrice(total)}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
-                      <span>Liefergebühr</span>
-                      <span>{isMinOrderMet ? formatPrice(deliveryFee) : '–'}</span>
+                      <span>{isAbholung ? 'Abholung' : 'Liefergebühr'}</span>
+                      <span>{isAbholung ? formatPrice(0) : (isMinOrderMet ? formatPrice(deliveryFee) : '–')}</span>
                     </div>
                     <div className="flex justify-between font-black text-gray-900 text-base pt-2 border-t border-gray-100">
                       <span>Gesamt</span>
