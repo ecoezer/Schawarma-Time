@@ -448,8 +448,6 @@ export function ProfilePage() {
                         const steps = [
                           { key: 'pending',    icon: '🕐', label: 'Eingang' },
                           { key: 'confirmed',  icon: '✅', label: 'Bestätigt' },
-                          { key: 'preparing',  icon: '👨‍🍳', label: 'Zubereitung' },
-                          { key: 'on_the_way', icon: '🛵', label: 'Unterwegs' },
                         ]
                         const currentIdx = steps.findIndex(s => s.key === order.status)
                         return (
