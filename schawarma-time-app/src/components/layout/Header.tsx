@@ -22,20 +22,17 @@ export function Header() {
         
         {/* Left Section */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex flex-col items-start shrink-0">
             <Link to="/" className="hover:opacity-75 transition-opacity">
               <img src={logo} alt={restaurantName} className="h-16 w-auto" />
             </Link>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-1">Kontakt</span>
-              <a 
-                href={`tel:${restaurantPhone.replace(/[^0-9+]/g, '')}`}
-                className="flex items-center gap-1.5 text-black hover:opacity-75 transition-opacity"
-              >
-                <Phone size={14} className="text-black" fill="currentColor" />
-                <span className="text-[16px] font-black tracking-tight">{restaurantPhone}</span>
-              </a>
-            </div>
+            <a 
+              href={`tel:${restaurantPhone.replace(/[^0-9+]/g, '')}`}
+              className="flex items-center gap-1.5 text-black mt-1 hover:opacity-75 transition-opacity"
+            >
+              <Phone size={12} className="text-black" fill="currentColor" />
+              <span className="text-[15px] font-bold tracking-tight">{restaurantPhone}</span>
+            </a>
           </div>
         </div>
 
