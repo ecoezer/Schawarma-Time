@@ -1,6 +1,6 @@
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useEffect } from 'react'
+import { useNavigate, BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartSidebar } from '@/components/cart/CartSidebar'
@@ -51,8 +51,6 @@ function AdminRoute() {
   )
 }
 
-// v12: restrict manager-only routes (customer PII, campaigns, settings).
-// cashier and kitchen roles should never access these pages.
 function ManagerRoute() {
   const { user, isInitialized } = useAuthStore()
   if (!isInitialized) return null
@@ -60,20 +58,25 @@ function ManagerRoute() {
   return <Outlet />
 }
 
-// Blocks unauthenticated users from protected routes — avoids flash-before-redirect
 function ProtectedRoute() {
   const { user, isInitialized } = useAuthStore()
   if (!isInitialized) return null
   return user ? <Outlet /> : <Navigate to="/login" replace />
 }
 
-function App() {
+function AppContent() {
+  const navigate = useNavigate()
   const { fetchSettings } = useRestaurantStore()
   const { refreshUser } = useAuthStore()
 
   useEffect(() => {
     fetchSettings()
     refreshUser()
+
+    // v12: Auto-redirect to admin if on mobile/native app
+    if (Capacitor.isNativePlatform() && window.location.pathname === '/') {
+      navigate('/admin', { replace: true })
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
@@ -87,7 +90,6 @@ function App() {
       }
     })
 
-    // v12: Keep screen awake on mobile devices (Sunmi V2 / Tablet)
     if (Capacitor.isNativePlatform()) {
       KeepAwake.keepAwake().catch(err => console.warn('KeepAwake failed:', err))
     }
@@ -98,67 +100,68 @@ function App() {
         KeepAwake.allowSleep().catch(() => {})
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [navigate, fetchSettings, refreshUser])
 
+  return (
+    <>
+      <Routes>
+        <Route element={<CustomerLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/register" element={<AuthPage />} />
+          <Route path="/passwort-zuruecksetzen" element={<ResetPasswordPage />} />
+          <Route path="/impressum" element={<ImpressumPage />} />
+          <Route path="/datenschutz" element={<DatenschutzPage />} />
+          <Route path="/agb" element={<AgbPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/bestellung" element={<CheckoutPage />} />
+            <Route path="/profil" element={<ProfilePage />} />
+          </Route>
+        </Route>
+
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+
+        <Route path="/admin" element={<AdminRoute />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="bestellungen" element={<AdminOrders />} />
+          <Route path="menue" element={<AdminMenu />} />
+          <Route element={<ManagerRoute />}>
+            <Route path="kampagnen" element={<AdminCampaigns />} />
+            <Route path="kunden" element={<AdminCustomers />} />
+            <Route path="einstellungen" element={<AdminSettings />} />
+          </Route>
+        </Route>
+      </Routes>
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: '12px',
+            background: '#142328',
+            color: '#fff',
+            fontSize: '14px',
+            fontWeight: '600',
+            padding: '12px 16px',
+          },
+          success: {
+            iconTheme: { primary: '#06c167', secondary: '#fff' },
+          },
+          error: {
+            style: { background: '#991b1b' },
+          },
+        }}
+      />
+    </>
+  )
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Routes>
-          {/* Customer Routes */}
-          <Route element={<CustomerLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/register" element={<AuthPage />} />
-            <Route path="/passwort-zuruecksetzen" element={<ResetPasswordPage />} />
-            <Route path="/impressum" element={<ImpressumPage />} />
-            <Route path="/datenschutz" element={<DatenschutzPage />} />
-            <Route path="/agb" element={<AgbPage />} />
-
-            {/* Protected customer routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/bestellung" element={<CheckoutPage />} />
-              <Route path="/profil" element={<ProfilePage />} />
-            </Route>
-          </Route>
-
-          {/* Admin Login (standalone, no header/footer) */}
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminRoute />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="bestellungen" element={<AdminOrders />} />
-            <Route path="menue" element={<AdminMenu />} />
-            {/* v12: manager-only routes — cashier/kitchen redirected to /admin */}
-            <Route element={<ManagerRoute />}>
-              <Route path="kampagnen" element={<AdminCampaigns />} />
-              <Route path="kunden" element={<AdminCustomers />} />
-              <Route path="einstellungen" element={<AdminSettings />} />
-            </Route>
-          </Route>
-        </Routes>
-
-        {/* Global Toast */}
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              borderRadius: '12px',
-              background: '#142328',
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: '600',
-              padding: '12px 16px',
-            },
-            success: {
-              iconTheme: { primary: '#06c167', secondary: '#fff' },
-            },
-            error: {
-              style: { background: '#991b1b' },
-            },
-          }}
-        />
+        <AppContent />
       </BrowserRouter>
     </ErrorBoundary>
   )

@@ -9,6 +9,7 @@ import * as orderService from '@/services/orderService'
 import { handleError } from '@/lib/errorHandler'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { Modal } from '@/components/ui/Modal'
+import { Capacitor } from '@capacitor/core'
 import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
@@ -87,35 +88,53 @@ export function AdminOrders() {
   }
 
   const handlePrint = (order: Order) => {
-    const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(`
-      <html><head><title>Bestellung ${escHtml(order.order_number)}</title>
-      <style>body{font-family:monospace;padding:20px;font-size:14px}h2{text-align:center}hr{border:1px dashed #000}table{width:100%}</style>
-      </head><body>
-      <h2>SCHAWARMA-TIME</h2><p style="text-align:center">${escHtml(order.order_number)}</p><hr/>
-      <p><b>Kunde:</b> ${escHtml(order.customer_name)}</p>
-      <p><b>Tel:</b> ${escHtml(order.customer_phone)}</p>
-      <p><b>Adresse:</b> ${escHtml(order.delivery_address)}</p>
-      <hr/><table>
-      ${order.items.map((i) => `
-        <tr>
-          <td>
-            ${i.quantity}x ${escHtml(i.product_name)}
-            ${i.extras && i.extras.length > 0 ?
-              `<br/><small style="color:#666;margin-left:10px">+ ${i.extras.map(e => `${escHtml(e.name)}${e.price > 0 ? ` (€${(e.price * i.quantity).toFixed(2)})` : ''}`).join(', ')}</small>`
-              : ''}
-          </td>
-          <td style="text-align:right" valign="top">€${i.subtotal.toFixed(2)}</td>
-        </tr>
-      `).join('')}
-      </table><hr/>
-      <p style="text-align:right"><b>Gesamt: €${order.total.toFixed(2)}</b></p>
-      <p>Zahlung: ${order.payment_method === 'cash' ? 'Bar' : 'Karte'}</p>
-      ${order.notes ? `<p>Notiz: ${escHtml(order.notes)}</p>` : ''}
-      </body></html>`)
-    win.document.close()
-    win.print()
+    if (Capacitor.isNativePlatform()) {
+      toast.success('Drucker-Anbindung wird vorbereitet...')
+      console.log('Sunmi Print Order:', order.order_number)
+      // Placeholder for Sunmi Native Print SDK
+      return
+    }
+
+    try {
+      const win = window.open('', '_blank')
+      if (!win) {
+        toast.error('Pop-up Blockiert! Bitte erlauben.')
+        return
+      }
+      win.document.write(`
+        <html><head><title>Bestellung ${escHtml(order.order_number)}</title>
+        <style>body{font-family:monospace;padding:20px;font-size:14px}h2{text-align:center}hr{border:1px dashed #000}table{width:100%}</style>
+        </head><body>
+        <h2>SCHAWARMA-TIME</h2><p style="text-align:center">${escHtml(order.order_number)}</p><hr/>
+        <p><b>Kunde:</b> ${escHtml(order.customer_name)}</p>
+        <p><b>Tel:</b> ${escHtml(order.customer_phone)}</p>
+        <p><b>Adresse:</b> ${escHtml(order.delivery_address)}</p>
+        <hr/><table>
+        ${order.items.map((i) => `
+          <tr>
+            <td>
+              ${i.quantity}x ${escHtml(i.product_name)}
+              ${i.extras && i.extras.length > 0 ?
+                `<br/><small style="color:#666;margin-left:10px">+ ${i.extras.map(e => `${escHtml(e.name)}${e.price > 0 ? ` (€${(e.price * i.quantity).toFixed(2)})` : ''}`).join(', ')}</small>`
+                : ''}
+            </td>
+            <td style="text-align:right" valign="top">€${i.subtotal.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+        </table><hr/>
+        <p style="text-align:right"><b>Gesamt: €${order.total.toFixed(2)}</b></p>
+        <p>Zahlung: ${order.payment_method === 'cash' ? 'Bar' : 'Karte'}</p>
+        ${order.notes ? `<p>Notiz: ${escHtml(order.notes)}</p>` : ''}
+        </body></html>`)
+      win.document.close()
+      setTimeout(() => {
+        win.print()
+        win.close()
+      }, 500)
+    } catch (e) {
+      console.error('Print failed:', e)
+      toast.error('Drucken fehlgeschlagen.')
+    }
   }
 
   return (
