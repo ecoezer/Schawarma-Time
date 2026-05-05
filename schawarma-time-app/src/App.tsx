@@ -7,6 +7,8 @@ import { CartSidebar } from '@/components/cart/CartSidebar'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { supabase } from '@/lib/supabase'
+import { KeepAwake } from '@capacitor-community/keep-awake'
+import { Capacitor } from '@capacitor/core'
 import { HomePage } from '@/pages/HomePage'
 import { CheckoutPage } from '@/pages/CheckoutPage'
 import { AuthPage } from '@/pages/customer/AuthPage'
@@ -85,7 +87,17 @@ function App() {
       }
     })
 
-    return () => { subscription.unsubscribe() }
+    // v12: Keep screen awake on mobile devices (Sunmi V2 / Tablet)
+    if (Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(err => console.warn('KeepAwake failed:', err))
+    }
+
+    return () => { 
+      subscription.unsubscribe() 
+      if (Capacitor.isNativePlatform()) {
+        KeepAwake.allowSleep().catch(() => {})
+      }
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
