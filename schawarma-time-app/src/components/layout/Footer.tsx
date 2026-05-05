@@ -22,7 +22,7 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-gray-400">
               <li className="flex items-start gap-2">
                 <MapPin size={15} className="mt-0.5 shrink-0 text-[#06c167]" />
-                <span>Bahnhofsallee 14a,<br />31134 Hildesheim</span>
+                <span>Hauptstraße 74,<br />31171 Nordstemmen</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone size={15} className="shrink-0 text-[#06c167]" />

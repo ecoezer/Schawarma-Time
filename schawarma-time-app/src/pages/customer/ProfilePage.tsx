@@ -47,6 +47,10 @@ export function ProfilePage() {
     lng: null
   })
 
+  // Order Details Modal
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [showOrderDetails, setShowOrderDetails] = useState(false)
+
   useEffect(() => {
     if (!user) {
       navigate('/login')
@@ -529,9 +533,16 @@ export function ProfilePage() {
                             <Button variant="ghost" size="sm" onClick={() => handleReorder(order)} className="text-[#142328]">
                                 Wiederholen
                             </Button>
-                            <Button variant="secondary" size="sm" onClick={() => {}}>
-                                Details
-                            </Button>
+                             <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedOrder(order)
+                                  setShowOrderDetails(true)
+                                }}
+                             >
+                                 Details
+                             </Button>
                         </div>
                       </div>
                     </div>
@@ -605,6 +616,125 @@ export function ProfilePage() {
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Order Details Modal */}
+      <AnimatePresence>
+        {showOrderDetails && selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowOrderDetails(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl relative z-10 flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="bg-[#142328] p-8 text-white">
+                <div className="flex justify-between items-start mb-2">
+                  <Badge variant={selectedOrder.status === 'delivered' ? 'success' : 'pending'}>
+                    {getStatusLabel(selectedOrder.status)}
+                  </Badge>
+                  <button onClick={() => setShowOrderDetails(false)} className="text-white/60 hover:text-white">
+                    <Trash2 size={24} className="rotate-45" />
+                  </button>
+                </div>
+                <h2 className="text-2xl font-black">{selectedOrder.order_number}</h2>
+                <p className="text-white/60 text-sm">
+                  {new Date(selectedOrder.created_at).toLocaleString('de-DE')}
+                </p>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                {/* Items */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Bestellte Artikel</h3>
+                  <div className="space-y-4">
+                    {selectedOrder.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-black">{item.quantity}x</span>
+                            <span className="font-bold text-gray-900">{item.product_name}</span>
+                          </div>
+                          {item.extras && item.extras.length > 0 && (
+                            <div className="mt-1 ml-8 space-y-0.5">
+                              {item.extras.map((extra: any, eIdx: number) => (
+                                <p key={eIdx} className="text-xs text-gray-500 flex justify-between">
+                                  <span>+ {extra.name}</span>
+                                  <span>{formatPrice(extra.price)}</span>
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          {item.note && (
+                            <p className="mt-1 ml-8 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded italic">
+                              "{item.note}"
+                            </p>
+                          )}
+                        </div>
+                        <span className="font-bold text-gray-900">{formatPrice(item.subtotal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-8 pt-8 border-t border-gray-100">
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Lieferadresse</h4>
+                    <p className="text-sm font-medium text-gray-900 leading-relaxed">
+                      {selectedOrder.customer_name}<br />
+                      {selectedOrder.delivery_address}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Zahlung</h4>
+                    <p className="text-sm font-medium text-gray-900">
+                      {selectedOrder.payment_method === 'cash' ? '💵 Barzahlung' : '💳 Kartenzahlung'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div className="pt-8 border-t border-gray-100 space-y-2">
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Zwischensumme</span>
+                    <span>{formatPrice(selectedOrder.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Liefergebühr</span>
+                    <span>{formatPrice(selectedOrder.delivery_fee)}</span>
+                  </div>
+                  {selectedOrder.discount_amount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600 font-medium">
+                      <span>Rabatt</span>
+                      <span>-{formatPrice(selectedOrder.discount_amount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg font-black text-gray-900 pt-2 border-t border-gray-50">
+                    <span>Gesamt</span>
+                    <span>{formatPrice(selectedOrder.total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 bg-gray-50 border-t border-gray-100">
+                <Button variant="primary" fullWidth onClick={() => handleReorder(selectedOrder)}>
+                  Erneut bestellen
+                </Button>
+              </div>
             </motion.div>
           </div>
         )}
