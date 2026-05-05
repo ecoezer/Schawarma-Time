@@ -23,7 +23,7 @@ type OrderStatus = 'form' | 'pending_confirmation' | 'success' | 'rejected'
 export function CheckoutPage() {
   const navigate = useNavigate()
   const { user, updateProfile, addAddress } = useAuthStore()
-  const { items, totalPrice, clearCart } = useCartStore()
+  const { items, totalPrice, clearCart, orderType } = useCartStore()
   const { settings } = useRestaurantStore()
 
 
@@ -104,6 +104,7 @@ export function CheckoutPage() {
     return () => { supabase.removeChannel(channel) }
   }, [status, orderId])
 
+  const isAbholung = orderType === 'abholung'
   const subtotal = totalPrice()
 
   // Unified form field handler — eliminates per-field onChange boilerplate
@@ -113,20 +114,20 @@ export function CheckoutPage() {
 
   // Business Rules Validation
   const isOpen = settings ? isRestaurantOpen(settings.hours) : false
-  const isDeliveryActive = settings?.is_delivery_active ?? true
+  const isDeliveryActive = isAbholung ? true : (settings?.is_delivery_active ?? true)
 
-  const activeZone = settings?.delivery_zones?.length
+  const activeZone = !isAbholung && settings?.delivery_zones?.length
     ? settings.delivery_zones.find(z =>
         z.name.includes(form.postalCode) ||
         (z as any).postal_codes?.includes(form.postalCode)
       )
     : null
 
-  const isZoneValid = !settings?.delivery_zones?.length || !!activeZone
+  const isZoneValid = isAbholung || !settings?.delivery_zones?.length || !!activeZone
 
-  const currentMinOrder = activeZone?.min_order ?? settings?.min_order_amount ?? 15.00
+  const currentMinOrder = isAbholung ? 0 : (activeZone?.min_order ?? settings?.min_order_amount ?? 15.00)
   const isAboveMinOrder = subtotal >= currentMinOrder
-  const deliveryFee = activeZone?.delivery_fee ?? settings?.delivery_fee ?? 2.00
+  const deliveryFee = isAbholung ? 0 : (activeZone?.delivery_fee ?? settings?.delivery_fee ?? 2.00)
   const total = subtotal + deliveryFee - discount
 
   const hasPaymentMethod = (settings?.payment_methods?.cash ?? true) || (settings?.payment_methods?.card_on_delivery ?? true)
@@ -149,12 +150,15 @@ export function CheckoutPage() {
       errs.phone = 'Telefon ist erforderlich'
     }
     if (!form.email.trim()) errs.email = 'E-Mail ist erforderlich'
-    if (!form.street.trim()) errs.street = 'Straße ist erforderlich'
-    if (!form.city.trim()) errs.city = 'Stadt ist erforderlich'
-    if (!form.postalCode.trim()) errs.postalCode = 'PLZ ist erforderlich'
     
-    if (!isZoneValid) {
-        errs.postalCode = 'Wir liefern aktuell nicht in dieses Gebiet'
+    if (!isAbholung) {
+      if (!form.street.trim()) errs.street = 'Straße ist erforderlich'
+      if (!form.city.trim()) errs.city = 'Stadt ist erforderlich'
+      if (!form.postalCode.trim()) errs.postalCode = 'PLZ ist erforderlich'
+      
+      if (!isZoneValid) {
+          errs.postalCode = 'Wir liefern aktuell nicht in dieses Gebiet'
+      }
     }
 
     setErrors(errs)
@@ -223,7 +227,7 @@ export function CheckoutPage() {
         customer_name:    form.name,
         customer_phone:   form.phone,
         customer_email:   form.email,
-        delivery_address: `${form.street}, ${form.postalCode} ${form.city}`,
+        delivery_address: isAbholung ? 'Selbstabholung im Restaurant' : `${form.street}, ${form.postalCode} ${form.city}`,
         // Only IDs + quantities — prices calculated server-side
         items: items.map(item => ({
           product_id: item.product_id,
@@ -379,7 +383,7 @@ export function CheckoutPage() {
           </div>
           <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-6">
             <Clock size={16} />
-            <span>Geschätzte Lieferzeit: {settings?.estimated_delivery_time ?? 35}–{(settings?.estimated_delivery_time ?? 35) + 10} Min.</span>
+            <span>{isAbholung ? 'Geschätzte Abholzeit' : 'Geschätzte Lieferzeit'}: {isAbholung ? '15–20' : (settings?.estimated_delivery_time ?? 35) + '–' + ((settings?.estimated_delivery_time ?? 35) + 10)} Min.</span>
           </div>
           <Button variant="primary" fullWidth onClick={() => navigate('/')}>
             Zurück zum Menü
@@ -432,7 +436,7 @@ export function CheckoutPage() {
             ))}
 
             {/* Address Selection (if registered) */}
-            {user && user.addresses && user.addresses.length > 0 && (
+            {!isAbholung && user && user.addresses && user.addresses.length > 0 && (
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                     <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <Navigation size={18} className="text-[#142328]" />
@@ -461,7 +465,7 @@ export function CheckoutPage() {
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-white">
               <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <MapPin size={18} className="text-[#142328]" />
-                Lieferadresse
+                {isAbholung ? 'Kontaktdaten' : 'Lieferadresse'}
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 md:col-span-1">
@@ -472,14 +476,18 @@ export function CheckoutPage() {
                   <Input label="Telefon" placeholder="05069 8067500" required
                     value={form.phone} onChange={handleField('phone')} error={errors.phone} />
                 </div>
-                <div className="col-span-2">
-                  <Input label="Straße & Hausnummer" placeholder="Musterstraße 1" required
-                    value={form.street} onChange={handleField('street')} error={errors.street} />
-                </div>
-                <Input label="PLZ" placeholder="31171" required
-                  value={form.postalCode} onChange={handleField('postalCode')} error={errors.postalCode} />
-                <Input label="Stadt" placeholder="Nordstemmen" required
-                  value={form.city} onChange={handleField('city')} error={errors.city} />
+                {!isAbholung && (
+                  <>
+                    <div className="col-span-2">
+                      <Input label="Straße & Hausnummer" placeholder="Musterstraße 1" required
+                        value={form.street} onChange={handleField('street')} error={errors.street} />
+                    </div>
+                    <Input label="PLZ" placeholder="31171" required
+                      value={form.postalCode} onChange={handleField('postalCode')} error={errors.postalCode} />
+                    <Input label="Stadt" placeholder="Nordstemmen" required
+                      value={form.city} onChange={handleField('city')} error={errors.city} />
+                  </>
+                )}
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Anmerkungen</label>
                   <textarea
@@ -498,8 +506,8 @@ export function CheckoutPage() {
               <h2 className="font-bold text-gray-900 mb-4">Zahlungsmethode</h2>
               <div className="space-y-2">
                 {[
-                  { id: 'cash', icon: <Banknote size={18} />, label: 'Barzahlung bei Lieferung', active: settings?.payment_methods?.cash ?? true },
-                  { id: 'card_on_delivery', icon: <CreditCard size={18} />, label: 'Kartenzahlung bei Lieferung', active: settings?.payment_methods?.card_on_delivery ?? true },
+                  { id: 'cash', icon: <Banknote size={18} />, label: isAbholung ? 'Barzahlung bei Abholung' : 'Barzahlung bei Lieferung', active: settings?.payment_methods?.cash ?? true },
+                  { id: 'card_on_delivery', icon: <CreditCard size={18} />, label: isAbholung ? 'Kartenzahlung bei Abholung' : 'Kartenzahlung bei Lieferung', active: settings?.payment_methods?.card_on_delivery ?? true },
                 ].filter(m => m.active).map((method) => (
                   <button
                     key={method.id}
@@ -574,9 +582,11 @@ export function CheckoutPage() {
                     <span>Gutschein</span><span>-{formatPrice(discount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-gray-500 font-medium">
-                  <span>Liefergebühr</span><span>{formatPrice(deliveryFee)}</span>
-                </div>
+                {!isAbholung && (
+                  <div className="flex justify-between text-gray-500 font-medium">
+                    <span>Liefergebühr</span><span>{formatPrice(deliveryFee)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-black text-gray-900 text-lg pt-4 border-t border-gray-50 mt-2">
                   <span>Gesamt</span><span>{formatPrice(total)}</span>
                 </div>

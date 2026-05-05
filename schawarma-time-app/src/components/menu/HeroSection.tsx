@@ -2,21 +2,20 @@ import { useState } from 'react'
 import { Heart, MoreHorizontal, Info, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { RestaurantSettings } from '@/types'
+import { useCartStore } from '@/store/cartStore'
 import { RestaurantInfoModal } from './RestaurantInfoModal'
 
 interface HeroSectionProps {
   settings: RestaurantSettings
 }
 
-type DeliveryMode = 'lieferung' | 'abholung'
-
 export function HeroSection({ settings }: HeroSectionProps) {
   const imageUrl = settings.hero_images?.[0] || 'https://via.placeholder.com/1200x400'
-  const [mode, setMode] = useState<DeliveryMode>('lieferung')
+  const { orderType, setOrderType } = useCartStore()
   const [showFeesModal, setShowFeesModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
 
-  const isAbholung = mode === 'abholung'
+  const isAbholung = orderType === 'abholung'
 
   return (
     <div className="w-full bg-white pt-1 pb-6">
@@ -99,21 +98,21 @@ export function HeroSection({ settings }: HeroSectionProps) {
               <motion.div
                 className="absolute top-1 bottom-1 rounded-full bg-white shadow-sm"
                 style={{ width: 'calc(50% - 4px)' }}
-                animate={{ left: mode === 'lieferung' ? 4 : '50%' }}
+                animate={{ left: orderType === 'lieferung' ? 4 : '50%' }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
               <button
-                onClick={() => setMode('lieferung')}
+                onClick={() => setOrderType('lieferung')}
                 className={`relative z-10 px-6 py-2 rounded-full text-[15px] font-semibold transition-colors duration-200 ${
-                  mode === 'lieferung' ? 'text-black' : 'text-[#6b6b6b] hover:text-black'
+                  orderType === 'lieferung' ? 'text-black' : 'text-[#6b6b6b] hover:text-black'
                 }`}
               >
                 Lieferung
               </button>
               <button
-                onClick={() => setMode('abholung')}
+                onClick={() => setOrderType('abholung')}
                 className={`relative z-10 px-6 py-2 rounded-full text-[15px] font-semibold transition-colors duration-200 ${
-                  mode === 'abholung' ? 'text-black' : 'text-[#6b6b6b] hover:text-black'
+                  orderType === 'abholung' ? 'text-black' : 'text-[#6b6b6b] hover:text-black'
                 }`}
               >
                 Abholung

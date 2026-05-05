@@ -18,6 +18,8 @@ interface CartStore {
   toggleCart: () => void
   openCart: () => void
   closeCart: () => void
+  orderType: 'lieferung' | 'abholung'
+  setOrderType: (type: 'lieferung' | 'abholung') => void
   setGlobalNote: (note: string) => void
 
   // Computed
@@ -42,6 +44,9 @@ export const useCartStore = create<CartStore>()(
       items: [],
       isOpen: false,
       globalNote: '',
+      orderType: 'lieferung',
+
+      setOrderType: (type) => set({ orderType: type }),
 
       addItem: (item, settings) => {
         if (!isStoreOpen(settings)) {
@@ -151,7 +156,7 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'schawarma-time-cart',
-      partialize: (state) => ({ items: state.items, globalNote: state.globalNote }),
+      partialize: (state) => ({ items: state.items, globalNote: state.globalNote, orderType: state.orderType }),
       onRehydrateStorage: () => (state) => {
         if (!state) return
         // UUID regex — drop any persisted items with mock IDs like "p1"

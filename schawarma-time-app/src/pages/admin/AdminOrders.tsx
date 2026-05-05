@@ -307,7 +307,15 @@ export function AdminOrders() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="font-bold text-gray-900 truncate">{order.customer_name}</p>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">{order.delivery_address}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {order.delivery_address === 'Selbstabholung im Restaurant' ? (
+                        <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-black flex items-center gap-1">
+                          🏠 SELBSTABHOLUNG
+                        </span>
+                      ) : (
+                        <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-black text-[#142328] text-lg leading-none">{formatPrice(order.total)}</p>
@@ -341,7 +349,13 @@ export function AdminOrders() {
             <div className="bg-gray-50 rounded-3xl p-5 mb-6">
               <p className="font-black text-xl mb-1 text-[#142328]">{selectedOrder.customer_name}</p>
               <p className="text-gray-500 font-bold mb-2">{selectedOrder.customer_phone}</p>
-              <p className="text-gray-600 leading-snug">{selectedOrder.delivery_address}</p>
+              {selectedOrder.delivery_address === 'Selbstabholung im Restaurant' ? (
+                <div className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-black inline-flex items-center gap-2 mb-3">
+                  🏠 KUNDE HOLT AB (SELBSTABHOLUNG)
+                </div>
+              ) : (
+                <p className="text-gray-600 leading-snug">{selectedOrder.delivery_address}</p>
+              )}
               {selectedOrder.notes && (
                 <div className="mt-4 p-4 bg-yellow-100 text-yellow-900 rounded-2xl text-sm font-bold">
                   {selectedOrder.notes}
