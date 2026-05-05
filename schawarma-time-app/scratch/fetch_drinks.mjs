@@ -3,7 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 
-const TARGET_URL = 'https://walko-drinks.de/products/coca-cola-24-x-0-33-dose';
+const TARGET_URLS = [
+  'https://walko-drinks.de/collections/erfrischungsgetranke'
+];
 const OUTPUT_DIR = 'public/assets/getraenke';
 
 async function downloadImage(url, filename) {
@@ -26,69 +28,45 @@ async function downloadImage(url, filename) {
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  console.log('Navigating to:', TARGET_URL);
   
-  try {
-    await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 60000 });
-  } catch (e) {
-    console.error('Initial navigation failed, trying again with different wait...', e.message);
-    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
-  }
+  for (const targetUrl of TARGET_URLS) {
+    console.log('Processing:', targetUrl);
+    await page.goto(targetUrl, { waitUntil: 'networkidle' });
 
-  // Scroll to trigger lazy loading
-  await page.evaluate(async () => {
-    await new Promise((resolve) => {
-      let totalHeight = 0;
-      let distance = 100;
-      let timer = setInterval(() => {
-        let scrollHeight = document.body.scrollHeight;
-        window.scrollBy(0, distance);
-        totalHeight += distance;
-        if(totalHeight >= scrollHeight){
-          clearInterval(timer);
-          resolve();
-        }
-      }, 100);
+    // Extract all image-related data
+    const imgData = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('img')).map(img => ({
+        src: img.src,
+        srcset: img.srcset,
+        alt: img.alt,
+        dataSrc: img.getAttribute('data-src'),
+        dataSrcset: img.getAttribute('data-srcset')
+      }));
     });
-  });
 
-  const images = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('img')).map(img => ({
-      src: img.src,
-      alt: img.alt,
-      className: img.className
-    }));
-  });
+    console.log(`Raw images found: ${imgData.length}`);
+    
+    for (const img of imgData) {
+      let src = img.dataSrc || img.src;
+      if (!src || src.includes('base64')) continue;
+      if (src.startsWith('//')) src = 'https:' + src;
 
-  console.log(`Found ${images.length} images total.`);
-
-  const productImages = images.filter(img => {
-    const src = img.src.toLowerCase();
-    // Look for product-like images
-    return (src.includes('cdn.shopify.com') || src.includes('products')) 
-           && !src.includes('badge') 
-           && !src.includes('icon');
-  });
-
-  const uniqueUrls = [...new Set(productImages.map(img => img.src))];
-  console.log('Filtered Product Images:', uniqueUrls);
-
-  if (!fs.existsSync(OUTPUT_DIR)) {
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-  }
-
-  for (let i = 0; i < uniqueUrls.length; i++) {
-    let url = uniqueUrls[i];
-    // Shopify URLs often omit "https:"
-    if (url.startsWith('//')) url = 'https:' + url;
-
-    const ext = '.png'; // Force png as requested, or detect
-    const filename = `drink-${i}${ext}`;
-    try {
-      console.log('Downloading:', url);
-      await downloadImage(url, filename);
-    } catch (err) {
-      console.error('Error downloading:', url, err.message);
+      // Shopify product image pattern
+      if (src.includes('/products/') || src.includes('/files/')) {
+        const safeName = (img.alt || path.basename(src).split('?')[0])
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '-')
+          .replace(/-+/g, '-')
+          .substring(0, 50);
+        
+        const filename = `${safeName}.png`;
+        if (!fs.existsSync(path.join(OUTPUT_DIR, filename))) {
+          try {
+            console.log('Downloading:', src, '->', filename);
+            await downloadImage(src, filename);
+          } catch (e) {}
+        }
+      }
     }
   }
 
