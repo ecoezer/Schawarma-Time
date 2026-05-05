@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, Lock, Eye, EyeOff } from 'lucide-react'
+import { User, MapPin, ShoppingBag, LogOut, Plus, Trash2, Lock, Eye, EyeOff, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import * as authService from '@/services/authService'
 import { useCartStore } from '@/store/cartStore'
@@ -645,7 +645,7 @@ export function ProfilePage() {
                     {getStatusLabel(selectedOrder.status)}
                   </Badge>
                   <button onClick={() => setShowOrderDetails(false)} className="text-white/60 hover:text-white">
-                    <Trash2 size={24} className="rotate-45" />
+                    <X size={24} />
                   </button>
                 </div>
                 <h2 className="text-2xl font-black">{selectedOrder.order_number}</h2>
