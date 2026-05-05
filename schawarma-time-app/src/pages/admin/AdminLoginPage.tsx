@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lock, Eye, EyeOff } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -17,12 +17,29 @@ export function AdminLoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(localStorage.getItem('rememberAdmin') === 'true')
 
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('adminEmail')
+    if (savedEmail && rememberMe) {
+      setEmail(savedEmail)
+    }
+  }, [rememberMe])
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     try {
       const data = await authService.signIn(email, password)
+      
+      // Save credentials if Remember Me is checked
+      if (rememberMe) {
+        localStorage.setItem('adminEmail', email)
+        localStorage.setItem('rememberAdmin', 'true')
+      } else {
+        localStorage.removeItem('adminEmail')
+        localStorage.setItem('rememberAdmin', 'false')
+      }
+
       const profile = await authService.fetchProfile(data.user.id)
 
       if (!profile || !['manager', 'cashier', 'kitchen'].includes(profile.role)) {
@@ -67,6 +84,7 @@ export function AdminLoginPage() {
           <Input
             label="E-Mail"
             type="email"
+            autoComplete="username"
             placeholder="admin@schawarma-time.de"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -76,6 +94,7 @@ export function AdminLoginPage() {
           <Input
             label="Passwort"
             type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -87,6 +106,19 @@ export function AdminLoginPage() {
             }
             required
           />
+
+          <div className="flex items-center justify-between py-1">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input 
+                type="checkbox" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-[#142328] focus:ring-[#142328]"
+              />
+              <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">Angemeldet bleiben</span>
+            </label>
+          </div>
+
           <Button type="submit" variant="primary" fullWidth size="lg" isLoading={isLoading}>
             Anmelden
           </Button>
