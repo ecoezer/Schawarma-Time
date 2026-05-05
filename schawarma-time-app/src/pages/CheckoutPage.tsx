@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatPrice, isRestaurantOpen } from '@/lib/utils'
+import { Modal } from '@/components/ui/Modal'
 import { handleError } from '@/lib/errorHandler'
 import toast from 'react-hot-toast'
 import type { UserAddress } from '@/types'
@@ -40,13 +41,14 @@ export function CheckoutPage() {
     phone: user?.phone || '',
     email: user?.email || '',
     street: defaultAddress?.street || '',
-    city: defaultAddress?.city || 'Hildesheim',
-    postalCode: defaultAddress?.postal_code || '31134',
+    city: defaultAddress?.city || 'Nordstemmen',
+    postalCode: defaultAddress?.postal_code || '31171',
     note: '',
   })
   const [errors, setErrors] = useState<Partial<typeof form>>({})
+  const [warningModal, setWarningModal] = useState<{ title: string; message: string; icon?: string } | null>(null)
 
-  // Realtime: admin onayı veya reddi bekle
+  // Realtime: Auf Admin-Bestätigung oder Ablehnung warten
   useEffect(() => {
     if (status !== 'pending_confirmation' || !orderId) return
 
@@ -140,7 +142,12 @@ export function CheckoutPage() {
     try {
       const result = await couponService.validateCoupon(couponCode, subtotal, user?.id)
       if (!result.valid) {
-        toast.error(result.errorMessage || 'Ungültiger Gutscheincode')
+        toast.error((t) => (
+          <span className="flex items-center gap-2">
+            {result.errorMessage || 'Ungültiger Gutscheincode'}
+            <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+          </span>
+        ), { duration: Infinity })
         setDiscount(0)
         return
       }
@@ -156,9 +163,25 @@ export function CheckoutPage() {
   const handleSubmit = async () => {
     if (!validate()) {
         if (!canOrder) {
-            if (!isOpen) toast.error('Wir haben aktuell geschlossen')
-            else if (!isAboveMinOrder) toast.error(`Mindestbestellwert ist ${formatPrice(settings?.min_order_amount || 0)}`)
-            else if (!isZoneValid) toast.error('Wir liefern nicht in dieses Gebiet')
+            if (!isOpen) {
+              setWarningModal({
+                title: 'Aktuell geschlossen',
+                message: 'Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an. Bitte versuche es später während unserer Öffnungszeiten.',
+                icon: '⏳'
+              })
+            } else if (!isAboveMinOrder) {
+              setWarningModal({
+                title: 'Mindestbestellwert',
+                message: `Der Mindestbestellwert für deine Region beträgt ${formatPrice(currentMinOrder)}. Bitte füge weitere Artikel hinzu.`,
+                icon: '⚠️'
+              })
+            } else if (!isZoneValid) {
+              setWarningModal({
+                title: 'Liefergebiet',
+                message: 'Leider liefern wir aktuell nicht an die angegebene PLZ. Bitte prüfe deine Eingabe.',
+                icon: '📍'
+              })
+            }
         }
         return
     }
@@ -198,13 +221,25 @@ export function CheckoutPage() {
           : 'Unbekannter Fehler'
 
       if (msg.includes('phone number') || msg.includes('first order')) {
-        toast.error('Dieser Gutschein wurde bereits von dieser Telefonnummer genutzt.')
+        setWarningModal({
+          title: 'Gutschein-Hinweis',
+          message: 'Dieser Gutschein wurde bereits von dieser Telefonnummer genutzt.',
+          icon: '🏷️'
+        })
         setCouponCode('')
         setDiscount(0)
       } else if (msg.includes('delivery zone') || msg.includes('outside')) {
-        toast.error('Deine Adresse liegt außerhalb unserer Lieferzone.')
+        setWarningModal({
+          title: 'Liefergebiet',
+          message: 'Deine Adresse liegt außerhalb unserer Lieferzone.',
+          icon: '📍'
+        })
       } else if (msg.includes('Discount cannot exceed')) {
-        toast.error('Der Gutschein überschreitet das erlaubte Rabattlimit.')
+        setWarningModal({
+          title: 'Gutschein-Limit',
+          message: 'Der Gutschein überschreitet das erlaubte Rabattlimit.',
+          icon: '🏷️'
+        })
         setCouponCode('')
         setDiscount(0)
       } else {
@@ -251,7 +286,7 @@ export function CheckoutPage() {
           </div>
           <h1 className="text-2xl font-black text-gray-900 mb-2">Bestellung abgelehnt 😔</h1>
           <p className="text-gray-500 mb-6">Leider konnten wir deine Bestellung nicht annehmen. Bitte ruf uns an.</p>
-          <p className="font-bold text-[#142328] text-lg mb-6">05121 3030551</p>
+          <p className="font-bold text-[#142328] text-lg mb-6">05069 8067500</p>
           <Button variant="primary" fullWidth onClick={() => navigate('/')}>
             Zurück zum Menü
           </Button>
@@ -379,16 +414,16 @@ export function CheckoutPage() {
                     value={form.name} onChange={handleField('name')} error={errors.name} />
                 </div>
                 <div className="col-span-2 md:col-span-1">
-                  <Input label="Telefon" placeholder="+49 172 1234567" required
+                  <Input label="Telefon" placeholder="05069 8067500" required
                     value={form.phone} onChange={handleField('phone')} error={errors.phone} />
                 </div>
                 <div className="col-span-2">
                   <Input label="Straße & Hausnummer" placeholder="Musterstraße 1" required
                     value={form.street} onChange={handleField('street')} error={errors.street} />
                 </div>
-                <Input label="PLZ" placeholder="31134" required
+                <Input label="PLZ" placeholder="31171" required
                   value={form.postalCode} onChange={handleField('postalCode')} error={errors.postalCode} />
-                <Input label="Stadt" placeholder="Hildesheim" required
+                <Input label="Stadt" placeholder="Nordstemmen" required
                   value={form.city} onChange={handleField('city')} error={errors.city} />
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Anmerkungen</label>
@@ -514,6 +549,23 @@ export function CheckoutPage() {
             </div>
           </div>
         </div>
+
+      <Modal
+        isOpen={!!warningModal}
+        onClose={() => setWarningModal(null)}
+        title={warningModal?.title || ''}
+        size="sm"
+      >
+        <div className="p-6 text-center">
+          <div className="text-4xl mb-4">{warningModal?.icon}</div>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            {warningModal?.message}
+          </p>
+          <Button variant="primary" fullWidth onClick={() => setWarningModal(null)}>
+            Verstanden
+          </Button>
+        </div>
+      </Modal>
       </div>
     </div>
   )

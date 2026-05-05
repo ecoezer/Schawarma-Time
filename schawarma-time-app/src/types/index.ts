@@ -153,6 +153,9 @@ export interface RestaurantSettings {
   is_halal_certified: boolean
   announcement: string | null
   is_announcement_active: boolean
+  is_map_mode_active: boolean
+  is_hero_active: boolean
+  is_search_active: boolean
   revenue_goal_daily: number
   tags: string[]
 }

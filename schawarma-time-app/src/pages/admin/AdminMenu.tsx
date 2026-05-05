@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input'
 import { Toggle } from '@/components/ui/Toggle'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { formatPrice } from '@/lib/utils'
 import { ImageCropModal } from '@/components/admin/ImageCropModal'
 import toast from 'react-hot-toast'
@@ -33,6 +34,11 @@ export function AdminMenu() {
   // Drag and Drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // Confirm Modals state
+  const [isDeleteCatConfirmOpen, setIsDeleteCatConfirmOpen] = useState(false)
+  const [catToDelete, setCatToDelete] = useState<{ id: string, name: string } | null>(null)
+  const [isDeleteProductConfirmOpen, setIsDeleteProductConfirmOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchMenu()
@@ -128,9 +134,33 @@ export function AdminMenu() {
   }
 
   const handleSave = async () => {
-    if (!form.name) { toast.error('Name ist erforderlich'); return }
-    if (!form.useSizes && !form.price) { toast.error('Preis ist erforderlich'); return }
-    if (form.useSizes && form.sizes.length < 2) { toast.error('Bitte mindestens 2 Größen hinzufügen'); return }
+    if (!form.name) { 
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Name ist erforderlich
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return 
+    }
+    if (!form.useSizes && !form.price) { 
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Preis ist erforderlich
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return 
+    }
+    if (form.useSizes && form.sizes.length < 2) { 
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Bitte mindestens 2 Größen hinzufügen
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return 
+    }
     
     setIsSubmitting(true)
 
@@ -172,7 +202,12 @@ export function AdminMenu() {
 
       setIsModalOpen(false)
     } catch (err: any) {
-      toast.error('Fehler beim Speichern: ' + err.message)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler beim Speichern: {err.message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsSubmitting(false)
     }
@@ -202,7 +237,15 @@ export function AdminMenu() {
   const handleSaveCategory = async () => {
     const name = catForm.name.trim()
     const slug = catForm.slug.trim() || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    if (!name) { toast.error('Kategoriename ist erforderlich'); return }
+    if (!name) { 
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Kategoriename ist erforderlich
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return 
+    }
     setIsCatSubmitting(true)
     try {
       if (editCategoryId) {
@@ -214,7 +257,12 @@ export function AdminMenu() {
       }
       setIsCatModalOpen(false)
     } catch (err: any) {
-      toast.error('Fehler: ' + err.message)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler: {err.message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsCatSubmitting(false)
     }
@@ -223,28 +271,58 @@ export function AdminMenu() {
   const handleDeleteCategory = async (id: string, name: string) => {
     const count = products.filter(p => p.category_id === id).length
     if (count > 0) {
-      toast.error(`Kategorie "${name}" hat noch ${count} Produkt(e). Bitte zuerst verschieben oder löschen.`)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Kategorie "{name}" hat noch {count} Produkt(e). Bitte zuerst verschieben oder löschen.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
-    if (!confirm(`Kategorie "${name}" wirklich löschen?`)) return
+    setCatToDelete({ id, name })
+    setIsDeleteCatConfirmOpen(true)
+  }
+
+  const performDeleteCategory = async () => {
+    if (!catToDelete) return
     try {
-      await deleteCategory(id)
-      if (activeCategory === id) setActiveCategory(categories[0]?.id ?? '')
+      await deleteCategory(catToDelete.id)
+      if (activeCategory === catToDelete.id) setActiveCategory(categories[0]?.id ?? '')
       toast.success('Kategorie gelöscht')
     } catch (err: any) {
-      toast.error('Fehler: ' + err.message)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler: {err.message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+    } finally {
+      setIsDeleteCatConfirmOpen(false)
+      setCatToDelete(null)
     }
   }
 
-  const deleteProduct = async (productId: string) => {
-    if (confirm('Produkt wirklich löschen?')) {
-      try {
-        await productService.deleteProduct(productId)
-        toast.success('Produkt gelöscht')
-        fetchMenu()
-      } catch (err: any) {
-        toast.error('Fehler beim Löschen: ' + err.message)
-      }
+  const deleteProduct = (productId: string) => {
+    setProductToDelete(productId)
+    setIsDeleteProductConfirmOpen(true)
+  }
+
+  const performDeleteProduct = async () => {
+    if (!productToDelete) return
+    try {
+      await productService.deleteProduct(productToDelete)
+      toast.success('Produkt gelöscht')
+      fetchMenu()
+    } catch (err: any) {
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler beim Löschen: {err.message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+    } finally {
+      setIsDeleteProductConfirmOpen(false)
+      setProductToDelete(null)
     }
   }
 
@@ -711,6 +789,28 @@ export function AdminMenu() {
           price: parseFloat(form.price) || 0,
           description: form.description,
         } : undefined}
+      />
+
+      <ConfirmModal
+        isOpen={isDeleteCatConfirmOpen}
+        onClose={() => { setIsDeleteCatConfirmOpen(false); setCatToDelete(null) }}
+        onConfirm={performDeleteCategory}
+        title="Kategorie löschen?"
+        message={`Möchtest du die Kategorie "${catToDelete?.name}" wirklich löschen?`}
+        confirmText="Löschen"
+        cancelText="Abbrechen"
+        isDangerous={true}
+      />
+
+      <ConfirmModal
+        isOpen={isDeleteProductConfirmOpen}
+        onClose={() => { setIsDeleteProductConfirmOpen(false); setProductToDelete(null) }}
+        onConfirm={performDeleteProduct}
+        title="Produkt löschen?"
+        message="Möchtest du bu Produkt wirklich unwiderruflich löschen?"
+        confirmText="Löschen"
+        cancelText="Abbrechen"
+        isDangerous={true}
       />
     </div>
   )

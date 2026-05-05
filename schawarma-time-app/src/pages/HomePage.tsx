@@ -110,7 +110,7 @@ export function HomePage() {
     <div className="min-h-screen bg-white">
       <div className="bg-white border-b border-gray-100">
         <HeroSection settings={settings} />
-        <MapSection settings={settings} />
+        {settings.is_map_mode_active && <MapSection settings={settings} />}
       </div>
 
       <div className="bg-white">

@@ -76,7 +76,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryClick, searc
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div>
               <h3 className="text-[17px] font-bold text-[#142328]">Öffnungszeiten</h3>
-              <p className="text-[14px] text-[#545454] mt-0.5">11:30 AM – 10:00 PM</p>
+              <p className="text-[14px] text-[#545454] mt-0.5">11:30 – 22:00</p>
             </div>
 
             {/* Search */}

@@ -16,11 +16,21 @@ export function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password.length < 10) {
-      toast.error('Das Passwort muss mindestens 10 Zeichen lang sein.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Das Passwort muss mindestens 10 Zeichen lang sein.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     if (password !== confirm) {
-      toast.error('Die Passwörter stimmen nicht überein.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Die Passwörter stimmen nicht überein.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     setIsLoading(true)
@@ -30,7 +40,12 @@ export function ResetPasswordPage() {
       toast.success('Passwort erfolgreich geändert! Du wirst angemeldet.')
       navigate('/', { replace: true })
     } catch (err: any) {
-      toast.error(err?.message ?? 'Ein Fehler ist aufgetreten.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          {err?.message ?? 'Ein Fehler ist aufgetreten.'}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsLoading(false)
     }

@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { ShoppingCart, Search, Phone } from 'lucide-react'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore } from '@/store/cartStore' 
 import { useAuthStore } from '@/store/authStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
+import logo from '@/assets/logo.png'
 
 export function Header() {
   const { totalQuantity, toggleCart } = useCartStore()
@@ -12,29 +13,8 @@ export function Header() {
 
   // Get restaurant name and phone from settings or fallback to defaults
   const restaurantName = settings?.name || 'Schawarma-Time'
-  const restaurantPhone = settings?.phone || '05121 3030551'
+  const restaurantPhone = settings?.phone || '05069 8067500'
   
-  // Logic to split name for two-tone styling (bold + medium)
-  // Splits by the first space or hyphen if found, otherwise splits in half
-  const splitName = () => {
-    const name = restaurantName
-    const splitIndex = name.indexOf(' ') !== -1 ? name.indexOf(' ') : name.indexOf('-')
-    
-    if (splitIndex !== -1) {
-      return {
-        prefix: name.substring(0, splitIndex),
-        suffix: name.substring(splitIndex)
-      }
-    }
-    
-    const mid = Math.ceil(name.length / 2)
-    return {
-      prefix: name.substring(0, mid),
-      suffix: name.substring(mid)
-    }
-  }
-
-  const { prefix, suffix } = splitName()
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-[72px] lg:h-[80px]">
@@ -43,8 +23,8 @@ export function Header() {
         {/* Left Section */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <div className="flex flex-col items-start shrink-0">
-            <Link to="/" className="text-[26px] tracking-tight text-black leading-tight hover:opacity-75 transition-opacity">
-              <span className="font-bold">{prefix}</span><span className="font-medium">{suffix}</span>
+            <Link to="/" className="hover:opacity-75 transition-opacity">
+              <img src={logo} alt={restaurantName} className="h-12 w-auto object-contain" />
             </Link>
             <a 
               href={`tel:${restaurantPhone.replace(/[^0-9+]/g, '')}`}
@@ -57,18 +37,20 @@ export function Header() {
         </div>
 
         {/* Center Search */}
-        <div className="flex-1 max-w-[720px] px-2 hidden md:block">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={20} className="text-black" strokeWidth={2.5} />
+        {settings?.is_search_active && (
+          <div className="flex-1 max-w-[720px] px-2 hidden md:block">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search size={20} className="text-black" strokeWidth={2.5} />
+              </div>
+              <input
+                type="text"
+                placeholder={`Suche in ${restaurantName}`}
+                className="w-full pl-[46px] pr-10 py-3 text-[15px] font-medium bg-[#f6f6f6] border-transparent rounded-full focus:outline-none focus:bg-[#e2e2e2] transition-colors placeholder:text-[#545454]"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Suche in Schawarma-Time"
-              className="w-full pl-[46px] pr-10 py-3 text-[15px] font-medium bg-[#f6f6f6] border-transparent rounded-full focus:outline-none focus:bg-[#e2e2e2] transition-colors placeholder:text-[#545454]"
-            />
           </div>
-        </div>
+        )}
 
         {/* Right Section */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">

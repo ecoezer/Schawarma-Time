@@ -41,8 +41,8 @@ export function ProfilePage() {
   const [addressForm, setAddressForm] = useState<Omit<UserAddress, 'id'>>({
     label: '',
     street: '',
-    city: 'Hildesheim',
-    postal_code: '31134',
+    city: 'Nordstemmen',
+    postal_code: '31171',
     lat: null,
     lng: null
   })
@@ -79,7 +79,12 @@ export function ProfilePage() {
       await updateProfile(profileForm)
       toast.success('Profil aktualisiert!')
     } catch {
-      toast.error('Fehler beim Aktualisieren des Profils')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler beim Aktualisieren des Profils
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsUpdatingProfile(false)
     }
@@ -90,21 +95,36 @@ export function ProfilePage() {
     try {
       await addAddress(addressForm)
       setShowAddressModal(false)
-      setAddressForm({ label: '', street: '', city: 'Hildesheim', postal_code: '31134', lat: null, lng: null })
+      setAddressForm({ label: '', street: '', city: 'Nordstemmen', postal_code: '31171', lat: null, lng: null })
       toast.success('Adresse hinzugefügt!')
     } catch (err) {
-      toast.error('Fehler beim Hinzufügen der Adresse')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler beim Hinzufügen der Adresse
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     }
   }
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error('Passwörter stimmen nicht überein')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Passwörter stimmen nicht überein
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     if (passwordForm.newPassword.length < 10) {
-      toast.error('Passwort muss mindestens 10 Zeichen lang sein')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Passwort muss mindestens 10 Zeichen lang sein
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     setIsChangingPassword(true)
@@ -113,7 +133,12 @@ export function ProfilePage() {
       toast.success('Passwort erfolgreich geändert!')
       setPasswordForm({ newPassword: '', confirmPassword: '' })
     } catch (err: any) {
-      toast.error(err.message || 'Fehler beim Ändern des Passworts')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          {err.message || 'Fehler beim Ändern des Passworts'}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsChangingPassword(false)
     }
@@ -172,10 +197,20 @@ export function ProfilePage() {
         addItems(cartItems, settings)
         toast.success('Produkte zum Warenkorb hinzugefügt!')
       } else {
-        toast.error('Keine Produkte verfügbar')
+        toast.error((t) => (
+          <span className="flex items-center gap-2">
+            Keine Produkte verfügbar
+            <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+          </span>
+        ), { duration: Infinity })
       }
     } catch {
-      toast.error('Fehler beim Wiederholen der Bestellung')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler beim Wiederholen der Bestellung
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     }
   }
 
@@ -542,7 +577,7 @@ export function ProfilePage() {
                   <div className="col-span-2">
                     <Input 
                         label="Straße & Hausnummer" 
-                        placeholder="Bahnhofsallee 14a" 
+                        placeholder="Hauptstraße 74" 
                         required
                         value={addressForm.street}
                         onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
@@ -550,14 +585,14 @@ export function ProfilePage() {
                   </div>
                   <Input 
                     label="PLZ" 
-                    placeholder="31134" 
+                    placeholder="31171" 
                     required
                     value={addressForm.postal_code}
                     onChange={(e) => setAddressForm({ ...addressForm, postal_code: e.target.value })}
                   />
                   <Input 
                     label="Stadt" 
-                    placeholder="Hildesheim" 
+                    placeholder="Nordstemmen" 
                     required
                     value={addressForm.city}
                     onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}

@@ -27,10 +27,10 @@ export default defineConfig({
       'Content-Security-Policy': [
         `default-src 'self'`,
         `script-src 'self' 'unsafe-inline'`,   // unsafe-inline needed for Vite HMR in dev
-        `style-src 'self' 'unsafe-inline'`,
+        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
         `connect-src 'self' ${SUPABASE_HOST} wss://*.supabase.co ${CLOUDINARY_HOSTS}`,
         `img-src 'self' data: blob: ${SUPABASE_HOST} ${CLOUDINARY_HOSTS}`,
-        `font-src 'self'`,
+        `font-src 'self' https://fonts.gstatic.com`,
         `frame-ancestors 'none'`,
       ].join('; '),
       'X-Content-Type-Options': 'nosniff',

@@ -4,6 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings,
   LogOut, Menu, X, Bell, Tag, Users, Lock, Eye, EyeOff
 } from 'lucide-react'
+import logo from '@/assets/logo.png'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
@@ -50,11 +51,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (pwForm.newPassword.length < 10) {
-      toast.error('Passwort muss mindestens 10 Zeichen lang sein.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Passwort muss mindestens 10 Zeichen lang sein.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     if (pwForm.newPassword !== pwForm.confirmPassword) {
-      toast.error('Passwörter stimmen nicht überein.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Passwörter stimmen nicht überein.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     setIsSavingPw(true)
@@ -65,7 +76,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       setShowPwModal(false)
       setPwForm({ newPassword: '', confirmPassword: '' })
     } catch (err: any) {
-      toast.error(err.message ?? 'Fehler beim Ändern des Passworts.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          {err.message ?? 'Fehler beim Ändern des Passworts.'}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsSavingPw(false)
     }
@@ -124,12 +140,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Logo */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
           <Link to="/admin" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center">
-              <span className="text-[#142328] font-black text-sm">S47</span>
-            </div>
+            <img src={logo} alt="Schawarma-Time" className="h-10 w-auto object-contain bg-white rounded-lg p-1" />
             <div>
               <p className="font-black text-sm leading-tight">Schawarma-Time</p>
-              <p className="text-xs text-gray-400">Admin Panel</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Admin Panel</p>
             </div>
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 hover:bg-white/10 rounded-lg">

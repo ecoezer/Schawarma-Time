@@ -25,7 +25,12 @@ export function AdminLoginPage() {
       const profile = await authService.fetchProfile(data.user.id)
 
       if (!profile || !['manager', 'cashier', 'kitchen'].includes(profile.role)) {
-        toast.error('Keine Admin-Berechtigung für dieses Konto')
+        toast.error((t) => (
+          <span className="flex items-center gap-2">
+            Keine Admin-Berechtigung für dieses Konto
+            <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+          </span>
+        ), { duration: Infinity })
         await authService.signOut()
         return
       }

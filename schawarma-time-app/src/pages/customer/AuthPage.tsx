@@ -53,7 +53,7 @@ export function AuthPage() {
     phone: '',
     street: '',
     postalCode: '',
-    city: 'Hildesheim',
+    city: 'Nordstemmen',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -86,7 +86,12 @@ export function AuthPage() {
       toast.success('Bestätigungs-E-Mail wurde erneut gesendet. Bitte prüfe dein Postfach.', { duration: 6000 })
       setShowResend(false)
     } catch {
-      toast.error('E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsResending(false)
     }
@@ -94,7 +99,15 @@ export function AuthPage() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!forgotEmail) { toast.error('Bitte gib deine E-Mail-Adresse ein.'); return }
+    if (!forgotEmail) { 
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Bitte gib deine E-Mail-Adresse ein.
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return 
+    }
     setIsSendingReset(true)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
@@ -103,7 +116,12 @@ export function AuthPage() {
       if (error) throw error
       setResetSent(true)
     } catch (err: any) {
-      toast.error(translateAuthError(err))
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          {translateAuthError(err)}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsSendingReset(false)
     }
@@ -166,7 +184,12 @@ export function AuthPage() {
     } catch (err: any) {
       const message = translateAuthError(err)
       if (message === '__resend__') { setShowResend(true); return }
-      toast.error(message)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          {message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsLoading(false)
     }
@@ -259,7 +282,7 @@ export function AuthPage() {
                 />
                 <Input
                   label="Telefonnummer"
-                  placeholder="+49 172 1234567"
+                  placeholder="05069 8067500"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   leftIcon={<Phone size={18} className="text-gray-400" />}
@@ -268,7 +291,7 @@ export function AuthPage() {
                 />
                 <Input
                   label="Straße & Hausnummer"
-                  placeholder="Bahnhofsallee 14a"
+                  placeholder="Hauptstraße 74"
                   value={formData.street}
                   onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                   leftIcon={<MapPin size={18} className="text-gray-400" />}
@@ -278,7 +301,7 @@ export function AuthPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Input
                     label="PLZ"
-                    placeholder="31134"
+                    placeholder="31171"
                     value={formData.postalCode}
                     onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                     error={errors.postalCode}
@@ -286,7 +309,7 @@ export function AuthPage() {
                   />
                   <Input
                     label="Stadt"
-                    placeholder="Hildesheim"
+                    placeholder="Nordstemmen"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     error={errors.city}
@@ -383,7 +406,15 @@ export function AuthPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!formData.email) { toast.error('Bitte zuerst E-Mail-Adresse eingeben.'); return }
+                  if (!formData.email) { 
+                    toast.error((t) => (
+                      <span className="flex items-center gap-2 text-xs">
+                        Bitte zuerst E-Mail-Adresse eingeben.
+                        <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+                      </span>
+                    ), { duration: Infinity })
+                    return 
+                  }
                   handleResendConfirmation()
                 }}
                 className="font-semibold text-[#142328] hover:underline"

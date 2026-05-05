@@ -14,7 +14,7 @@ export function ImpressumPage() {
             <h2 className="text-lg font-bold text-gray-900">Angaben gemäß § 5 TMG</h2>
             <p><strong>Schawarma-Time</strong><br />Bahnhofsallee 14a<br />31134 Hildesheim<br />Deutschland</p>
             <h2 className="text-lg font-bold text-gray-900 mt-6">Kontakt</h2>
-            <p>Telefon: 05121 3030551<br />E-Mail: info@schawarma-time.de</p>
+            <p>Telefon: 05069 8067500<br />E-Mail: info@schawarma-time.de</p>
             <h2 className="text-lg font-bold text-gray-900 mt-6">Umsatzsteuer-ID</h2>
             <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz: DE000000000</p>
             <h2 className="text-lg font-bold text-gray-900 mt-6">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>

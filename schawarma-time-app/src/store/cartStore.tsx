@@ -45,7 +45,21 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item, settings) => {
         if (!isStoreOpen(settings)) {
-          toast.error('Wir haben aktuell geschlossen veya...')
+          toast.error((t) => (
+            <span className="flex items-center gap-2 text-sm font-medium">
+              Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an.
+              <button 
+                onClick={() => toast.dismiss(t.id)}
+                className="ml-2 p-1 hover:bg-red-100 rounded-lg transition-colors"
+                title="Schließen"
+              >
+                ✕
+              </button>
+            </span>
+          ), { 
+            duration: Infinity,
+            position: 'top-center'
+          })
           return false
         }
 
@@ -75,7 +89,21 @@ export const useCartStore = create<CartStore>()(
 
       addItems: (newItems, settings) => {
         if (!isStoreOpen(settings)) {
-          toast.error('Wir haben aktuell geschlossen oder nehmen keine Bestellungen an.')
+          toast.error((t) => (
+            <span className="flex items-center gap-2 text-sm font-medium">
+              Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an.
+              <button 
+                onClick={() => toast.dismiss(t.id)}
+                className="ml-2 p-1 hover:bg-red-100 rounded-lg transition-colors"
+                title="Schließen"
+              >
+                ✕
+              </button>
+            </span>
+          ), { 
+            duration: Infinity,
+            position: 'top-center'
+          })
           return false
         }
 

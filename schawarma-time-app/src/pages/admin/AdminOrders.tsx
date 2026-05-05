@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { useOrderStore } from '@/store/orderStore'
 import * as orderService from '@/services/orderService'
 import { handleError } from '@/lib/errorHandler'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
@@ -22,6 +23,8 @@ export function AdminOrders() {
   const { soundEnabled, setSoundEnabled, fetchOrders, patchOrder } = useOrderStore()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null)
 
   // Derive selectedOrder from store — always in sync, no useEffect needed
   const selectedOrder = useMemo(
@@ -48,8 +51,16 @@ export function AdminOrders() {
   }
 
   const cancelOrder = (orderId: string) => {
-    updateStatus(orderId, 'cancelled')
+    setOrderToCancel(orderId)
+    setIsCancelConfirmOpen(true)
+  }
+
+  const performCancel = () => {
+    if (!orderToCancel) return
+    updateStatus(orderToCancel, 'cancelled')
     setSelectedOrderId(null)
+    setIsCancelConfirmOpen(false)
+    setOrderToCancel(null)
   }
 
   const getNextStatus = (current: OrderStatus): OrderStatus | null => {
@@ -297,6 +308,17 @@ export function AdminOrders() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={isCancelConfirmOpen}
+        onClose={() => { setIsCancelConfirmOpen(false); setOrderToCancel(null) }}
+        onConfirm={performCancel}
+        title="Bestellung stornieren?"
+        message="Möchtest du diese Bestellung wirklich stornieren? Der Kunde wird über die Stornierung benachrichtigt."
+        confirmText="Ja, stornieren"
+        cancelText="Abbrechen"
+        isDangerous={true}
+      />
     </div>
   )
 }

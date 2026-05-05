@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { RestaurantSettings } from '@/types'
 import * as restaurantService from '@/services/restaurantService'
-import { extractMessage } from '@/lib/errorHandler'
+import { extractMessage } from '@/lib/errorHandler' 
 
 interface RestaurantStore {
   settings: RestaurantSettings | null

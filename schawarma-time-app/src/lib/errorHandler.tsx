@@ -2,13 +2,29 @@ import toast from 'react-hot-toast'
 
 /**
  * Centralized error handler for all service/store operations.
- * Logs to console and shows a user-friendly toast.
+ * Logs to console and shows a user-friendly persistent toast with a close button.
  */
 export function handleError(err: unknown, context: string): string {
   const message = extractMessage(err)
-  // Log message only — never log raw error objects (may contain schema/key details)
   console.error(`[Schawarma-Time:${context}]`, message)
-  toast.error(message)
+  
+  // Persistent toast with a close button (X)
+  toast.error((t) => (
+    <span className="flex items-center gap-2 text-sm font-medium">
+      {message}
+      <button 
+        onClick={() => toast.dismiss(t.id)}
+        className="ml-2 p-1 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+        title="Schließen"
+      >
+        ✕
+      </button>
+    </span>
+  ), { 
+    duration: Infinity,
+    position: 'top-center'
+  })
+  
   return message
 }
 

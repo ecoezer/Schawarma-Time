@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { formatPrice } from '@/lib/utils'
 import { OrderNoteModal } from './OrderNoteModal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { Modal } from '@/components/ui/Modal'
+import { isRestaurantOpen } from '@/lib/utils'
 
 export function CartSidebar() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, totalQuantity, globalNote, setGlobalNote, clearCart } = useCartStore()
@@ -15,6 +17,7 @@ export function CartSidebar() {
   const navigate = useNavigate()
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
+  const [isClosedWarningOpen, setIsClosedWarningOpen] = useState(false)
 
   const total = totalPrice()
   const count = totalQuantity()
@@ -41,6 +44,11 @@ export function CartSidebar() {
   }
 
   const handleCheckout = () => {
+    const isRestaurantOpenNow = settings ? isRestaurantOpen(settings.hours) : false
+    if (!isRestaurantOpenNow) {
+      setIsClosedWarningOpen(true)
+      return
+    }
     closeCart()
     navigate('/bestellung')
   }
@@ -297,6 +305,23 @@ export function CartSidebar() {
         cancelText="Abbrechen"
         isDangerous={true}
       />
+
+      <Modal
+        isOpen={isClosedWarningOpen}
+        onClose={() => setIsClosedWarningOpen(false)}
+        title="Aktuell geschlossen"
+        size="sm"
+      >
+        <div className="p-6 text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an. Bitte versuche es später während unserer Öffnungszeiten.
+          </p>
+          <Button variant="primary" fullWidth onClick={() => setIsClosedWarningOpen(false)}>
+            Verstanden
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

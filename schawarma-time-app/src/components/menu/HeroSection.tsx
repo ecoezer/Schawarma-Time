@@ -23,23 +23,25 @@ export function HeroSection({ settings }: HeroSectionProps) {
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
         
         {/* Banner Image Container */}
-        <div className="relative w-full h-[192px] sm:h-[256px] rounded-2xl overflow-hidden bg-gray-100 group">
-          <img 
-            src={imageUrl} 
-            alt={settings.name} 
-            className="w-full h-full object-cover"
-          />
-          
-          {/* Top Right Action Buttons */}
-          <div className="absolute top-4 right-4 flex items-center gap-3">
-            <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors cursor-pointer text-black">
-              <Heart size={20} />
-            </button>
-            <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors cursor-pointer text-black">
-              <MoreHorizontal size={20} />
-            </button>
+        {settings.is_hero_active && (
+          <div className="relative w-full h-[192px] sm:h-[256px] rounded-2xl overflow-hidden bg-gray-100 group">
+            <img 
+              src={imageUrl} 
+              alt={settings.name} 
+              className="w-full h-full object-cover"
+            />
+            
+            {/* Top Right Action Buttons */}
+            <div className="absolute top-4 right-4 flex items-center gap-3">
+              <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors cursor-pointer text-black">
+                <Heart size={20} />
+              </button>
+              <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors cursor-pointer text-black">
+                <MoreHorizontal size={20} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Info Grid */}
         <div className="flex flex-col lg:flex-row justify-between items-start mt-6">

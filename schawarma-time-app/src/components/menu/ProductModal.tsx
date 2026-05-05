@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Product, CartExtra } from '@/types'
 import { useCartStore } from '@/store/cartStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
-import { formatPrice, cn } from '@/lib/utils'
+import { formatPrice, cn, isRestaurantOpen } from '@/lib/utils'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import toast from 'react-hot-toast'
 
 interface ProductModalProps {
@@ -18,6 +20,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
   const [quantity, setQuantity] = useState(1)
   const [note, setNote] = useState('')
   const [showStickyHeader, setShowStickyHeader] = useState(false)
+  const [isClosedWarningOpen, setIsClosedWarningOpen] = useState(false)
   const [transformOrigin, setTransformOrigin] = useState('50% 50%')
   const { addItem } = useCartStore()
   const { settings } = useRestaurantStore()
@@ -124,6 +127,13 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
 
   const handleAddToCart = () => {
     if (!isValid) return
+    
+    const isRestaurantOpenNow = settings ? isRestaurantOpen(settings.hours) : false
+    if (!isRestaurantOpenNow) {
+      setIsClosedWarningOpen(true)
+      return
+    }
+
     const success = addItem({
       product_id: product.id,
       name: product.name,
@@ -145,7 +155,8 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
   const isDrink = product?.category_id === 'cat6' || product?.category_id === 'cat7' || product?.name.toLowerCase().includes('drink')
 
   return (
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-6 lg:p-12 overflow-hidden">
         {/* Backdrop */}
         <motion.div
@@ -422,5 +433,22 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
         </motion.div>
       </div>
     </AnimatePresence>
+      <Modal
+        isOpen={isClosedWarningOpen}
+        onClose={() => setIsClosedWarningOpen(false)}
+        title="Aktuell geschlossen"
+        size="sm"
+      >
+        <div className="p-6 text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an. Bitte versuche es später während unserer Öffnungszeiten.
+          </p>
+          <Button variant="primary" fullWidth onClick={() => setIsClosedWarningOpen(false)}>
+            Verstanden
+          </Button>
+        </div>
+      </Modal>
+    </>
   )
 }

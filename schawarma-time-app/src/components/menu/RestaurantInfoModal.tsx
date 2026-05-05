@@ -40,22 +40,32 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="relative bg-white w-full max-w-[540px] max-h-[90vh] rounded-[24px] shadow-2xl overflow-hidden flex flex-col z-[1100]"
           >
-            {/* Header with Map */}
-            <div className="relative h-[220px] bg-[#e5e3df] shrink-0">
-              <div 
-                className="absolute inset-0 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=Hildesheim&zoom=14&size=600x300&maptype=roadmap&client=gme-ubercabinc1&sensor=false&style=feature:poi%7Cvisibility:off&client=gme-ubercabinc1')] bg-cover bg-center opacity-70"
-              />
-              {/* Route Indicator graphic (Fake) */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-24">
-                <svg viewBox="0 0 100 50" className="w-full h-full overflow-visible">
-                  <path d="M 10 40 Q 40 10 90 20" fill="transparent" stroke="#2563eb" strokeWidth="4" strokeDasharray="6,6" />
-                  <circle cx="10" cy="40" r="5" fill="black" />
-                  <circle cx="90" cy="20" r="5" fill="black" />
-                </svg>
-                <div className="absolute top-[5px] left-[35px] bg-white rounded shadow px-2 py-1 text-[13px] font-bold text-black border border-gray-200">
-                  2.3 Meilen
+            {/* Header with Map or fallback */}
+            <div className="relative h-[220px] bg-[#f3f3f3] shrink-0 overflow-hidden">
+              {settings.is_map_mode_active ? (
+                <>
+                  <div 
+                    className="absolute inset-0 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=Hildesheim&zoom=14&size=600x300&maptype=roadmap&client=gme-ubercabinc1&sensor=false&style=feature:poi%7Cvisibility:off&client=gme-ubercabinc1')] bg-cover bg-center opacity-70"
+                  />
+                  {/* Route Indicator graphic (Fake) */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-24">
+                    <svg viewBox="0 0 100 50" className="w-full h-full overflow-visible">
+                      <path d="M 10 40 Q 40 10 90 20" fill="transparent" stroke="#2563eb" strokeWidth="4" strokeDasharray="6,6" />
+                      <circle cx="10" cy="40" r="5" fill="black" />
+                      <circle cx="90" cy="20" r="5" fill="black" />
+                    </svg>
+                    <div className="absolute top-[5px] left-[35px] bg-white rounded shadow px-2 py-1 text-[13px] font-bold text-black border border-gray-200">
+                      2.3 Meilen
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none">
+                   <div className="text-[120px] font-black uppercase text-black rotate-[-15deg]">
+                     {settings.name.split('-')[0]}
+                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Close Button */}
               <button 
@@ -122,7 +132,7 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
                   
                   <div>
                     <h4 className="font-bold text-black text-[15px] mb-1">Kontakt</h4>
-                    <p>Telefon: 05121 3030551<br />E-Mail: info@schawarma-time.de</p>
+                    <p>Telefon: 05069 8067500<br />E-Mail: info@schawarma-time.de</p>
                   </div>
 
                   <div>

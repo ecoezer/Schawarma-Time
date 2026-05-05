@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Clock, Truck, Euro, Bell, Save, RefreshCw, Store, X, Plus, ImageIcon, Upload } from 'lucide-react'
+import { Clock, Truck, Euro, Bell, Save, RefreshCw, Store, X, Plus, ImageIcon, Upload, Map as MapIcon } from 'lucide-react'
 import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -53,7 +53,12 @@ export function AdminSettings() {
       await updateSettings({ ...localSettings, hours })
       toast.success('Einstellungen gespeichert!')
     } catch (err: any) {
-      toast.error('Fehler beim Speichern: ' + err.message)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Fehler beim Speichern: {err.message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsSaving(false)
     }
@@ -84,7 +89,15 @@ export function AdminSettings() {
   const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) { toast.error('Nur Bilddateien erlaubt'); return }
+    if (!file.type.startsWith('image/')) { 
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Nur Bilddateien erlaubt
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return 
+    }
     setIsUploadingHero(true)
     try {
       const formData = new FormData()
@@ -104,7 +117,12 @@ export function AdminSettings() {
       update('hero_images', [finalUrl])
       toast.success('Bild bereit – jetzt speichern!')
     } catch (err: any) {
-      toast.error('Upload fehlgeschlagen: ' + err.message)
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Upload fehlgeschlagen: {err.message}
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
     } finally {
       setIsUploadingHero(false)
       if (heroInputRef.current) heroInputRef.current.value = ''
@@ -146,13 +164,22 @@ export function AdminSettings() {
             />
           </div>
 
+          <div className="pt-4 border-t border-gray-50">
+            <Toggle
+              checked={localSettings.is_search_active}
+              onChange={(v) => update('is_search_active', v)}
+              label="Menü-Suche Aktivieren"
+              description={localSettings.is_search_active ? 'Die Suchleiste wird im Header angezeigt' : 'Suchleiste ist ausgeblendet'}
+            />
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Beschreibung <span className="text-gray-400 font-normal">(wird auf der Startseite angezeigt)</span></label>
             <textarea
               value={localSettings.description || ''}
               onChange={(e) => update('description', e.target.value)}
-              placeholder="z.B. Frische Smash Burger aus Hildesheim – täglich frisch zubereitet."
+              placeholder="z.B. Frische Schawarma aus Nordstemmen – täglich frisch zubereitet."
               rows={2}
               className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#142328]"
             />
@@ -198,6 +225,15 @@ export function AdminSettings() {
           <ImageIcon size={18} className="text-[#142328]" />
           Hero-Bild (Startseiten-Banner)
         </h2>
+
+        <div className="mb-6">
+          <Toggle
+            checked={localSettings.is_hero_active}
+            onChange={(v) => update('is_hero_active', v)}
+            label="Banner Aktiv/Inaktiv"
+            description={localSettings.is_hero_active ? 'Banner wird auf der Startseite angezeigt' : 'Banner ist ausgeblendet'}
+          />
+        </div>
 
         {/* Preview */}
         {localSettings.hero_images?.[0] ? (
@@ -249,7 +285,12 @@ export function AdminSettings() {
                   setPendingHeroUrl(null)
                   toast.success('Hero-Bild gespeichert!')
                 } catch (err: any) {
-                  toast.error('Fehler: ' + err.message)
+                  toast.error((t) => (
+                    <span className="flex items-center gap-2">
+                      Fehler: {err.message}
+                      <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+                    </span>
+                  ), { duration: Infinity })
                 } finally {
                   setIsSavingHero(false)
                 }
@@ -392,6 +433,22 @@ export function AdminSettings() {
               className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#142328] disabled:opacity-50"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Map Mode Toggle */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <MapIcon size={18} className="text-[#142328]" />
+          Karten-Modus
+        </h2>
+        <div className="space-y-3">
+          <Toggle
+            checked={localSettings.is_map_mode_active}
+            onChange={(v) => update('is_map_mode_active', v)}
+            label="Karten-Modus (Aktiv/Inaktiv)"
+            description={localSettings.is_map_mode_active ? 'Kartenbereich wird auf der Startseite angezeigt' : 'Kartenbereich ist ausgeblendet'}
+          />
         </div>
       </div>
 

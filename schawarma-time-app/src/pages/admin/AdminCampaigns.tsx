@@ -72,11 +72,21 @@ export function AdminCampaigns() {
 
   const handleSave = async () => {
     if (!form.code.trim()) {
-      toast.error('Gutscheincode ist erforderlich')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Gutscheincode ist erforderlich
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
     if (!form.discount_value || parseFloat(form.discount_value) <= 0) {
-      toast.error('Rabattwert muss größer als 0 sein')
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Rabattwert muss größer als 0 sein
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
       return
     }
 
@@ -106,7 +116,12 @@ export function AdminCampaigns() {
       setIsModalOpen(false)
     } catch (err: any) {
       if (err.message?.includes('duplicate') || err.code === '23505') {
-        toast.error('Dieser Gutscheincode existiert bereits')
+        toast.error((t) => (
+          <span className="flex items-center gap-2">
+            Dieser Gutscheincode existiert bereits
+            <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+          </span>
+        ), { duration: Infinity })
       } else {
         handleError(err, 'Gutschein speichern')
       }

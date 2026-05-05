@@ -14,13 +14,13 @@ export function MapSection({ settings }: MapSectionProps) {
           
           {/* Map Image Placeholder (Left Side) */}
           <a 
-            href="https://www.google.com/maps?client=firefox-b-d&hs=Dxfp&sca_esv=232604508b79d53c&sxsrf=ANbL-n5cElPwpHuUoX6PzzYfsVD2D9hPqw:1775725367968&biw=1917&bih=870&uact=5&gs_lp=Egxnd3Mtd2l6LXNlcnAiB3NtYXNoNDcyBBAjGCcyBBAjGCcyERAuGIAEGMcBGMsBGI4FGK8BMgcQABiABBgNMgcQABiABBgNMgYQABgNGB4yBhAAGA0YHjIGEAAYDRgeMgYQABgNGB4yCBAAGAgYDRgeMiAQLhiABBjHARjLARiOBRivARiXBRjcBBjeBBjgBNgBAUjUC1DQB1ioCnABeACQAQCYAYcBoAHSAaoBAzEuMbgBA8gBAPgBAZgCA6AC7wHCAgkQABiwAxgNGB7CAgsQABiwAxgIGA0YHsICBRAAGIAEwgIHEC4YgAQYCsICBxAAGIAEGAqYAwCIBgGQBgq6BgYIARABGBSSBwMyLjGgB6AYsgcDMS4xuAfnAcIHBTItMi4xyAcWgAgA&um=1&ie=UTF-8&fb=1&gl=de&sa=X&geocode=KU0Dle-_r7pHMbHcWyO2qU5M&daddr=Bahnhofsallee+14,+31134+Hildesheim"
+            href="https://www.google.com/maps?q=Hauptstraße+74,+31171+Nordstemmen"
             target="_blank"
             rel="noopener noreferrer"
             className="flex-[3] relative bg-[#e5e3df] overflow-hidden min-h-[140px] block hover:opacity-90 transition-opacity"
           >
              {/* Map pseudo-visuals entirely styling based */}
-             <div className="absolute inset-0 opacity-50 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=Hildesheim&zoom=12&size=800x400&maptype=roadmap&client=gme-ubercabinc1&sensor=false&style=feature:poi%7Cvisibility:off&client=gme-ubercabinc1')] bg-cover bg-center" />
+             <div className="absolute inset-0 opacity-50 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=Nordstemmen&zoom=14&size=800x400&maptype=roadmap&style=feature:poi%7Cvisibility:off')] bg-cover bg-center" />
              
              {/* Route Indicator graphic (Fake) */}
              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-24 hidden sm:block">
@@ -43,7 +43,7 @@ export function MapSection({ settings }: MapSectionProps) {
                 <MapPin size={20} className="text-black mt-0.5" />
                 <div>
                   <h3 className="text-base font-bold text-black">{settings.address.split(',')[0]}</h3>
-                  <p className="text-[14px] text-[#545454] mt-0.5">{settings.address.split(',').slice(1).join(',').trim() || 'Hildesheim, EMEA'}</p>
+                  <p className="text-[14px] text-[#545454] mt-0.5">{settings.address.split(',').slice(1).join(',').trim() || 'Nordstemmen, Deutschland'}</p>
                 </div>
               </div>
               <button 
@@ -59,8 +59,8 @@ export function MapSection({ settings }: MapSectionProps) {
               <div className="flex items-start gap-4">
                 <Clock size={20} className="text-black mt-0.5" />
                 <div>
-                  <h3 className="text-base font-bold text-black">Öffnen</h3>
-                  <p className="text-[14px] text-[#545454] mt-0.5">Geöffnet bis 10:00 PM</p>
+                  <h3 className="text-base font-bold text-black">Öffnungszeiten</h3>
+                  <p className="text-[14px] text-[#545454] mt-0.5">Geöffnet bis 22:00</p>
                 </div>
               </div>
               <ChevronDown size={20} className="text-black" />
