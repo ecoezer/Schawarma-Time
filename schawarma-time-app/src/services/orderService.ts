@@ -154,10 +154,14 @@ export async function fetchOrderByNumber(orderNumber: string): Promise<Order | n
 }
 
 export function subscribeToOrders(callback: (payload: any) => void) {
+  // Use a unique channel name to avoid conflicts with multiple subscriptions
+  const channelId = `orders-realtime-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   const channel = supabase
-    .channel('orders-realtime')
+    .channel(channelId)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
     .subscribe()
 
-  return () => { supabase.removeChannel(channel) }
+  return () => { 
+    supabase.removeChannel(channel) 
+  }
 }
