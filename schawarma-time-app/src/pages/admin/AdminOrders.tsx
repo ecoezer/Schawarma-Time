@@ -98,12 +98,14 @@ export function AdminOrders() {
       
       // ITEMS
       let itemsTotal = 0
-      for (const item of order.items) {
-        itemsTotal += (item.unit_price || 0) * item.quantity
-        await printLine(`${item.quantity}x ${item.product_name}`, 30)
-        if (item.extras && item.extras.length > 0) {
-          for (const extra of item.extras) {
-            await printLine(`+ ${extra.name}`, 24)
+      if (order.items && order.items.length > 0) {
+        for (const item of order.items) {
+          itemsTotal += (item.unit_price || 0) * item.quantity
+          await printLine(`${item.quantity}x ${item.product_name}`, 30)
+          if (item.extras && item.extras.length > 0) {
+            for (const extra of item.extras) {
+              await printLine(`+ ${extra.name}`, 24)
+            }
           }
         }
       }
@@ -322,7 +324,7 @@ export function AdminOrders() {
             </div>
 
             <div className="space-y-4 mb-8">
-              {selectedOrder.items.map((item, i) => (
+              {selectedOrder.items?.map((item, i) => (
                 <div key={i} className="pb-4 border-b border-gray-100 last:border-0">
                   <div className="flex justify-between font-black text-[#142328]">
                     <span>{item.quantity}× {item.product_name}</span>
@@ -338,7 +340,7 @@ export function AdminOrders() {
               ))}
               <div className="pt-4 flex justify-between text-2xl font-black text-[#142328] border-t-2 border-gray-100">
                 <span>GESAMT</span>
-                <span>{formatPrice(selectedOrder.total)}</span>
+                <span>{formatPrice(selectedOrder.total || 0)}</span>
               </div>
             </div>
           </div>

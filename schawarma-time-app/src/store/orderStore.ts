@@ -68,14 +68,21 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
     return orderService.subscribeToOrders((payload) => {
       const { eventType, new: next, old } = payload
 
-      if (eventType === 'INSERT') {
-        const order = next as Order
-        set(state => ({ orders: [order, ...state.orders] }))
-        onNewOrder?.(order)
-      } else if (eventType === 'UPDATE') {
-        orderService.fetchOrderById(next.id).then(full => {
+      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+        const id = next.id
+        // We must fetch the full order with items/extras to avoid UI crashes
+        orderService.fetchOrderById(id).then(full => {
           if (full) {
-            set(state => ({ orders: state.orders.map(o => o.id === full.id ? full : o) }))
+            set(state => {
+              const exists = state.orders.some(o => o.id === id)
+              if (exists) {
+                return { orders: state.orders.map(o => o.id === id ? full : o) }
+              } else {
+                return { orders: [full, ...state.orders] }
+              }
+            })
+            if (eventType === 'INSERT') onNewOrder?.(full)
+            get().checkSound()
           }
         })
       } else if (eventType === 'DELETE') {
