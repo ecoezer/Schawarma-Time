@@ -5,5 +5,8 @@ project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/
 include ':capacitor-community-keep-awake'
 project(':capacitor-community-keep-awake').projectDir = new File('../node_modules/@capacitor-community/keep-awake/android')
 
+include ':capacitor-status-bar'
+project(':capacitor-status-bar').projectDir = new File('../node_modules/@capacitor/status-bar/android')
+
 include ':kduma-autoid-capacitor-sunmi-printer'
 project(':kduma-autoid-capacitor-sunmi-printer').projectDir = new File('../node_modules/@kduma-autoid/capacitor-sunmi-printer/android')

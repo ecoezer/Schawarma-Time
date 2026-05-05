@@ -8,6 +8,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { supabase } from '@/lib/supabase'
 import { KeepAwake } from '@capacitor-community/keep-awake'
+import { StatusBar } from '@capacitor/status-bar'
 import { Capacitor } from '@capacitor/core'
 import { HomePage } from '@/pages/HomePage'
 import { CheckoutPage } from '@/pages/CheckoutPage'
@@ -92,6 +93,7 @@ function AppContent() {
 
     if (Capacitor.isNativePlatform()) {
       KeepAwake.keepAwake().catch(err => console.warn('KeepAwake failed:', err))
+      StatusBar.hide().catch((err: any) => console.warn('StatusBar hide failed:', err))
     }
 
     return () => { 
