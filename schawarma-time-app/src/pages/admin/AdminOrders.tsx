@@ -10,6 +10,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { Modal } from '@/components/ui/Modal'
 import { Capacitor } from '@capacitor/core'
 import { SunmiPrinter } from '@kduma-autoid/capacitor-sunmi-printer'
+import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered']
@@ -42,7 +43,7 @@ export function AdminOrders() {
 
   const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
 
-  const printOrderToSunmi = async (order: Order) => {
+  const printOrderToSunmi = async (order: Order, deliveryTimeMins?: number) => {
     console.log('>>> STARTING KDUMA SUNMI PRINT')
     
     if (!Capacitor.isNativePlatform()) {
@@ -52,7 +53,6 @@ export function AdminOrders() {
 
     try {
       await SunmiPrinter.printerInit()
-      // alignment: 0=LEFT, 1=CENTER, 2=RIGHT
       await SunmiPrinter.setAlignment({ alignment: 1 as any }) 
       await SunmiPrinter.printText({ text: "SCHAWARMA-TIME\n" })
       await SunmiPrinter.printText({ text: "--------------------------------\n" })
@@ -75,6 +75,19 @@ export function AdminOrders() {
       }
       
       await SunmiPrinter.printText({ text: "--------------------------------\n" })
+      
+      // Calculate and print delivery time
+      const mins = deliveryTimeMins || order.estimated_delivery_time || 0
+      if (mins > 0) {
+        const deliveryDate = new Date(new Date().getTime() + mins * 60000)
+        await SunmiPrinter.setAlignment({ alignment: 1 as any })
+        await SunmiPrinter.printText({ text: `ESTIMATED DELIVERY TIME:\n` })
+        await SunmiPrinter.setFontSize({ size: 40 })
+        await SunmiPrinter.printText({ text: `${format(deliveryDate, 'HH:mm')}\n` })
+        await SunmiPrinter.setFontSize({ size: 24 }) // Reset font
+        await SunmiPrinter.printText({ text: "--------------------------------\n" })
+      }
+
       await SunmiPrinter.setAlignment({ alignment: 2 as any }) 
       await SunmiPrinter.printText({ text: `GESAMT: ${formatPrice(order.total)}\n` })
       
@@ -89,7 +102,7 @@ export function AdminOrders() {
       console.log('>>> PRINT COMPLETED SUCCESSFULLY')
     } catch (e) {
       console.error('>>> KDUMA PRINT ERROR:', e)
-      toast.error('Druckfehler! Bitte erneut versuchen.')
+      toast.error('Druckfehler!')
     }
   }
 
@@ -181,7 +194,7 @@ export function AdminOrders() {
         </div>
 
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-          {(['all', 'pending', 'preparing', 'on_the_way', 'delivered', 'cancelled'] as const).map((s) => (
+          {(['all', 'pending', 'confirmed', 'cancelled'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
@@ -190,7 +203,7 @@ export function AdminOrders() {
                 filter === s ? 'bg-[#142328] text-white' : 'bg-white text-gray-600 border border-gray-100'
               )}
             >
-              {s === 'all' ? 'Alle' : getStatusLabel(s)}
+              {s === 'all' ? 'Alle' : s === 'confirmed' ? 'Kabul Edildi' : getStatusLabel(s)}
             </button>
           ))}
         </div>
@@ -215,7 +228,7 @@ export function AdminOrders() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-black text-base">{order.order_number}</span>
                   <span className={cn("text-xs px-2 py-1 rounded-lg font-black", getStatusColor(order.status))}>
-                    {getStatusLabel(order.status)}
+                    {order.status === 'confirmed' ? 'KABUL EDILDI' : getStatusLabel(order.status)}
                   </span>
                 </div>
                 <p className="font-bold text-gray-800">{order.customer_name}</p>
@@ -282,34 +295,49 @@ export function AdminOrders() {
           </div>
 
           <div className="fixed bottom-0 left-0 right-0 p-5 bg-white border-t-2 border-gray-50 flex flex-col gap-3">
-            {getNextStatus(selectedOrder.status) && (
-              <button
-                type="button"
-                onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
-                className="w-full flex items-center justify-center gap-3 py-6 bg-[#06c167] text-white rounded-3xl text-xl font-black shadow-xl shadow-green-100"
-              >
-                <CheckCircle size={24} />
-                {getStatusLabel(getNextStatus(selectedOrder.status)!)}
-              </button>
+            {selectedOrder.status === 'pending' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleStatusTransition(selectedOrder.id, selectedOrder.status)}
+                  className="w-full flex items-center justify-center gap-3 py-6 bg-[#06c167] text-white rounded-3xl text-xl font-black shadow-xl shadow-green-100"
+                >
+                  <CheckCircle size={24} />
+                  KABUL ET
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cancelOrder(selectedOrder.id)}
+                  className="w-full flex items-center justify-center gap-2 py-5 bg-red-50 text-red-600 rounded-2xl font-black"
+                >
+                  <XCircle size={20} />
+                  REDDET / İPTAL
+                </button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="w-full py-4 bg-gray-100 text-[#142328] rounded-2xl text-center font-black">
+                  BU SİPARİŞ KABUL EDİLDİ
+                </div>
+                <button
+                  type="button"
+                  onClick={() => printOrderToSunmi(selectedOrder)}
+                  className="w-full flex items-center justify-center gap-2 py-6 bg-[#142328] text-white rounded-3xl font-black"
+                >
+                  <Printer size={24} />
+                  BONU TEKRAR YAZDIR
+                </button>
+              </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            {selectedOrder.status !== 'pending' && selectedOrder.status !== 'confirmed' && (
               <button
                 type="button"
                 onClick={() => handlePrint(selectedOrder)}
-                className="flex items-center justify-center gap-2 py-5 bg-gray-100 text-gray-700 rounded-2xl font-black"
+                className="w-full py-4 border-2 border-gray-100 rounded-2xl font-bold"
               >
-                <Printer size={20} />
-                BON
+                YAZDIR
               </button>
-              <button
-                type="button"
-                onClick={() => cancelOrder(selectedOrder.id)}
-                className="flex items-center justify-center gap-2 py-5 bg-red-50 text-red-600 rounded-2xl font-black"
-              >
-                <XCircle size={20} />
-                STORNO
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
