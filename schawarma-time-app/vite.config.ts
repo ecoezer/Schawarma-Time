@@ -15,6 +15,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  optimizeDeps: {
+    include: ['react-is'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

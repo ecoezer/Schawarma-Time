@@ -36,7 +36,6 @@ export function AdminOrders() {
     [orders, selectedOrderId]
   )
 
-  // Detect if we are on a Sunmi/Android POS device
   const isPosMode = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform()
 
   const statusCounts = orders.reduce((acc, o) => {
