@@ -48,25 +48,16 @@ class SoundService {
     this.isPlaying = true;
 
     const playSequence = () => {
-      if (!this.isPlaying || !this.audioContext) return;
-      
-      const now = this.audioContext.currentTime;
-      
-      // Lieferando pattern: Two quick energetic chirps
-      // Note 1: High pitch (A5)
-      this.playChime(880, now, 0.15);
-      // Note 2: Higher pitch (C6) after a tiny gap
-      this.playChime(1046, now + 0.12, 0.2);
+      requestAnimationFrame(() => {
+        if (!this.isPlaying || !this.audioContext) return;
+        const now = this.audioContext.currentTime;
+        this.playChime(880, now, 0.1);
+        this.playChime(1046, now + 0.1, 0.15);
+      });
     };
 
-    console.log("🔔 [SoundService] Starting notification loop...");
     playSequence();
-    
-    // Repeat every 1.5 seconds until stopped
-    this.intervalId = setInterval(() => {
-      console.log("🔔 [SoundService] Loop: Playing chime sequence...");
-      playSequence();
-    }, 1500);
+    this.intervalId = setInterval(playSequence, 2000);
   }
 
   public stopNotification() {

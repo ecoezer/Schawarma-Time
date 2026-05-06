@@ -64,65 +64,73 @@ function getBaseTemplate(content: string, title: string) {
 Deno.serve(async (req) => {
   try {
     const payload: OrderPayload = await req.json()
+    console.log("📨 [Email Function] Received payload type:", payload.type)
     const { record, old_record, type } = payload
 
-    if (type !== 'UPDATE' || !record.customer_email) {
-      return new Response(JSON.stringify({ message: 'Skipped' }), { status: 200 })
+    if (!record.customer_email) {
+      console.log("⚠️ [Email Function] No customer email, skipping.")
+      return new Response(JSON.stringify({ message: 'No email' }), { status: 200 })
     }
 
-    if (record.status === old_record?.status) {
+    // Skip if status hasn't changed (for UPDATE)
+    if (type === 'UPDATE' && record.status === old_record?.status) {
+      console.log("ℹ️ [Email Function] Status unchanged, skipping.")
       return new Response(JSON.stringify({ message: 'Status unchanged' }), { status: 200 })
     }
 
     let subject = ''
     let content = ''
+    const safeTotal = typeof record.total === 'number' ? record.total.toFixed(2) : '0.00'
 
-    if (record.status === 'confirmed') {
+    // LOGIC FOR DIFFERENT STATUSES
+    if (type === 'INSERT' || (type === 'UPDATE' && record.status === 'pending')) {
+      subject = `Neue Bestellung erhalten! 🌯 - ${record.order_number}`
+      content = `
+        <div class="status-badge" style="background: #fef3c7; color: #d97706;">BESTELLUNG EINGEGANGEN</div>
+        <h2>Hallo ${record.customer_name},</h2>
+        <p>Vielen Dank für Ihre Bestellung bei Schawarma-Time! Wir haben Ihre Bestellung erhalten ve en kısa sürede onaylayacağız.</p>
+        <div class="order-box">
+          <p style="margin: 0; font-size: 14px; color: #64748b;">Bestellnummer</p>
+          <p style="margin: 4px 0 16px 0; font-weight: 900; font-size: 18px; color: ${DARK_COLOR};">#${record.order_number}</p>
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 10px;">
+            <span>Gesamtbetrag:</span>
+            <span style="font-weight: bold; color: ${DARK_COLOR};">€${safeTotal}</span>
+          </div>
+        </div>
+      `
+    } else if (record.status === 'confirmed') {
       subject = `Bestätigt: Ihre Bestellung wird vorbereitet! 🌯 - ${record.order_number}`
       content = `
         <div class="status-badge" style="background: #ecfdf5; color: ${BRAND_COLOR};">BESTELLUNG BESTÄTIGT</div>
         <h2>Hallo ${record.customer_name},</h2>
-        <p>Wir haben Ihre Bestellung erhalten und unsere Köche haben bereits mit der Zubereitung begonnen! Wir bereiten alles frisch für Sie zu.</p>
+        <p>Wir haben Ihre Bestellung bestätigt! Unsere Köche bereiten alles frisch für Sie zu.</p>
         <div class="order-box">
           <p style="margin: 0; font-size: 14px; color: #64748b;">Bestellnummer</p>
           <p style="margin: 4px 0 16px 0; font-weight: 900; font-size: 18px; color: ${DARK_COLOR};">#${record.order_number}</p>
-          <div style="display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; pt-16; margin-top: 10px; padding-top: 10px;">
-            <span>Gesamtbetrag:</span>
-            <span style="font-weight: bold; color: ${DARK_COLOR};">€${record.total.toFixed(2)}</span>
-          </div>
-          <p style="margin: 10px 0 0 0; font-size: 13px; color: #94a3b8;">Zahlung: ${record.payment_method === 'cash' ? 'Barzahlung' : 'Kartenzahlung'}</p>
         </div>
-        <p class="text-muted">Sie können den Status Ihrer Bestellung jederzeit live auf unserer Website verfolgen.</p>
       `
     } else if (record.status === 'on_the_way') {
       subject = `Unterwegs: Ihre Bestellung ist gleich da! 🛵 - ${record.order_number}`
       content = `
         <div class="status-badge" style="background: #eff6ff; color: #3b82f6;">UNTERWEGS</div>
-        <h2>Ihre Bestellung ist unterwegs!</h2>
-        <p>Unser Kurier hat Ihre Bestellung abgeholt und ist nun auf dem Weg zu Ihnen. Guten Appetit!</p>
-        <div class="order-box" style="text-align: center;">
-          <p style="font-size: 40px; margin: 0;">🛵</p>
-          <p style="font-weight: bold; color: ${DARK_COLOR}; margin: 10px 0 0 0;">Kurier im Anflug</p>
-        </div>
-        <p class="text-muted">Bitte halten Sie Ihr Telefon in der Nähe, falls unser Kurier Sie kontaktieren muss.</p>
+        <h2>Gute Neuigkeiten!</h2>
+        <p>Ihre Bestellung ist nun auf dem Weg zu Ihnen. Guten Appetit!</p>
       `
     } else if (record.status === 'cancelled') {
       subject = `Storniert: Information zu Ihrer Bestellung - ${record.order_number}`
       content = `
         <div class="status-badge" style="background: #fef2f2; color: #ef4444;">STORNIERT</div>
         <h2>Hallo ${record.customer_name},</h2>
-        <p>Es tut uns leid, wir mussten Ihre Bestellung <strong>#${record.order_number}</strong> aufgrund hoher Auslastung stornieren.</p>
-        <p>Bei Fragen zum Stornierungsprozess oder zur Rückerstattung können Sie uns jederzeit kontaktieren.</p>
-        <div style="margin-top: 20px;">
-          <a href="tel:+49123456789" class="button" style="background-color: #64748b;">Rufen Sie uns an</a>
-        </div>
+        <p>Es tut uns leid, wir mussten Ihre Bestellung <strong>#${record.order_number}</strong> stornieren.</p>
       `
     }
 
     if (!subject) {
-      return new Response(JSON.stringify({ message: 'No email needed' }), { status: 200 })
+      console.log("ℹ️ [Email Function] No subject/content for status:", record.status)
+      return new Response(JSON.stringify({ message: 'No template' }), { status: 200 })
     }
 
+    console.log("📤 [Email Function] Sending email via Resend to:", record.customer_email)
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -130,7 +138,7 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Schawarma-Time <bestellung@schawarma-time.de>',
+        from: 'Schawarma-Time <onboarding@resend.dev>', // Using Resend's default test sender if custom domain is not ready
         to: [record.customer_email],
         subject: subject,
         html: getBaseTemplate(content, subject),
@@ -138,9 +146,18 @@ Deno.serve(async (req) => {
     })
 
     const resData = await res.json()
+    console.log(`✅ [Resend Response Status: ${res.status}]`, JSON.stringify(resData))
+    
+    if (!res.ok) {
+      console.error("❌ [Resend Error Detail]:", JSON.stringify(resData))
+      return new Response(JSON.stringify({ error: resData, step: 'resend_api' }), { status: 400 })
+    }
+
     return new Response(JSON.stringify(resData), { status: 200 })
 
   } catch (error) {
+    console.error("❌ [Email Function] Error:", error.message)
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
   }
 })
+

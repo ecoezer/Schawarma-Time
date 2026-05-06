@@ -119,8 +119,9 @@ export function AuthPage() {
     }
     setIsSendingReset(true)
     try {
+      const resetUrl = `${window.location.origin}/passwort-zuruecksetzen`
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/passwort-zuruecksetzen`,
+        redirectTo: resetUrl,
       })
       if (error) throw error
       setResetSent(true)

@@ -28,3 +28,6 @@ dist-ssr
 *.sln
 *.sw?
 .DS_Store
+
+# Exports/Builds
+schawarma-time-app/exports/

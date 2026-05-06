@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, memo } from 'react'
 import { ShoppingBag, Clock, Printer, XCircle, CheckCircle, ChevronRight, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
 import { formatPrice, getStatusColor, getStatusLabel, cn } from '@/lib/utils'
@@ -18,6 +18,57 @@ const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed']
 function escHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
+
+// MEMOIZED ORDER CARD FOR PERFORMANCE
+const OrderCard = memo(({ order, isSelected, onClick }: { order: Order, isSelected: boolean, onClick: () => void }) => {
+  const isPending = order.status === 'pending'
+  
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all active:scale-[0.98]",
+        isSelected ? 'border-[#142328]' : 'border-transparent',
+        isPending ? 'border-l-8 border-l-yellow-400 ring-1 ring-yellow-400/10' : ''
+      )}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <span className="font-black text-lg text-[#142328]">{order.order_number.replace('S47', 'ST')}</span>
+          {isPending && (
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+          )}
+        </div>
+        <span className={cn("text-[10px] px-2 py-0.5 rounded-lg font-black tracking-wider uppercase", getStatusColor(order.status))}>
+          {order.status === 'confirmed' ? 'BESTÄTIGT' : getStatusLabel(order.status)}
+        </span>
+      </div>
+      
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-bold text-gray-900 truncate">{order.customer_name}</p>
+          <p className="text-[11px] font-bold text-gray-400 leading-none mt-0.5">{order.customer_phone}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            {order.delivery_address === 'Selbstabholung' ? (
+              <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-black flex items-center gap-1">
+                🏠 SELBSTABHOLUNG
+              </span>
+            ) : (
+              <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
+            )}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-black text-[#142328] text-lg leading-none">{formatPrice(order.total)}</p>
+          <span className="text-[10px] text-gray-400 font-bold flex items-center justify-end gap-1 mt-1">
+            <Clock size={10} />
+            {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+})
 
 export function AdminOrders() {
   const orders = useOrderStore(state => state.orders)
@@ -45,20 +96,17 @@ export function AdminOrders() {
 
   const isPosMode = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform()
 
-  const statusCounts = orders.reduce((acc, o) => {
+  const statusCounts = useMemo(() => orders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1
     return acc
-  }, {} as Record<string, number>)
+  }, {} as Record<string, number>), [orders])
 
-  const filteredOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter)
+  const filteredOrders = useMemo(() => 
+    filter === 'all' ? orders : orders.filter((o) => o.status === filter)
+  , [orders, filter])
 
   const printOrderToSunmi = async (order: Order, deliveryTimeMins?: number) => {
-    console.log('>>> STARTING KDUMA SUNMI PRINT')
-    
-    if (!Capacitor.isNativePlatform()) {
-      console.warn('>>> NOT NATIVE - SKIPPING PRINT')
-      return
-    }
+    if (!Capacitor.isNativePlatform()) return
 
     try {
       const printLine = async (text: string, fontSize?: number) => {
@@ -71,21 +119,17 @@ export function AdminOrders() {
       await SunmiPrinter.printerInit()
       await SunmiPrinter.setBold({ enable: true })
       
-      // HEADER
       await printLine("SCHAWARMA-TIME", 38)
       await printLine("www.schawarma-time.de", 25)
       await printLine("----------", 30)
       
-      // Order Number
       const orderNum = order.order_number.replace('S47', 'ST')
       await printLine(orderNum, 30)
       await SunmiPrinter.lineWrap({ lines: 1 })
       
-      // Customer
       await printLine(order.customer_name, 30)
       await SunmiPrinter.lineWrap({ lines: 1 }) 
       
-      // Address
       const addrLines = order.delivery_address.split(',').map(s => s.trim())
       if (addrLines.length >= 2) {
         await printLine(addrLines[0], 30)
@@ -96,7 +140,6 @@ export function AdminOrders() {
       
       await printLine("----------", 30)
       
-      // ITEMS
       let itemsTotal = 0
       if (order.items && order.items.length > 0) {
         for (const item of order.items) {
@@ -111,8 +154,6 @@ export function AdminOrders() {
       }
       
       await printLine("----------", 30)
-      
-      // PRICE BREAKDOWN
       await printLine(`Zwischensumme: ${formatPrice(itemsTotal)}`, 30)
       
       const deliveryFee = (order as any).delivery_fee || 0
@@ -123,51 +164,32 @@ export function AdminOrders() {
       await printLine(`GESAMT: ${formatPrice(order.total)}`, 40)
       await printLine("----------", 30)
       
-      // ANWEISUNGEN
       if (order.notes) {
         await printLine("ANWEISUNGEN:", 30)
         await printLine(order.notes, 28)
         await printLine("----------", 30)
       }
       
-      // DELIVERY TIME CALCULATION (Fixed for Timezone issues)
       const mins = deliveryTimeMins || order.estimated_delivery_time || 0
       if (mins > 0) {
         const now = new Date()
         const deliveryDate = new Date(now.getTime() + (mins * 60000))
-        
         await printLine("LIEFERZEIT (CA.):", 30)
-        // Force 24h format and de-DE locale for accuracy on Sunmi
-        const timeStr = deliveryDate.toLocaleTimeString('de-DE', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        })
+        const timeStr = deliveryDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', hour12: false })
         await printLine(timeStr, 54)
         await printLine("Vielen Dank!", 28)
       }
       
       await SunmiPrinter.lineWrap({ lines: 4 })
-      
-      try {
-        await SunmiPrinter.cutPaper()
-      } catch (e) {
-        console.warn('Cut paper not supported')
-      }
-      
-      console.log('>>> PRINT COMPLETED')
+      await SunmiPrinter.cutPaper().catch(() => {})
     } catch (e) {
-      console.error('>>> KDUMA PRINT ERROR:', e)
+      console.error('Print Error:', e)
       toast.error('Druckfehler!')
     }
   }
 
   const updateStatus = async (orderId: string, status: OrderStatus, deliveryTime?: number) => {
-    console.log('>>> UPDATING STATUS:', orderId, status, deliveryTime)
-    patchOrder(orderId, { 
-      status, 
-      ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}) 
-    })
+    patchOrder(orderId, { status, ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}) })
     try {
       await orderService.updateOrderStatus(orderId, status, deliveryTime)
       toast.success(`Status: ${getStatusLabel(status)}`)
@@ -177,12 +199,10 @@ export function AdminOrders() {
   }
 
   const handleStatusTransition = (orderId: string, currentStatus: OrderStatus) => {
-    console.log('>>> BUTTON CLICKED - Transition:', orderId, currentStatus)
     const next = getNextStatus(currentStatus)
     if (!next) return
 
     if (next === 'confirmed') {
-      console.log('>>> OPENING TIME MODAL')
       setPendingConfirmId(orderId)
       setIsTimeModalOpen(true)
     } else {
@@ -193,19 +213,13 @@ export function AdminOrders() {
 
   const handleTimeSelected = (mins: number) => {
     if (!pendingConfirmId) return
-    console.log('>>> TIME SELECTED:', mins)
-    
-    // Auto-print when confirmed
     const order = orders.find(o => o.id === pendingConfirmId)
-    if (order) {
-      printOrderToSunmi(order, mins)
-    }
-    
+    if (order) printOrderToSunmi(order, mins)
     updateStatus(pendingConfirmId, 'confirmed', mins)
     setIsTimeModalOpen(false)
     setPendingConfirmId(null)
-    setSelectedOrderId(null) // This closes the detail view
-    toast.success('Bestellung bestätigt & gedruckt!')
+    setSelectedOrderId(null)
+    toast.success('Bestellung bestätigt!')
   }
 
   const cancelOrder = (orderId: string) => {
@@ -224,21 +238,6 @@ export function AdminOrders() {
   const getNextStatus = (current: OrderStatus): OrderStatus | null => {
     const idx = STATUS_FLOW.indexOf(current)
     return idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null
-  }
-
-  const handlePrint = (order: Order) => {
-    if (Capacitor.isNativePlatform()) {
-      printOrderToSunmi(order)
-      return
-    }
-
-    try {
-      const win = window.open('', '_blank')
-      if (!win) return
-      win.document.write(`<html><body><h2>${order.order_number}</h2></body></html>`)
-      win.document.close()
-      win.print()
-    } catch (e) { console.error(e) }
   }
 
   return (
@@ -279,51 +278,12 @@ export function AdminOrders() {
             <div className="text-center py-20 text-gray-400">Lädt...</div>
           ) : (
             filteredOrders.map((order) => (
-              <div
-                key={order.id}
-                onClick={() => {
-                  console.log('>>> ORDER SELECTED:', order.id)
-                  setSelectedOrderId(order.id)
-                }}
-                className={cn(
-                  "bg-white rounded-2xl p-4 shadow-sm border-2 cursor-pointer transition-all active:scale-[0.98]",
-                  selectedOrder?.id === order.id ? 'border-[#142328]' : 'border-transparent',
-                  order.status === 'pending' ? 'border-l-8 border-l-yellow-400 ring-2 ring-yellow-400/20 animate-pulse' : ''
-                )}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-lg text-[#142328]">{order.order_number.replace('S47', 'ST')}</span>
-                    {order.status === 'pending' && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />}
-                  </div>
-                  <span className={cn("text-[10px] px-2 py-0.5 rounded-lg font-black tracking-wider uppercase", getStatusColor(order.status))}>
-                    {order.status === 'confirmed' ? 'BESTÄTIGT' : getStatusLabel(order.status)}
-                  </span>
-                </div>
-                
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-bold text-gray-900 truncate">{order.customer_name}</p>
-                    <p className="text-[11px] font-bold text-gray-400 leading-none mt-0.5">{order.customer_phone}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {order.delivery_address === 'Selbstabholung' ? (
-                        <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-black flex items-center gap-1">
-                          🏠 SELBSTABHOLUNG
-                        </span>
-                      ) : (
-                        <p className="text-xs text-gray-500 truncate">{order.delivery_address}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-black text-[#142328] text-lg leading-none">{formatPrice(order.total)}</p>
-                    <span className="text-[10px] text-gray-400 font-bold flex items-center justify-end gap-1 mt-1">
-                      <Clock size={10} />
-                      {new Date(order.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <OrderCard 
+                key={order.id} 
+                order={order} 
+                isSelected={selectedOrderId === order.id}
+                onClick={() => setSelectedOrderId(order.id)}
+              />
             ))
           )}
         </div>
@@ -385,7 +345,6 @@ export function AdminOrders() {
 
           <div className="fixed bottom-0 left-0 right-0 p-5 bg-white border-t-2 border-gray-50 flex flex-col gap-3">
             {isPosMode ? (
-              // SIMPLE UI FOR SUNMI
               selectedOrder.status === 'pending' ? (
                 <>
                   <button
@@ -421,7 +380,6 @@ export function AdminOrders() {
                 </div>
               )
             ) : (
-              // COMPLEX UI FOR IOS / WEB
               <>
                 {getNextStatus(selectedOrder.status) && (
                   <button
