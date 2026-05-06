@@ -137,8 +137,10 @@ export async function fetchTodayOrders(): Promise<Order[]> {
 
 export async function fetchUserOrders(): Promise<Order[]> {
   if (!auth.currentUser) return []
-  const snap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid), orderBy('created_at', 'desc')))
-  return snap.docs.map((item) => mapOrder(item.id, item.data() as Partial<Order>))
+  const snap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid)))
+  return snap.docs
+    .map((item) => mapOrder(item.id, item.data() as Partial<Order>))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 }
 
 export async function fetchWeekOrders(): Promise<{ created_at: string; total: number; status: string }[]> {
