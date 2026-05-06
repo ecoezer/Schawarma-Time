@@ -230,6 +230,7 @@ export function CheckoutPage() {
       // Server returns { id, order_number } — set both from result
       setOrderId(result.id)
       setOrderNumber(result.order_number)
+      setStatus('pending_confirmation')
       
       // Save address to profile if user is logged in and doesn't have this address yet
       if (user) {
