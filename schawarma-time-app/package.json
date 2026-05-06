@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "firebase:seed": "node ./scripts/import-supabase-seed-to-firebase.mjs",
+    "firebase:bootstrap-admin": "node ./scripts/bootstrap-firebase-admin.mjs",
     "cf:build": "npm run build",
     "cf:deploy": "npm run build && npx wrangler deploy",
     "cf:dev": "npx wrangler dev"
