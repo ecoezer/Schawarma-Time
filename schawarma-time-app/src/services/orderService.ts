@@ -13,7 +13,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { auth, db, withFirebaseTimeout } from '@/lib/firebase'
 import type { Order, OrderStatus, OrderItem, PaymentMethod, Product, RestaurantSettings } from '@/types'
 import { generateOrderNumber } from '@/lib/utils'
 import { incrementCustomerOrderStats } from '@/services/authService'
@@ -41,6 +41,37 @@ export interface PaginatedOrdersResult {
 }
 
 const ADMIN_ORDERS_PAGE_SIZE = 50
+const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
+  id: 'default',
+  name: 'Schawarma-Time',
+  description: '',
+  address: '',
+  phone: '05069 8067500',
+  email: '',
+  logo_url: null,
+  hero_images: [],
+  rating: 0,
+  review_count: 0,
+  is_delivery_active: true,
+  delivery_fee: 0,
+  min_order_amount: 15,
+  estimated_delivery_time: 35,
+  delivery_radius_km: 0,
+  delivery_zones: [],
+  hours: {},
+  is_halal_certified: false,
+  announcement: null,
+  is_announcement_active: false,
+  is_map_mode_active: false,
+  is_hero_active: true,
+  is_search_active: true,
+  revenue_goal_daily: 0,
+  tags: [],
+  payment_methods: {
+    cash: true,
+    card_on_delivery: true,
+  },
+}
 
 function mapOrder(id: string, data: Partial<Order>): Order {
   return {
@@ -75,39 +106,42 @@ async function fetchAllOrdersRaw(): Promise<Order[]> {
 }
 
 async function fetchRestaurantSettings(): Promise<RestaurantSettings> {
-  const snap = await getDocs(query(collection(db, 'restaurant_settings'), limit(1)))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'restaurant_settings'), limit(1))),
+    'Restaurant-Einstellungen für Bestellung laden',
+  )
   const docSnap = snap.docs[0]
-  if (!docSnap) throw new Error('Keine Restaurant-Einstellungen gefunden.')
+  if (!docSnap) return DEFAULT_RESTAURANT_SETTINGS
   const data = docSnap.data() as Partial<RestaurantSettings>
   return {
     id: docSnap.id,
-    name: data.name ?? 'Schawarma-Time',
-    description: data.description ?? '',
-    address: data.address ?? '',
-    phone: data.phone ?? '',
-    email: data.email ?? '',
-    logo_url: data.logo_url ?? null,
-    hero_images: Array.isArray(data.hero_images) ? data.hero_images : [],
-    rating: data.rating ?? 0,
-    review_count: data.review_count ?? 0,
-    is_delivery_active: data.is_delivery_active ?? true,
-    delivery_fee: data.delivery_fee ?? 0,
-    min_order_amount: data.min_order_amount ?? 15,
-    estimated_delivery_time: data.estimated_delivery_time ?? 35,
-    delivery_radius_km: data.delivery_radius_km ?? 0,
-    delivery_zones: Array.isArray(data.delivery_zones) ? data.delivery_zones : [],
-    hours: data.hours ?? {},
-    is_halal_certified: data.is_halal_certified ?? false,
-    announcement: data.announcement ?? null,
-    is_announcement_active: data.is_announcement_active ?? false,
-    is_map_mode_active: data.is_map_mode_active ?? false,
-    is_hero_active: data.is_hero_active ?? true,
-    is_search_active: data.is_search_active ?? true,
-    revenue_goal_daily: data.revenue_goal_daily ?? 0,
-    tags: Array.isArray(data.tags) ? data.tags : [],
+    name: data.name ?? DEFAULT_RESTAURANT_SETTINGS.name,
+    description: data.description ?? DEFAULT_RESTAURANT_SETTINGS.description,
+    address: data.address ?? DEFAULT_RESTAURANT_SETTINGS.address,
+    phone: data.phone ?? DEFAULT_RESTAURANT_SETTINGS.phone,
+    email: data.email ?? DEFAULT_RESTAURANT_SETTINGS.email,
+    logo_url: data.logo_url ?? DEFAULT_RESTAURANT_SETTINGS.logo_url,
+    hero_images: Array.isArray(data.hero_images) ? data.hero_images : DEFAULT_RESTAURANT_SETTINGS.hero_images,
+    rating: data.rating ?? DEFAULT_RESTAURANT_SETTINGS.rating,
+    review_count: data.review_count ?? DEFAULT_RESTAURANT_SETTINGS.review_count,
+    is_delivery_active: data.is_delivery_active ?? DEFAULT_RESTAURANT_SETTINGS.is_delivery_active,
+    delivery_fee: data.delivery_fee ?? DEFAULT_RESTAURANT_SETTINGS.delivery_fee,
+    min_order_amount: data.min_order_amount ?? DEFAULT_RESTAURANT_SETTINGS.min_order_amount,
+    estimated_delivery_time: data.estimated_delivery_time ?? DEFAULT_RESTAURANT_SETTINGS.estimated_delivery_time,
+    delivery_radius_km: data.delivery_radius_km ?? DEFAULT_RESTAURANT_SETTINGS.delivery_radius_km,
+    delivery_zones: Array.isArray(data.delivery_zones) ? data.delivery_zones : DEFAULT_RESTAURANT_SETTINGS.delivery_zones,
+    hours: data.hours ?? DEFAULT_RESTAURANT_SETTINGS.hours,
+    is_halal_certified: data.is_halal_certified ?? DEFAULT_RESTAURANT_SETTINGS.is_halal_certified,
+    announcement: data.announcement ?? DEFAULT_RESTAURANT_SETTINGS.announcement,
+    is_announcement_active: data.is_announcement_active ?? DEFAULT_RESTAURANT_SETTINGS.is_announcement_active,
+    is_map_mode_active: data.is_map_mode_active ?? DEFAULT_RESTAURANT_SETTINGS.is_map_mode_active,
+    is_hero_active: data.is_hero_active ?? DEFAULT_RESTAURANT_SETTINGS.is_hero_active,
+    is_search_active: data.is_search_active ?? DEFAULT_RESTAURANT_SETTINGS.is_search_active,
+    revenue_goal_daily: data.revenue_goal_daily ?? DEFAULT_RESTAURANT_SETTINGS.revenue_goal_daily,
+    tags: Array.isArray(data.tags) ? data.tags : DEFAULT_RESTAURANT_SETTINGS.tags,
     payment_methods: {
-      cash: data.payment_methods?.cash ?? true,
-      card_on_delivery: data.payment_methods?.card_on_delivery ?? true,
+      cash: data.payment_methods?.cash ?? DEFAULT_RESTAURANT_SETTINGS.payment_methods.cash,
+      card_on_delivery: data.payment_methods?.card_on_delivery ?? DEFAULT_RESTAURANT_SETTINGS.payment_methods.card_on_delivery,
     },
   }
 }
@@ -166,10 +200,9 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, de
 
 export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
   const productIds = [...new Set(input.items.map((item) => item.product_id))]
-  const [settings, products, couponResult] = await Promise.all([
+  const [settings, products] = await Promise.all([
     fetchRestaurantSettings(),
     fetchProductsByIds(productIds),
-    input.coupon_code ? validateCoupon(input.coupon_code, 0) : Promise.resolve({ valid: false, discount: 0 }),
   ])
 
   const resolvedItems: OrderItem[] = input.items.map((item) => {
