@@ -77,7 +77,7 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
     return orderService.subscribeToOrders((payload) => {
       const { eventType, new: next, old } = payload
 
-      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+      if (eventType === 'BOOTSTRAP' || eventType === 'INSERT' || eventType === 'UPDATE') {
         const nextOrder = next as Order
         set(state => {
           const exists = state.orders.some(o => o.id === nextOrder.id)

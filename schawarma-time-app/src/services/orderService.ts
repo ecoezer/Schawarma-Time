@@ -270,9 +270,17 @@ export async function fetchOrderByNumber(orderNumber: string): Promise<Order | n
 }
 
 export function subscribeToOrders(callback: (payload: any) => void) {
+  let isInitialSnapshot = true
+
   return onSnapshot(query(collection(db, 'orders'), orderBy('created_at', 'desc')), (snapshot) => {
     snapshot.docChanges().forEach((change) => {
-      const eventType = change.type === 'added' ? 'INSERT' : change.type === 'modified' ? 'UPDATE' : 'DELETE'
+      const eventType = isInitialSnapshot && change.type === 'added'
+        ? 'BOOTSTRAP'
+        : change.type === 'added'
+          ? 'INSERT'
+          : change.type === 'modified'
+            ? 'UPDATE'
+            : 'DELETE'
       const payload = {
         eventType,
         new: change.type === 'removed' ? null : mapOrder(change.doc.id, change.doc.data() as Partial<Order>),
@@ -280,6 +288,8 @@ export function subscribeToOrders(callback: (payload: any) => void) {
       }
       callback(payload)
     })
+
+    isInitialSnapshot = false
   })
 }
 
