@@ -8,6 +8,11 @@ export interface CouponValidationResult {
   errorMessage?: string
 }
 
+function normalizePhone(value?: string | null): string | null {
+  const normalized = (value || '').replace(/\D/g, '')
+  return normalized || null
+}
+
 function mapCoupon(id: string, data: Partial<Coupon>): Coupon {
   return {
     id,
@@ -29,7 +34,12 @@ export async function fetchCoupons(): Promise<Coupon[]> {
   return snap.docs.map((item) => mapCoupon(item.id, item.data() as Partial<Coupon>))
 }
 
-export async function validateCoupon(code: string, subtotal: number, _userId?: string): Promise<CouponValidationResult> {
+export async function validateCoupon(
+  code: string,
+  subtotal: number,
+  userId?: string,
+  customerPhone?: string | null,
+): Promise<CouponValidationResult> {
   const snap = await getDocs(query(collection(db, 'coupons'), where('code', '==', code.trim().toUpperCase())))
   const docSnap = snap.docs[0]
   if (!docSnap) return { valid: false, discount: 0, errorMessage: 'Ungültiger Gutscheincode' }
@@ -45,9 +55,29 @@ export async function validateCoupon(code: string, subtotal: number, _userId?: s
   if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
     return { valid: false, discount: 0, errorMessage: 'Gutschein ist bereits ausgeschöpft' }
   }
-  if (coupon.is_first_order_only && auth.currentUser) {
-    const ordersSnap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid)))
-    const hasPastOrder = ordersSnap.docs.some((item) => (item.data() as Partial<Order>).status !== 'cancelled')
+  if (coupon.is_first_order_only) {
+    const checks: Promise<boolean>[] = []
+
+    const effectiveUserId = userId || auth.currentUser?.uid || null
+    if (effectiveUserId) {
+      checks.push(
+        getDocs(query(collection(db, 'orders'), where('user_id', '==', effectiveUserId))).then((ordersSnap) =>
+          ordersSnap.docs.some((item) => (item.data() as Partial<Order>).status !== 'cancelled'),
+        ),
+      )
+    }
+
+    const normalizedPhone = normalizePhone(customerPhone)
+    if (normalizedPhone) {
+      checks.push(
+        getDocs(query(collection(db, 'orders'), where('customer_phone', '==', normalizedPhone))).then((ordersSnap) =>
+          ordersSnap.docs.some((item) => (item.data() as Partial<Order>).status !== 'cancelled'),
+        ),
+      )
+    }
+
+    const results = await Promise.all(checks)
+    const hasPastOrder = results.some(Boolean)
     if (hasPastOrder) {
       return { valid: false, discount: 0, errorMessage: 'Nur für die erste Bestellung gültig' }
     }
@@ -73,4 +103,3 @@ export async function updateCoupon(id: string, data: Partial<Coupon>): Promise<v
 export async function deleteCoupon(id: string): Promise<void> {
   await deleteDoc(doc(db, 'coupons', id))
 }
-

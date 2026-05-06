@@ -242,7 +242,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   const subtotal = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
   const deliveryFee = input.delivery_address === 'Selbstabholung' ? 0 : (settings.delivery_fee ?? 0)
-  const discountCheck = input.coupon_code ? await validateCoupon(input.coupon_code, subtotal, auth.currentUser?.uid) : { valid: false, discount: 0 }
+  const discountCheck = input.coupon_code
+    ? await validateCoupon(input.coupon_code, subtotal, auth.currentUser?.uid, input.customer_phone)
+    : { valid: false, discount: 0 }
   const discountAmount = discountCheck.valid ? discountCheck.discount : 0
   const total = Math.max(0, subtotal + deliveryFee - discountAmount)
   const orderNumber = generateOrderNumber()
@@ -252,7 +254,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     order_number: orderNumber,
     user_id: auth.currentUser?.uid ?? null,
     customer_name: input.customer_name,
-    customer_phone: input.customer_phone,
+    customer_phone: input.customer_phone.replace(/\D/g, ''),
     customer_email: input.customer_email,
     delivery_address: input.delivery_address,
     delivery_lat: null,

@@ -153,7 +153,7 @@ export function CheckoutPage() {
     if (!couponCode) return
     setIsLoading(true)
     try {
-      const result = await couponService.validateCoupon(couponCode, subtotal, user?.id)
+      const result = await couponService.validateCoupon(couponCode, subtotal, user?.id, form.phone)
       if (!result.valid) {
         toast.error((t) => (
           <span className="flex items-center gap-2">
