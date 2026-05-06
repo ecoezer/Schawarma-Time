@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings,
   LogOut, Menu, X, Bell, Tag, Users, Lock, Eye, EyeOff
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useOrderStore } from '@/store/orderStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
-import { supabase } from '@/lib/supabase'
+import * as authService from '@/services/authService'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -38,6 +38,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const profileRef = useRef<HTMLDivElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
+  const navigate = useNavigate()
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -71,11 +72,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
     setIsSavingPw(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password: pwForm.newPassword })
-      if (error) throw error
+      await authService.changePassword(pwForm.newPassword)
       toast.success('Passwort erfolgreich geändert!')
       setShowPwModal(false)
       setPwForm({ newPassword: '', confirmPassword: '' })
+      navigate('/admin/login', { replace: true })
     } catch (err: any) {
       toast.error((t) => (
         <span className="flex items-center gap-2">
@@ -106,7 +107,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const handleLogout = async () => {
     await signOut()
     toast.success('Erfolgreich abgemeldet')
-    window.location.href = '/admin/login'
+    navigate('/admin/login', { replace: true })
   }
 
   const allOrders = useOrderStore(state => state.orders)
@@ -378,7 +379,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="font-bold bg-blue-100 px-1.5 py-0.5 rounded uppercase">Role: {user?.role}</span>
             </div>
             <div className="flex gap-2">
-              <span>DB: {import.meta.env.VITE_SUPABASE_URL?.replace('https://', '').split('.')[0]}</span>
+              <span>DB: {import.meta.env.VITE_FIREBASE_PROJECT_ID || 'firebase-not-configured'}</span>
               <span className={`w-2 h-2 rounded-full self-center ${user ? 'bg-green-500' : 'bg-red-400'}`}></span>
             </div>
           </div>

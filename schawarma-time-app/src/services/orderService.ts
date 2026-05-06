@@ -1,20 +1,32 @@
-import { supabase } from '@/lib/supabase'
-import type { Order, OrderStatus, OrderItem, PaymentMethod } from '@/types'
-import { toArray } from '@/lib/utils'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
+import { auth, db } from '@/lib/firebase'
+import type { Order, OrderStatus, OrderItem, PaymentMethod, Product, RestaurantSettings } from '@/types'
+import { generateOrderNumber } from '@/lib/utils'
+import { incrementCustomerOrderStats } from '@/services/authService'
+import { validateCoupon } from '@/services/couponService'
 
 export interface CreateOrderInput {
-  // order_number removed — now generated server-side (LOW-1)
   customer_name: string
   customer_phone: string
   customer_email: string
   delivery_address: string
-  // Only product_id, quantity, extras, note sent — prices come from DB
   items: { product_id: string; quantity: number; extras?: OrderItem['extras']; note?: string }[]
   coupon_code: string | null
   payment_method: PaymentMethod
-  // estimated_delivery_time REMOVED (v11) — now read server-side from restaurant_settings
   notes: string | null
 }
 
@@ -23,145 +35,254 @@ export interface CreateOrderResult {
   order_number: string
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function startOf(daysAgo = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString()
+export interface PaginatedOrdersResult {
+  data: Order[]
+  hasMore: boolean
 }
 
-// ─── Queries ──────────────────────────────────────────────────────────────────
+const ADMIN_ORDERS_PAGE_SIZE = 50
 
-export async function fetchAllOrders(): Promise<Order[]> {
-  // v12: hard cap at 200 rows — unbounded admin query is a DoS risk on large tables.
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(200)
+function mapOrder(id: string, data: Partial<Order>): Order {
+  return {
+    id,
+    order_number: data.order_number ?? '',
+    user_id: data.user_id ?? null,
+    customer_name: data.customer_name ?? '',
+    customer_phone: data.customer_phone ?? '',
+    customer_email: data.customer_email ?? '',
+    delivery_address: data.delivery_address ?? '',
+    delivery_lat: data.delivery_lat ?? null,
+    delivery_lng: data.delivery_lng ?? null,
+    items: Array.isArray(data.items) ? data.items : [],
+    subtotal: data.subtotal ?? 0,
+    delivery_fee: data.delivery_fee ?? 0,
+    discount_amount: data.discount_amount ?? 0,
+    coupon_code: data.coupon_code ?? null,
+    total: data.total ?? 0,
+    status: data.status ?? 'pending',
+    payment_method: data.payment_method ?? 'cash',
+    estimated_delivery_time: data.estimated_delivery_time ?? null,
+    notes: data.notes ?? null,
+    rejection_reason: data.rejection_reason ?? null,
+    created_at: data.created_at ?? new Date().toISOString(),
+    updated_at: data.updated_at ?? new Date().toISOString(),
+  }
+}
 
-  if (error) throw error
-  return toArray(data) as Order[]
+async function fetchAllOrdersRaw(): Promise<Order[]> {
+  const snap = await getDocs(query(collection(db, 'orders'), orderBy('created_at', 'desc')))
+  return snap.docs.map((item) => mapOrder(item.id, item.data() as Partial<Order>))
+}
+
+async function fetchRestaurantSettings(): Promise<RestaurantSettings> {
+  const snap = await getDocs(query(collection(db, 'restaurant_settings'), limit(1)))
+  const docSnap = snap.docs[0]
+  if (!docSnap) throw new Error('Keine Restaurant-Einstellungen gefunden.')
+  const data = docSnap.data() as Partial<RestaurantSettings>
+  return {
+    id: docSnap.id,
+    name: data.name ?? 'Schawarma-Time',
+    description: data.description ?? '',
+    address: data.address ?? '',
+    phone: data.phone ?? '',
+    email: data.email ?? '',
+    logo_url: data.logo_url ?? null,
+    hero_images: Array.isArray(data.hero_images) ? data.hero_images : [],
+    rating: data.rating ?? 0,
+    review_count: data.review_count ?? 0,
+    is_delivery_active: data.is_delivery_active ?? true,
+    delivery_fee: data.delivery_fee ?? 0,
+    min_order_amount: data.min_order_amount ?? 15,
+    estimated_delivery_time: data.estimated_delivery_time ?? 35,
+    delivery_radius_km: data.delivery_radius_km ?? 0,
+    delivery_zones: Array.isArray(data.delivery_zones) ? data.delivery_zones : [],
+    hours: data.hours ?? {},
+    is_halal_certified: data.is_halal_certified ?? false,
+    announcement: data.announcement ?? null,
+    is_announcement_active: data.is_announcement_active ?? false,
+    is_map_mode_active: data.is_map_mode_active ?? false,
+    is_hero_active: data.is_hero_active ?? true,
+    is_search_active: data.is_search_active ?? true,
+    revenue_goal_daily: data.revenue_goal_daily ?? 0,
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    payment_methods: {
+      cash: data.payment_methods?.cash ?? true,
+      card_on_delivery: data.payment_methods?.card_on_delivery ?? true,
+    },
+  }
+}
+
+async function fetchProductsByIds(ids: string[]): Promise<Map<string, Product>> {
+  const all = await getDocs(collection(db, 'products'))
+  const map = new Map<string, Product>()
+  all.docs.forEach((item) => {
+    if (!ids.includes(item.id)) return
+    map.set(item.id, item.data() as Product)
+  })
+  return map
+}
+
+export async function fetchAllOrders(page = 0): Promise<PaginatedOrdersResult> {
+  const rows = await fetchAllOrdersRaw()
+  const start = page * ADMIN_ORDERS_PAGE_SIZE
+  const data = rows.slice(start, start + ADMIN_ORDERS_PAGE_SIZE)
+  return { data, hasMore: start + ADMIN_ORDERS_PAGE_SIZE < rows.length }
 }
 
 export async function fetchTodayOrders(): Promise<Order[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .gte('created_at', startOf(0))
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return toArray(data) as Order[]
+  const todayPrefix = new Date().toISOString().slice(0, 10)
+  const rows = await fetchAllOrdersRaw()
+  return rows.filter((order) => order.created_at.startsWith(todayPrefix))
 }
 
-// v11: userId parameter removed — RLS implicitly scopes to auth.uid().
-// Passing an arbitrary userId previously allowed IDOR if SELECT policy was too broad.
 export async function fetchUserOrders(): Promise<Order[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return toArray(data) as Order[]
+  if (!auth.currentUser) return []
+  const snap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid), orderBy('created_at', 'desc')))
+  return snap.docs.map((item) => mapOrder(item.id, item.data() as Partial<Order>))
 }
 
 export async function fetchWeekOrders(): Promise<{ created_at: string; total: number; status: string }[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('created_at, total, status')
-    .gte('created_at', startOf(6))
-    .neq('status', 'cancelled')
-
-  if (error) throw error
-  return toArray(data)
+  const weekAgo = Date.now() - 6 * 24 * 60 * 60 * 1000
+  const rows = await fetchAllOrdersRaw()
+  return rows
+    .filter((order) => new Date(order.created_at).getTime() >= weekAgo && order.status !== 'cancelled')
+    .map((order) => ({ created_at: order.created_at, total: order.total, status: order.status }))
 }
 
 export async function fetchPendingCount(): Promise<number> {
-  const { count, error } = await supabase
-    .from('orders')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending')
-
-  if (error) throw error
-  return count || 0
+  const rows = await fetchAllOrdersRaw()
+  return rows.filter((order) => order.status === 'pending').length
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
-
-// v11: updated_at removed from client payload — DB trigger sets it to NOW() server-side.
-// Sending updated_at from the client allowed staff to backdate order timestamps.
 export async function updateOrderStatus(orderId: string, status: OrderStatus, deliveryTime?: number): Promise<void> {
-  const { error } = await supabase
-    .from('orders')
-    .update({ 
-      status,
-      ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {})
-    })
-    .eq('id', orderId)
-
-  if (error) throw error
+  await updateDoc(doc(db, 'orders', orderId), {
+    status,
+    updated_at: new Date().toISOString(),
+    ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}),
+  })
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
-  // All price calculation happens server-side in create_order_secure().
-  // Client sends only product IDs + quantities — never prices.
-  // Order number is now generated server-side (LOW-1 fix).
-  // v11: p_estimated_delivery_time removed — server reads it from restaurant_settings.
-  const { data, error } = await supabase.rpc('create_order_secure', {
-    p_customer_name:    input.customer_name,
-    p_customer_phone:   input.customer_phone,
-    p_customer_email:   input.customer_email,
-    p_delivery_address: input.delivery_address,
-    p_items:            input.items,
-    p_coupon_code:      input.coupon_code ?? null,
-    p_payment_method:   input.payment_method,
-    p_notes:            input.notes ?? null,
+  const productIds = [...new Set(input.items.map((item) => item.product_id))]
+  const [settings, products, couponResult] = await Promise.all([
+    fetchRestaurantSettings(),
+    fetchProductsByIds(productIds),
+    input.coupon_code ? validateCoupon(input.coupon_code, 0) : Promise.resolve({ valid: false, discount: 0 }),
+  ])
+
+  const resolvedItems: OrderItem[] = input.items.map((item) => {
+    const product = products.get(item.product_id)
+    if (!product || !product.is_active) {
+      throw new Error(`Produkt nicht verfügbar: ${item.product_id}`)
+    }
+
+    const validExtras = (item.extras || []).map((extra) => {
+      for (const group of product.extra_groups || []) {
+        for (const option of group.extras || []) {
+          if (option.id === extra.id) {
+            return {
+              ...extra,
+              price: option.price ?? 0,
+              name: option.name ?? extra.name,
+              group_name: group.name,
+            }
+          }
+        }
+      }
+      return { ...extra, price: extra.price ?? 0 }
+    })
+
+    const extrasTotal = validExtras.reduce((sum, extra) => sum + extra.price, 0)
+    const unitPrice = product.price + extrasTotal
+    return {
+      product_id: item.product_id,
+      product_name: product.name,
+      quantity: item.quantity,
+      unit_price: unitPrice,
+      extras: validExtras,
+      note: item.note ?? '',
+      subtotal: unitPrice * item.quantity,
+    }
   })
 
-  if (error) throw error
+  const subtotal = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
+  const deliveryFee = input.delivery_address === 'Selbstabholung' ? 0 : (settings.delivery_fee ?? 0)
+  const discountCheck = input.coupon_code ? await validateCoupon(input.coupon_code, subtotal, auth.currentUser?.uid) : { valid: false, discount: 0 }
+  const discountAmount = discountCheck.valid ? discountCheck.discount : 0
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount)
+  const orderNumber = generateOrderNumber()
+  const now = new Date().toISOString()
 
-  // RPC returns JSON string: { id, order_number }
-  const result = typeof data === 'string' ? JSON.parse(data) : data
-  return result as CreateOrderResult
+  const ref = await addDoc(collection(db, 'orders'), {
+    order_number: orderNumber,
+    user_id: auth.currentUser?.uid ?? null,
+    customer_name: input.customer_name,
+    customer_phone: input.customer_phone,
+    customer_email: input.customer_email,
+    delivery_address: input.delivery_address,
+    delivery_lat: null,
+    delivery_lng: null,
+    items: resolvedItems,
+    subtotal,
+    delivery_fee: deliveryFee,
+    discount_amount: discountAmount,
+    coupon_code: discountCheck.valid ? input.coupon_code : null,
+    total,
+    status: 'pending',
+    payment_method: input.payment_method,
+    estimated_delivery_time: settings.estimated_delivery_time ?? 35,
+    notes: input.notes ?? null,
+    rejection_reason: null,
+    created_at: now,
+    updated_at: now,
+  })
+
+  if (auth.currentUser?.uid) {
+    await incrementCustomerOrderStats(auth.currentUser.uid)
+  }
+
+  if (discountCheck.valid && input.coupon_code) {
+    const couponSnap = await getDocs(query(collection(db, 'coupons'), where('code', '==', input.coupon_code.trim().toUpperCase()), limit(1)))
+    const couponDoc = couponSnap.docs[0]
+    if (couponDoc) {
+      await runTransaction(db, async (tx) => {
+        const snapshot = await tx.get(couponDoc.ref)
+        const current = snapshot.data() as { used_count?: number } | undefined
+        tx.set(couponDoc.ref, { used_count: (current?.used_count ?? 0) + 1 }, { merge: true })
+      })
+    }
+  }
+
+  return { id: ref.id, order_number: orderNumber }
 }
 
-// ─── Realtime ─────────────────────────────────────────────────────────────────
-
 export async function fetchOrderById(orderId: string): Promise<Order | null> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('id', orderId)
-    .single()
-
-  if (error) return null
-  return data as Order
+  const snapshot = await getDoc(doc(db, 'orders', orderId))
+  return snapshot.exists() ? mapOrder(snapshot.id, snapshot.data() as Partial<Order>) : null
 }
 
 export async function fetchOrderByNumber(orderNumber: string): Promise<Order | null> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('order_number', orderNumber)
-    .single()
-
-  if (error) return null
-  return data as Order
+  const snap = await getDocs(query(collection(db, 'orders'), where('order_number', '==', orderNumber), limit(1)))
+  const docSnap = snap.docs[0]
+  return docSnap ? mapOrder(docSnap.id, docSnap.data() as Partial<Order>) : null
 }
 
 export function subscribeToOrders(callback: (payload: any) => void) {
-  // Use a unique channel name to avoid conflicts with multiple subscriptions
-  const channelId = `orders-realtime-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  const channel = supabase
-    .channel(channelId)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
-    .subscribe()
+  return onSnapshot(query(collection(db, 'orders'), orderBy('created_at', 'desc')), (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      const eventType = change.type === 'added' ? 'INSERT' : change.type === 'modified' ? 'UPDATE' : 'DELETE'
+      const payload = {
+        eventType,
+        new: change.type === 'removed' ? null : mapOrder(change.doc.id, change.doc.data() as Partial<Order>),
+        old: { id: change.doc.id },
+      }
+      callback(payload)
+    })
+  })
+}
 
-  return () => { 
-    supabase.removeChannel(channel) 
-  }
+export function subscribeToOrder(orderId: string, callback: (order: Order | null) => void) {
+  return onSnapshot(doc(db, 'orders', orderId), (snapshot) => {
+    callback(snapshot.exists() ? mapOrder(snapshot.id, snapshot.data() as Partial<Order>) : null)
+  })
 }

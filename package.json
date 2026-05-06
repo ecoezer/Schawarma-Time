@@ -1,0 +1,10 @@
+{
+  "name": "schawarma-time-root",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix ./schawarma-time-app run build",
+    "cf:build": "npm --prefix ./schawarma-time-app run build",
+    "cf:deploy": "npm --prefix ./schawarma-time-app run cf:deploy"
+  }
+}
+

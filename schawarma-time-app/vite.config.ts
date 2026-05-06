@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const SUPABASE_HOST = 'https://*.supabase.co'
+const FIREBASE_HOSTS = 'https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com'
 const CLOUDINARY_HOSTS = 'https://api.cloudinary.com https://res.cloudinary.com'
 
 export default defineConfig({
@@ -31,8 +31,8 @@ export default defineConfig({
         `default-src 'self'`,
         `script-src 'self' 'unsafe-inline'`,   // unsafe-inline needed for Vite HMR in dev
         `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-        `connect-src 'self' ${SUPABASE_HOST} wss://*.supabase.co ${CLOUDINARY_HOSTS}`,
-        `img-src 'self' data: blob: ${SUPABASE_HOST} ${CLOUDINARY_HOSTS}`,
+        `connect-src 'self' ${FIREBASE_HOSTS} ${CLOUDINARY_HOSTS}`,
+        `img-src 'self' data: blob: ${CLOUDINARY_HOSTS}`,
         `font-src 'self' https://fonts.gstatic.com`,
         `frame-ancestors 'none'`,
       ].join('; '),

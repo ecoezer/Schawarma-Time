@@ -8,7 +8,6 @@ import { useAuthStore } from '@/store/authStore'
 import * as couponService from '@/services/couponService'
 import * as orderService from '@/services/orderService'
 import { updateProfile } from '@/services/authService'
-import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatPrice, isRestaurantOpen } from '@/lib/utils'
@@ -76,32 +75,17 @@ export function CheckoutPage() {
   useEffect(() => {
     if (status !== 'pending_confirmation' || !orderId) return
 
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders',
-        filter: `id=eq.${orderId}`,
-      }, (payload) => {
-        // v11: verify the payload belongs to the current user before acting on it.
-        // Even if RLS filters the payload to null for foreign orders, be explicit.
-        // An attacker subscribing to a known order ID should not be able to
-        // trigger UI state changes.
-        const record = payload.new
-        if (!record) return
-        if (record.user_id && record.user_id !== user?.id) return
+    return orderService.subscribeToOrder(orderId, (record) => {
+      if (!record) return
+      if (record.user_id && record.user_id !== user?.id) return
 
-        const newStatus = record.status
-        if (newStatus === 'confirmed' || newStatus === 'preparing' || newStatus === 'on_the_way') {
-          setStatus('success')
-        } else if (newStatus === 'cancelled') {
-          setStatus('rejected')
-        }
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+      const newStatus = record.status
+      if (newStatus === 'confirmed' || newStatus === 'preparing' || newStatus === 'on_the_way') {
+        setStatus('success')
+      } else if (newStatus === 'cancelled') {
+        setStatus('rejected')
+      }
+    })
   }, [status, orderId])
 
   const isAbholung = orderType === 'abholung'

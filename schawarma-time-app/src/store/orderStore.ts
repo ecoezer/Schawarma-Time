@@ -8,10 +8,13 @@ import { soundService } from '@/services/soundService'
 interface OrderStore {
   orders: Order[]
   isLoading: boolean
+  isLoadingMore: boolean
   error: string | null
   soundEnabled: boolean
+  page: number
+  hasMore: boolean
 
-  fetchOrders: () => Promise<void>
+  fetchOrders: (page?: number) => Promise<void>
   patchOrder: (id: string, changes: Partial<Order>) => void
   setSoundEnabled: (enabled: boolean) => void
   checkSound: () => void
@@ -21,17 +24,30 @@ interface OrderStore {
 export const useOrderStore = create<OrderStore>((set, get) => ({
   orders: [],
   isLoading: false,
+  isLoadingMore: false,
   error: null,
   soundEnabled: true,
+  page: 0,
+  hasMore: false,
 
-  fetchOrders: async () => {
-    set({ isLoading: true, error: null })
+  fetchOrders: async (page = 0) => {
+    const isFirstPage = page === 0
+    set({
+      ...(isFirstPage ? { isLoading: true } : { isLoadingMore: true }),
+      error: null,
+    })
     try {
-      const orders = await orderService.fetchAllOrders()
-      set({ orders, isLoading: false })
+      const { data, hasMore } = await orderService.fetchAllOrders(page)
+      set(state => ({
+        orders: isFirstPage ? data : [...state.orders, ...data],
+        isLoading: false,
+        isLoadingMore: false,
+        page,
+        hasMore,
+      }))
     } catch (err) {
       const msg = handleError(err, 'Bestellungen laden')
-      set({ isLoading: false, error: msg })
+      set({ isLoading: false, isLoadingMore: false, error: msg })
     }
   },
 
@@ -62,22 +78,16 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
       const { eventType, new: next, old } = payload
 
       if (eventType === 'INSERT' || eventType === 'UPDATE') {
-        const id = next.id
-        // We must fetch the full order with items/extras to avoid UI crashes
-        orderService.fetchOrderById(id).then(full => {
-          if (full) {
-            set(state => {
-              const exists = state.orders.some(o => o.id === id)
-              if (exists) {
-                return { orders: state.orders.map(o => o.id === id ? full : o) }
-              } else {
-                return { orders: [full, ...state.orders] }
-              }
-            })
-            if (eventType === 'INSERT') onNewOrder?.(full)
-            get().checkSound()
+        const nextOrder = next as Order
+        set(state => {
+          const exists = state.orders.some(o => o.id === nextOrder.id)
+          if (exists) {
+            return { orders: state.orders.map(o => o.id === nextOrder.id ? { ...o, ...nextOrder } : o) }
           }
+          return { orders: [nextOrder, ...state.orders] }
         })
+        if (eventType === 'INSERT') onNewOrder?.(nextOrder)
+        get().checkSound()
       } else if (eventType === 'DELETE') {
         set(state => ({ orders: state.orders.filter(o => o.id !== old.id) }))
       }

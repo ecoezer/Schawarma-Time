@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import * as authService from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
-import { supabase } from '@/lib/supabase'
 import { generateId } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import logo from '@/assets/logo.png'
@@ -16,12 +15,22 @@ function translateAuthError(err: any): string {
   const msg = err?.message ?? ''
   const code = err?.code ?? ''
   if (msg === 'Failed to fetch') return 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.'
+  if (code === 'auth/email-already-in-use') return 'Diese E-Mail-Adresse ist bereits registriert.'
+  if (code === 'auth/invalid-credential') return 'Falsche E-Mail-Adresse oder falsches Passwort.'
+  if (code === 'auth/invalid-email') return 'Ungültige E-Mail-Adresse.'
+  if (code === 'auth/too-many-requests') return 'Zu viele Versuche. Bitte versuche es später erneut.'
+  if (code === 'auth/user-not-found') return 'Kein Konto mit dieser E-Mail-Adresse gefunden.'
+  if (code === 'auth/weak-password') return 'Das Passwort ist zu schwach (min. 8 Zeichen).'
   if (code === 'email_address_invalid' || msg.toLowerCase().includes('invalid email')) return 'Ungültige E-Mail-Adresse.'
   if (code === 'weak_password') return 'Das Passwort ist zu schwach (min. 8 Zeichen).'
   if (code === 'email_not_confirmed' || msg.toLowerCase().includes('email not confirmed')) return '__resend__'
   if (msg.toLowerCase().includes('invalid login credentials') || msg.toLowerCase().includes('invalid credentials') || code === 'invalid_credentials') return 'Falsche E-Mail-Adresse oder falsches Passwort.'
   if (msg.toLowerCase().includes('user already registered') || code === 'user_already_exists') return 'Diese E-Mail-Adresse ist bereits registriert.'
-  if (msg.toLowerCase().includes('too many requests') || code === 'over_request_rate_limit') return 'Zu viele Versuche. Bitte warte einen Moment.'
+  if (
+    msg.toLowerCase().includes('too many requests') ||
+    msg.toLowerCase().includes('email rate limit exceeded') ||
+    code === 'over_request_rate_limit'
+  ) return 'Zu viele E-Mail-Anfragen. Bitte warte einen Moment, bevor du es erneut versuchst.'
   if (msg.toLowerCase().includes('user not found')) return 'Kein Konto mit dieser E-Mail-Adresse gefunden.'
   if (msg.toLowerCase().includes('password')) return 'Das Passwort ist ungültig.'
   if (msg) return msg
@@ -33,13 +42,8 @@ export function AuthPage() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
-  const { setUser, setSession, user, isInitialized } = useAuthStore()
-
-  if (isInitialized && user) {
-    toast('Du bist bereits angemeldet!', { icon: 'ℹ️' })
-    navigate('/', { replace: true })
-    return null
-  }
+  const { setUser, setSession, user, isInitialized, signOut } = useAuthStore()
+  const isAuthenticated = isInitialized && !!user
 
   const [isLogin, setIsLogin] = useState(location.pathname !== '/register')
   const [isForgotPassword, setIsForgotPassword] = useState(false)
@@ -88,16 +92,13 @@ export function AuthPage() {
   const handleResendConfirmation = async () => {
     setIsResending(true)
     try {
-      const { error } = await import('@/lib/supabase').then(m =>
-        m.supabase.auth.resend({ type: 'signup', email: formData.email })
-      )
-      if (error) throw error
+      await authService.resendVerificationEmail(formData.email)
       toast.success('Bestätigungs-E-Mail wurde erneut gesendet. Bitte prüfe dein Postfach.', { duration: 6000 })
       setShowResend(false)
-    } catch {
+    } catch (err: any) {
       toast.error((t) => (
         <span className="flex items-center gap-2">
-          E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.
+          {translateAuthError(err)}
           <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
         </span>
       ), { duration: Infinity })
@@ -120,10 +121,7 @@ export function AuthPage() {
     setIsSendingReset(true)
     try {
       const resetUrl = `${window.location.origin}/passwort-zuruecksetzen`
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: resetUrl,
-      })
-      if (error) throw error
+      await authService.requestPasswordReset(forgotEmail, resetUrl)
       setResetSent(true)
     } catch (err: any) {
       toast.error((t) => (
@@ -176,19 +174,11 @@ export function AuthPage() {
         }
 
         if (data.user) {
-          if (data.session) {
-            setSession(data.session)
-            const profile = await authService.fetchProfile(data.user.id)
-            setUser(profile)
-            toast.success('Konto erfolgreich erstellt!')
-            navigate(redirect)
-          } else {
-            // Email confirmation is ON
-            toast.success('Registrierung erfolgreich! Bitte prüfe deine E-Mails, um dein Konto zu bestätigen.', {
-              duration: 6000,
-            })
-            setIsLogin(true)
-          }
+          setSession(data.session)
+          const profile = await authService.fetchProfile(data.user.id)
+          setUser(profile)
+          toast.success('Konto erfolgreich erstellt!')
+          navigate(redirect)
         }
       }
     } catch (err: any) {
@@ -203,6 +193,65 @@ export function AuthPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isAuthenticated) {
+    const firstName = user?.full_name?.split(' ')[0] || 'Gast'
+    const isStaff = ['manager', 'cashier', 'kitchen'].includes(user?.role ?? '')
+
+    return (
+      <div className="min-h-[calc(100vh-80px)] bg-gray-50 flex items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md text-center"
+        >
+          <div className="mb-6 flex justify-center">
+            <img src={logo} alt="Logo" className="h-16 w-auto object-contain" />
+          </div>
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle size={28} className="text-green-600" />
+          </div>
+          <h1 className="text-2xl font-black text-gray-900">Du bist bereits angemeldet</h1>
+          <p className="mt-2 text-gray-600">
+            Hallo {firstName}. Du kannst direkt weitermachen oder dich zuerst sauber abmelden.
+          </p>
+
+          <div className="mt-8 space-y-3">
+            <Button
+              type="button"
+              variant="primary"
+              fullWidth
+              size="lg"
+              onClick={() => navigate(isStaff ? '/admin' : redirect, { replace: true })}
+            >
+              {isStaff ? 'Zum Admin-Bereich' : 'Weiter zur Bestellung'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              size="lg"
+              onClick={async () => {
+                setIsLoading(true)
+                try {
+                  await signOut()
+                  toast.success('Du wurdest abgemeldet.')
+                  navigate(location.pathname, { replace: true })
+                } catch {
+                  toast.error('Abmeldung fehlgeschlagen. Bitte versuche es erneut.')
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              isLoading={isLoading}
+            >
+              Abmelden
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    )
   }
 
   return (

@@ -1,6 +1,6 @@
 # Schawarma-Time — Online Sipariş Sistemi
 
-React + TypeScript + Supabase üzerine kurulu restoran sipariş yönetim sistemi.
+React + TypeScript + Firebase üzerine kurulu restoran sipariş yönetim sistemi.
 
 ## Kurulum
 
@@ -14,7 +14,7 @@ npm install
 
 # 2. Ortam değişkenlerini ayarla
 cp .env.example .env
-# .env dosyasını kendi Supabase/Cloudinary bilgilerinizle doldurun
+# .env dosyasını kendi Firebase/Cloudinary bilgilerinizle doldurun
 
 # 3. Geliştirme sunucusunu başlat
 npm run dev
@@ -27,8 +27,12 @@ npm run build
 
 | Değişken | Açıklama | Zorunlu |
 |----------|----------|---------|
-| `VITE_SUPABASE_URL` | Supabase proje URL'i | ✅ |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon key | ✅ |
+| `VITE_FIREBASE_API_KEY` | Firebase Web API key | ✅ |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain | ✅ |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase proje ID | ✅ |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | ✅ |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | ✅ |
+| `VITE_FIREBASE_APP_ID` | Firebase app ID | ✅ |
 | `VITE_CLOUDINARY_CLOUD_NAME` | Cloudinary cloud adı | ✅ |
 | `VITE_CLOUDINARY_UPLOAD_PRESET` | Cloudinary unsigned preset adı | ✅ |
 
@@ -37,10 +41,9 @@ npm run build
 - **Frontend:** React 19 + TypeScript + Vite
 - **Styling:** Tailwind CSS 4
 - **State:** Zustand
-- **Backend:** Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
+- **Backend/Data:** Firebase (Auth + Firestore)
 - **Images:** Cloudinary
-- **Email:** Resend
-- **Hosting:** Netlify
+- **Hosting:** Cloudflare Workers / Pages
 
 ## Proje Yapısı
 
@@ -50,12 +53,21 @@ schawarma-time-app/
 │   ├── components/     # UI bileşenleri
 │   ├── pages/          # Sayfalar (HomePage, CheckoutPage, Admin sayfaları)
 │   ├── store/          # Zustand state yönetimi
-│   ├── services/       # Supabase API çağrıları
-│   ├── lib/            # Supabase client, yardımcı fonksiyonlar
+│   ├── services/       # Firebase / Firestore servisleri
+│   ├── lib/            # Firebase client, yardımcı fonksiyonlar
 │   └── types/          # TypeScript tip tanımları
-├── supabase/
-│   ├── schema.sql      # Tam veritabanı şeması (tek kaynak)
-│   ├── seed.sql        # Ürün kataloğu verileri
-│   └── functions/      # Supabase Edge Functions
-└── netlify.toml        # Netlify deployment konfigürasyonu
+├── wrangler.toml       # Cloudflare Workers assets konfigürasyonu
+└── netlify.toml        # Eski deploy ayarları (gerekirse kaldırılabilir)
 ```
+
+## Cloudflare Deploy
+
+```bash
+# Production build
+npm run cf:build
+
+# Workers.dev deploy
+npm run cf:deploy
+```
+
+Cloudflare tarafında static asset kaynağı doğrudan `dist/` klasörüdür. `src/main.tsx` dosyası production'da servis edilmemelidir.

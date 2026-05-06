@@ -1,46 +1,65 @@
-import { supabase } from '@/lib/supabase'
+import { collection, getDocs, orderBy, query, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import type { Customer, Order } from '@/types'
-import { toArray } from '@/lib/utils'
-
-// ─── Queries ──────────────────────────────────────────────────────────────────
 
 const CUSTOMERS_PAGE_SIZE = 50
 
-// v12: pagination added — unbounded SELECT on profiles is a DoS and PII risk.
+function mapCustomer(id: string, data: Partial<Customer>): Customer {
+  return {
+    id,
+    full_name: data.full_name ?? '',
+    email: data.email ?? '',
+    phone: data.phone ?? null,
+    role: data.role ?? 'customer',
+    total_orders: data.total_orders ?? 0,
+    loyalty_points: data.loyalty_points ?? 0,
+    addresses: Array.isArray(data.addresses) ? data.addresses : [],
+    created_at: data.created_at ?? new Date().toISOString(),
+  }
+}
+
+function mapOrder(id: string, data: Partial<Order>): Order {
+  return {
+    id,
+    order_number: data.order_number ?? '',
+    user_id: data.user_id ?? null,
+    customer_name: data.customer_name ?? '',
+    customer_phone: data.customer_phone ?? '',
+    customer_email: data.customer_email ?? '',
+    delivery_address: data.delivery_address ?? '',
+    delivery_lat: data.delivery_lat ?? null,
+    delivery_lng: data.delivery_lng ?? null,
+    items: Array.isArray(data.items) ? data.items : [],
+    subtotal: data.subtotal ?? 0,
+    delivery_fee: data.delivery_fee ?? 0,
+    discount_amount: data.discount_amount ?? 0,
+    coupon_code: data.coupon_code ?? null,
+    total: data.total ?? 0,
+    status: data.status ?? 'pending',
+    payment_method: data.payment_method ?? 'cash',
+    estimated_delivery_time: data.estimated_delivery_time ?? null,
+    notes: data.notes ?? null,
+    rejection_reason: data.rejection_reason ?? null,
+    created_at: data.created_at ?? new Date().toISOString(),
+    updated_at: data.updated_at ?? new Date().toISOString(),
+  }
+}
+
 export async function fetchCustomers(page = 0): Promise<{ data: Customer[]; hasMore: boolean }> {
-  const from = page * CUSTOMERS_PAGE_SIZE
-  const to   = from + CUSTOMERS_PAGE_SIZE - 1
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, email, full_name, phone, created_at, total_orders, loyalty_points, role')
-    .eq('role', 'customer')
-    .order('created_at', { ascending: false })
-    .range(from, to)
-
-  if (error) throw error
-  const rows = toArray(data) as Customer[]
-  return { data: rows, hasMore: rows.length === CUSTOMERS_PAGE_SIZE }
+  const snap = await getDocs(query(collection(db, 'profiles'), where('role', '==', 'customer'), orderBy('created_at', 'desc')))
+  const rows = snap.docs.map((item) => mapCustomer(item.id, item.data() as Partial<Customer>))
+  const start = page * CUSTOMERS_PAGE_SIZE
+  const data = rows.slice(start, start + CUSTOMERS_PAGE_SIZE)
+  return { data, hasMore: start + CUSTOMERS_PAGE_SIZE < rows.length }
 }
 
 export async function fetchTotalCustomerCount(): Promise<number> {
-  const { count, error } = await supabase
-    .from('profiles')
-    .select('id', { count: 'exact', head: true })
-    .eq('role', 'customer')
-
-  if (error) throw error
-  return count || 0
+  const snap = await getDocs(query(collection(db, 'profiles'), where('role', '==', 'customer')))
+  return snap.size
 }
 
 export async function fetchCustomerOrders(userId: string): Promise<Order[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(20)
-
-  if (error) throw error
-  return toArray(data) as Order[]
+  const snap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', userId), orderBy('created_at', 'desc')))
+  return snap.docs.slice(0, 20).map((item) => mapOrder(item.id, item.data() as Partial<Order>))
 }
+

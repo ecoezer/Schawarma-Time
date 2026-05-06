@@ -46,8 +46,8 @@ export function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const sectionRefs = useRef<Record<string, HTMLElement>>({})
   
-  const { settings } = useRestaurantStore()
-  const { categories, products, fetchMenu, isLoading } = useMenuStore()
+  const { settings, isLoading: settingsLoading, error: settingsError } = useRestaurantStore()
+  const { categories, products, fetchMenu, isLoading, error: menuError } = useMenuStore()
 
   useEffect(() => {
     fetchMenu()
@@ -102,8 +102,38 @@ export function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [activeCategories, searchQuery])
 
-  if (!settings) {
+  if (settingsLoading && !settings) {
     return <SkeletonSection />
+  }
+
+  if (settingsError || menuError) {
+    return (
+      <div className="min-h-screen bg-white px-4 py-16">
+        <div className="mx-auto max-w-2xl rounded-3xl border border-red-100 bg-red-50 px-6 py-8 text-center">
+          <h1 className="text-2xl font-black text-red-900">Menü konnte nicht geladen werden</h1>
+          <p className="mt-3 text-sm text-red-700">
+            {settingsError || menuError}
+          </p>
+          <p className="mt-2 text-sm text-red-600">
+            Bitte lade die Seite neu oder prüfe die Verbindung zur Datenbank.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!settings) {
+    return (
+      <div className="min-h-screen bg-white px-4 py-16">
+        <div className="mx-auto max-w-2xl rounded-3xl border border-gray-200 bg-gray-50 px-6 py-8 text-center">
+          <h1 className="text-2xl font-black text-gray-900">Restaurantdaten fehlen</h1>
+          <p className="mt-3 text-sm text-gray-600">
+            Die Grundeinstellungen konnten nicht geladen werden. Bitte prüfe, ob in Supabase ein Datensatz für
+            `restaurant_settings` vorhanden ist.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

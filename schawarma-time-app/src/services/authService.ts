@@ -1,18 +1,34 @@
-import { supabase } from '@/lib/supabase'
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updatePassword,
+  updateProfile as updateAuthProfile,
+} from 'firebase/auth'
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore'
+import { auth, db, userToSession, type AppSession } from '@/lib/firebase'
 import type { UserProfile } from '@/types'
-
-// ─── Application-level rate limiting (v11 fix) ────────────────────────────────
-// Supabase Auth has server-side rate limits, but adding a client-side layer
-// prevents casual brute-force loops from even reaching the Supabase endpoint.
-// Keyed by lowercase email; state is in-memory (resets on page reload — intentional,
-// since persistent lockout requires server-side storage outside scope here).
 
 interface RateLimitEntry { count: number; windowStart: number }
 const loginAttempts = new Map<string, RateLimitEntry>()
 const signupAttempts = new Map<string, RateLimitEntry>()
-const RATE_WINDOW_MS  = 60_000  // 1 minute window
+const RATE_WINDOW_MS = 60_000
 const MAX_LOGIN_TRIES = 5
 const MAX_SIGNUP_TRIES = 3
+const EMAIL_ACTION_COOLDOWN_MS = 90_000
+
+export interface AuthPayload {
+  user: { id: string; email: string | null }
+  session: AppSession | null
+}
 
 function checkRateLimit(
   map: Map<string, RateLimitEntry>,
@@ -20,7 +36,7 @@ function checkRateLimit(
   maxAttempts: number,
   errorMessage: string
 ): void {
-  const now   = Date.now()
+  const now = Date.now()
   const entry = map.get(key) ?? { count: 0, windowStart: now }
   const inWindow = now - entry.windowStart < RATE_WINDOW_MS
 
@@ -30,79 +46,141 @@ function checkRateLimit(
   }
 
   map.set(key, {
-    count:       inWindow ? entry.count + 1 : 1,
+    count: inWindow ? entry.count + 1 : 1,
     windowStart: inWindow ? entry.windowStart : now,
   })
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+function emailActionKey(action: 'signup' | 'reset' | 'resend', email: string): string {
+  return `schawarma-time:${action}:${email.trim().toLowerCase()}`
+}
 
-export async function signIn(email: string, password: string) {
-  // v11: client-side rate limit — max 5 attempts per email per minute
-  checkRateLimit(loginAttempts, email.toLowerCase(),
-    MAX_LOGIN_TRIES, 'Zu viele Anmeldeversuche.')
+export function assertEmailActionCooldown(action: 'signup' | 'reset' | 'resend', email: string): void {
+  if (typeof window === 'undefined') return
+  const key = emailActionKey(action, email)
+  const lastRun = Number(window.localStorage.getItem(key) || '0')
+  const elapsed = Date.now() - lastRun
+  if (elapsed < EMAIL_ACTION_COOLDOWN_MS) {
+    const waitSec = Math.ceil((EMAIL_ACTION_COOLDOWN_MS - elapsed) / 1000)
+    throw new Error(`Bitte warte ${waitSec} Sekunden, bevor du erneut eine E-Mail anforderst.`)
+  }
+}
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw error
+export function markEmailActionSent(action: 'signup' | 'reset' | 'resend', email: string): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(emailActionKey(action, email), String(Date.now()))
+}
 
-  // Reset counter on successful login
+function profileRef(userId: string) {
+  return doc(db, 'profiles', userId)
+}
+
+function normalizeProfile(userId: string, email: string | null, data: Partial<UserProfile> | undefined): UserProfile {
+  return {
+    id: userId,
+    email: email ?? data?.email ?? '',
+    full_name: data?.full_name ?? '',
+    phone: data?.phone ?? null,
+    birth_date: data?.birth_date ?? null,
+    role: data?.role ?? 'customer',
+    addresses: Array.isArray(data?.addresses) ? data!.addresses : [],
+    loyalty_points: data?.loyalty_points ?? 0,
+    total_orders: data?.total_orders ?? 0,
+    created_at: data?.created_at ?? new Date().toISOString(),
+  }
+}
+
+export async function signIn(email: string, password: string): Promise<AuthPayload> {
+  checkRateLimit(loginAttempts, email.toLowerCase(), MAX_LOGIN_TRIES, 'Zu viele Anmeldeversuche.')
+  const credential = await signInWithEmailAndPassword(auth, email, password)
   loginAttempts.delete(email.toLowerCase())
-  return data
+  return {
+    user: { id: credential.user.uid, email: credential.user.email },
+    session: userToSession(credential.user),
+  }
 }
 
-export async function signUp(email: string, password: string, metadata: { full_name: string; phone: string }) {
-  // v11: client-side rate limit — max 3 signups per email per minute
-  checkRateLimit(signupAttempts, email.toLowerCase(),
-    MAX_SIGNUP_TRIES, 'Zu viele Registrierungsversuche.')
+export async function signUp(email: string, password: string, metadata: { full_name: string; phone: string }): Promise<AuthPayload> {
+  checkRateLimit(signupAttempts, email.toLowerCase(), MAX_SIGNUP_TRIES, 'Zu viele Registrierungsversuche.')
+  assertEmailActionCooldown('signup', email)
 
-  const { data, error } = await supabase.auth.signUp({
+  const credential = await createUserWithEmailAndPassword(auth, email, password)
+  await updateAuthProfile(credential.user, { displayName: metadata.full_name })
+  await setDoc(profileRef(credential.user.uid), normalizeProfile(credential.user.uid, email, {
     email,
-    password,
-    options: { data: metadata },
+    full_name: metadata.full_name,
+    phone: metadata.phone,
+    role: 'customer',
+    addresses: [],
+    loyalty_points: 0,
+    total_orders: 0,
+    created_at: new Date().toISOString(),
+  }), { merge: true })
+
+  return {
+    user: { id: credential.user.uid, email: credential.user.email },
+    session: userToSession(credential.user),
+  }
+}
+
+export async function resendVerificationEmail(email: string): Promise<void> {
+  assertEmailActionCooldown('resend', email)
+  if (!auth.currentUser || auth.currentUser.email?.toLowerCase() !== email.toLowerCase()) {
+    throw new Error('Bitte melde dich an, um eine neue Bestätigungs-E-Mail zu senden.')
+  }
+  await sendEmailVerification(auth.currentUser)
+  markEmailActionSent('resend', email)
+}
+
+export async function requestPasswordReset(email: string, redirectUrl: string): Promise<void> {
+  assertEmailActionCooldown('reset', email)
+  await sendPasswordResetEmail(auth, email, {
+    url: redirectUrl,
+    handleCodeInApp: true,
   })
-  if (error) throw error
-  return data
+  markEmailActionSent('reset', email)
 }
 
-export async function signOut() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
+export async function signOut(): Promise<void> {
+  await firebaseSignOut(auth)
 }
 
-export async function getSession() {
-  const { data: { session } } = await supabase.auth.getSession()
-  return session
+export async function getSession(): Promise<AppSession | null> {
+  return userToSession(auth.currentUser)
 }
 
 export async function changePassword(newPassword: string): Promise<void> {
-  const { error } = await supabase.auth.updateUser({ password: newPassword })
-  if (error) throw error
-  // 🔴-2 fix: invalidate ALL other sessions globally after password change.
-  // Stolen JWTs / refresh tokens from other devices are revoked immediately.
-  await supabase.auth.signOut({ scope: 'global' })
+  if (!auth.currentUser) throw new Error('Keine aktive Sitzung gefunden.')
+  await updatePassword(auth.currentUser, newPassword)
 }
 
-// ─── Profile ──────────────────────────────────────────────────────────────────
-
 export async function fetchProfile(userId: string): Promise<UserProfile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-
-  if (error) {
-    return null
+  const snap = await getDoc(profileRef(userId))
+  if (!snap.exists()) {
+    const currentEmail = auth.currentUser?.uid === userId ? auth.currentUser.email : null
+    return normalizeProfile(userId, currentEmail, undefined)
   }
-  return data as UserProfile
+  const data = snap.data() as Partial<UserProfile>
+  const currentEmail = auth.currentUser?.uid === userId ? auth.currentUser.email : data.email ?? null
+  return normalizeProfile(userId, currentEmail, data)
 }
 
 export async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId)
+  await setDoc(profileRef(userId), updates, { merge: true })
+}
 
-  if (error) throw error
+export async function incrementCustomerOrderStats(userId: string | null): Promise<void> {
+  if (!userId) return
+  await runTransaction(db, async (tx) => {
+    const ref = profileRef(userId)
+    const snap = await tx.get(ref)
+    const current = snap.exists() ? (snap.data() as Partial<UserProfile>) : {}
+    tx.set(ref, {
+      total_orders: (current.total_orders ?? 0) + 1,
+      loyalty_points: current.loyalty_points ?? 0,
+      role: current.role ?? 'customer',
+      created_at: current.created_at ?? new Date().toISOString(),
+    }, { merge: true })
+  })
 }
 

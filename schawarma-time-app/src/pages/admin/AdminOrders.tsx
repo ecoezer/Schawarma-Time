@@ -73,7 +73,10 @@ const OrderCard = memo(({ order, isSelected, onClick }: { order: Order, isSelect
 export function AdminOrders() {
   const orders = useOrderStore(state => state.orders)
   const isLoading = useOrderStore(state => state.isLoading)
+  const isLoadingMore = useOrderStore(state => state.isLoadingMore)
   const error = useOrderStore(state => state.error)
+  const page = useOrderStore(state => state.page)
+  const hasMore = useOrderStore(state => state.hasMore)
   const { soundEnabled, setSoundEnabled, fetchOrders, patchOrder, initRealtime } = useOrderStore()
 
   useEffect(() => {
@@ -276,15 +279,34 @@ export function AdminOrders() {
         <div className="space-y-3 pb-20">
           {isLoading ? (
             <div className="text-center py-20 text-gray-400">Lädt...</div>
+          ) : error ? (
+            <div className="text-center py-16 text-red-600 font-medium">{error}</div>
           ) : (
-            filteredOrders.map((order) => (
-              <OrderCard 
-                key={order.id} 
-                order={order} 
-                isSelected={selectedOrderId === order.id}
-                onClick={() => setSelectedOrderId(order.id)}
-              />
-            ))
+            <>
+              {filteredOrders.map((order) => (
+                <OrderCard 
+                  key={order.id} 
+                  order={order} 
+                  isSelected={selectedOrderId === order.id}
+                  onClick={() => setSelectedOrderId(order.id)}
+                />
+              ))}
+              {filteredOrders.length === 0 && (
+                <div className="text-center py-16 text-gray-400">Keine Bestellungen gefunden.</div>
+              )}
+              {filter === 'all' && hasMore && (
+                <div className="pt-4">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    onClick={() => fetchOrders(page + 1)}
+                    isLoading={isLoadingMore}
+                  >
+                    Weitere Bestellungen laden
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

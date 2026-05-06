@@ -1,20 +1,6 @@
-import { supabase } from '@/lib/supabase'
-import type { Coupon } from '@/types'
-import { toArray } from '@/lib/utils'
-
-// ─── Queries ──────────────────────────────────────────────────────────────────
-
-export async function fetchCoupons(): Promise<Coupon[]> {
-  const { data, error } = await supabase
-    .from('coupons')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return toArray(data) as Coupon[]
-}
-
-// ─── Validation ───────────────────────────────────────────────────────────────
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, where } from 'firebase/firestore'
+import { auth, db } from '@/lib/firebase'
+import type { Coupon, Order } from '@/types'
 
 export interface CouponValidationResult {
   valid: boolean
@@ -22,63 +8,69 @@ export interface CouponValidationResult {
   errorMessage?: string
 }
 
-// v11 fix: Previously called `coupons` table directly, which RLS blocks for customers
-// (post-v9 policy: coupons readable only by managers). All customer coupon validation
-// calls failed silently — every code showed "invalid" in the UI.
-//
-// New approach: call the `validate_coupon_public` SECURITY DEFINER RPC, which runs
-// as the table owner, performs all checks server-side, and returns only the
-// necessary fields. No code enumeration possible (uniform error messages).
-export async function validateCoupon(
-  code: string,
-  subtotal: number,
-  _userId?: string   // kept for API compat, server-side RPC uses auth.uid() internally
-): Promise<CouponValidationResult> {
-  const { data, error } = await supabase.rpc('validate_coupon_public', {
-    p_code:     code,
-    p_subtotal: subtotal,
-  })
-
-  if (error) {
-    return { valid: false, discount: 0, errorMessage: 'Gutscheinprüfung fehlgeschlagen' }
+function mapCoupon(id: string, data: Partial<Coupon>): Coupon {
+  return {
+    id,
+    code: data.code ?? '',
+    discount_type: data.discount_type ?? 'fixed',
+    discount_value: data.discount_value ?? 0,
+    min_order_amount: data.min_order_amount ?? 0,
+    max_uses: data.max_uses ?? null,
+    used_count: data.used_count ?? 0,
+    is_first_order_only: data.is_first_order_only ?? false,
+    is_active: data.is_active ?? true,
+    expires_at: data.expires_at ?? null,
+    created_at: data.created_at ?? new Date().toISOString(),
   }
-
-  const result = data as { valid: boolean; discount?: number; errorMessage?: string }
-
-  if (!result.valid) {
-    return { valid: false, discount: 0, errorMessage: result.errorMessage || 'Ungültiger Gutscheincode' }
-  }
-
-  return { valid: true, discount: result.discount ?? 0 }
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+export async function fetchCoupons(): Promise<Coupon[]> {
+  const snap = await getDocs(query(collection(db, 'coupons'), orderBy('created_at', 'desc')))
+  return snap.docs.map((item) => mapCoupon(item.id, item.data() as Partial<Coupon>))
+}
+
+export async function validateCoupon(code: string, subtotal: number, _userId?: string): Promise<CouponValidationResult> {
+  const snap = await getDocs(query(collection(db, 'coupons'), where('code', '==', code.trim().toUpperCase())))
+  const docSnap = snap.docs[0]
+  if (!docSnap) return { valid: false, discount: 0, errorMessage: 'Ungültiger Gutscheincode' }
+
+  const coupon = mapCoupon(docSnap.id, docSnap.data() as Partial<Coupon>)
+  if (!coupon.is_active) return { valid: false, discount: 0, errorMessage: 'Gutschein ist deaktiviert' }
+  if (coupon.expires_at && new Date(coupon.expires_at).getTime() < Date.now()) {
+    return { valid: false, discount: 0, errorMessage: 'Gutschein ist abgelaufen' }
+  }
+  if (subtotal < coupon.min_order_amount) {
+    return { valid: false, discount: 0, errorMessage: 'Mindestbestellwert nicht erreicht' }
+  }
+  if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
+    return { valid: false, discount: 0, errorMessage: 'Gutschein ist bereits ausgeschöpft' }
+  }
+  if (coupon.is_first_order_only && auth.currentUser) {
+    const ordersSnap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid)))
+    const hasPastOrder = ordersSnap.docs.some((item) => (item.data() as Partial<Order>).status !== 'cancelled')
+    if (hasPastOrder) {
+      return { valid: false, discount: 0, errorMessage: 'Nur für die erste Bestellung gültig' }
+    }
+  }
+
+  const rawDiscount = coupon.discount_type === 'percentage'
+    ? subtotal * (coupon.discount_value / 100)
+    : coupon.discount_value
+
+  return { valid: true, discount: Math.min(rawDiscount, subtotal) }
+}
 
 export async function createCoupon(data: Omit<Coupon, 'id' | 'created_at' | 'used_count'>): Promise<Coupon> {
-  const { data: created, error } = await supabase
-    .from('coupons')
-    .insert([{ ...data, used_count: 0 }])
-    .select()
-
-  if (error) throw error
-  return created![0] as Coupon
+  const createdAt = new Date().toISOString()
+  const ref = await addDoc(collection(db, 'coupons'), { ...data, used_count: 0, created_at: createdAt })
+  return mapCoupon(ref.id, { ...data, used_count: 0, created_at: createdAt })
 }
 
 export async function updateCoupon(id: string, data: Partial<Coupon>): Promise<void> {
-  const { error } = await supabase
-    .from('coupons')
-    .update(data)
-    .eq('id', id)
-
-  if (error) throw error
+  await setDoc(doc(db, 'coupons', id), data as Record<string, unknown>, { merge: true })
 }
 
 export async function deleteCoupon(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('coupons')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  await deleteDoc(doc(db, 'coupons', id))
 }
 

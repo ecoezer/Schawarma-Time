@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Lock, Eye, EyeOff } from 'lucide-react'
+import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import toast from 'react-hot-toast'
 import logo from '@/assets/logo.png'
 
@@ -14,40 +15,53 @@ export function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [oobCode, setOobCode] = useState<string | null>(null)
+  const [isCheckingCode, setIsCheckingCode] = useState(true)
+  const [isValidCode, setIsValidCode] = useState(false)
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('oobCode')
+    if (!code) {
+      setIsCheckingCode(false)
+      setIsValidCode(false)
+      return
+    }
+
+    verifyPasswordResetCode(auth, code)
+      .then(() => {
+        setOobCode(code)
+        setIsValidCode(true)
+      })
+      .catch(() => {
+        setIsValidCode(false)
+      })
+      .finally(() => {
+        setIsCheckingCode(false)
+      })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!oobCode || !isValidCode) {
+      toast.error('Reset-Link ist ungültig oder abgelaufen.')
+      return
+    }
     if (password.length < 8) {
-      toast.error((t) => (
-        <span className="flex items-center gap-2">
-          Das Passwort muss mindestens 8 Zeichen lang sein.
-          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
-        </span>
-      ), { duration: Infinity })
+      toast.error('Das Passwort muss mindestens 8 Zeichen lang sein.')
       return
     }
     if (password !== confirm) {
-      toast.error((t) => (
-        <span className="flex items-center gap-2">
-          Die Passwörter stimmen nicht überein.
-          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
-        </span>
-      ), { duration: Infinity })
+      toast.error('Die Passwörter stimmen nicht überein.')
       return
     }
+
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password })
-      if (error) throw error
-      toast.success('Passwort erfolgreich geändert! Du wirst angemeldet.')
-      navigate('/', { replace: true })
+      await confirmPasswordReset(auth, oobCode, password)
+      toast.success('Passwort erfolgreich geändert! Bitte melde dich erneut an.')
+      navigate('/login', { replace: true })
     } catch (err: any) {
-      toast.error((t) => (
-        <span className="flex items-center gap-2">
-          {err?.message ?? 'Ein Fehler ist aufgetreten.'}
-          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
-        </span>
-      ), { duration: Infinity })
+      toast.error(err?.message ?? 'Ein Fehler ist aufgetreten.')
     } finally {
       setIsLoading(false)
     }
@@ -68,6 +82,12 @@ export function ResetPasswordPage() {
           <p className="text-gray-500 mt-2">Bitte wähle ein neues Passwort für dein Konto.</p>
         </div>
 
+        {!isCheckingCode && !isValidCode && (
+          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            Dieser Reset-Link ist ungültig oder bereits abgelaufen. Bitte fordere einen neuen Passwort-Link an.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Neues Passwort"
@@ -76,11 +96,12 @@ export function ResetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             leftIcon={<Lock size={18} className="text-gray-400" />}
+            disabled={isCheckingCode || !isValidCode}
             rightIcon={
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
                 className="hover:text-gray-600 transition-colors focus:outline-none"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -95,11 +116,12 @@ export function ResetPasswordPage() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             leftIcon={<Lock size={18} className="text-gray-400" />}
+            disabled={isCheckingCode || !isValidCode}
             rightIcon={
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
                 className="hover:text-gray-600 transition-colors focus:outline-none"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -107,7 +129,14 @@ export function ResetPasswordPage() {
             }
             required
           />
-          <Button type="submit" variant="primary" fullWidth size="lg" isLoading={isLoading}>
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            size="lg"
+            isLoading={isLoading || isCheckingCode}
+            disabled={isCheckingCode || !isValidCode}
+          >
             Passwort speichern
           </Button>
         </form>
@@ -115,3 +144,4 @@ export function ResetPasswordPage() {
     </div>
   )
 }
+

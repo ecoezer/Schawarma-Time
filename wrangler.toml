@@ -1,0 +1,7 @@
+name = "schawarmatime"
+compatibility_date = "2026-05-06"
+
+[assets]
+directory = "./schawarma-time-app/dist"
+not_found_handling = "single-page-application"
+

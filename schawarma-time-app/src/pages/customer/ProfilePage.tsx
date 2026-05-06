@@ -7,6 +7,7 @@ import * as authService from '@/services/authService'
 import { useCartStore } from '@/store/cartStore'
 import { useRestaurantStore } from '@/store/restaurantStore'
 import * as orderService from '@/services/orderService'
+import { fetchProducts } from '@/services/productService'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -152,15 +153,8 @@ export function ProfilePage() {
     // BLV-5: Fetch current product prices from DB — never reuse stale order prices
     try {
       const productIds = [...new Set(order.items.map(i => i.product_id))]
-      const { data: products, error } = await (await import('@/lib/supabase')).supabase
-        .from('products')
-        .select('id, name, price, extra_groups, is_active, image_url')
-        .in('id', productIds)
-        .eq('is_active', true)
-
-      if (error) throw error
-
-      const productMap = new Map((products || []).map((p: any) => [p.id, p]))
+      const products = await fetchProducts()
+      const productMap = new Map(products.filter((p) => productIds.includes(p.id) && p.is_active).map((p) => [p.id, p]))
       const unavailable: string[] = []
       const cartItems: any[] = []
 
@@ -174,7 +168,7 @@ export function ProfilePage() {
         // Resolve current extra prices from DB product definition
         const resolvedExtras = (item.extras || []).map((extra: any) => {
           for (const group of product.extra_groups || []) {
-            for (const opt of group.options || []) {
+            for (const opt of group.extras || []) {
               if (opt.id === extra.id) {
                 return { ...extra, price: opt.price ?? 0 }
               }
