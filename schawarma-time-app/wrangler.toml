@@ -2,7 +2,7 @@ name = "schawarmatime"
 compatibility_date = "2026-05-06"
 
 [build]
-command = "npm run build"
+command = "npm install && npm run build"
 
 [assets]
 directory = "./dist"

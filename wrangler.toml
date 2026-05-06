@@ -2,7 +2,7 @@ name = "schawarmatime"
 compatibility_date = "2026-05-06"
 
 [build]
-command = "npm --prefix ./schawarma-time-app run build"
+command = "npm --prefix ./schawarma-time-app install && npm --prefix ./schawarma-time-app run build"
 
 [assets]
 directory = "./schawarma-time-app/dist"
