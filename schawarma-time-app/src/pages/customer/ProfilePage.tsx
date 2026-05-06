@@ -62,13 +62,16 @@ export function ProfilePage() {
     // Realtime: status updates appear instantly without page refresh
     const unsub = orderService.subscribeToOrders((payload) => {
       const { eventType, new: next, old } = payload
-      if (eventType === 'UPDATE' && next.user_id === user.id) {
-        orderService.fetchOrderById(next.id).then(full => {
-          if (full) setOrders(prev => prev.map(o => o.id === full.id ? full : o))
+      if ((eventType === 'BOOTSTRAP' || eventType === 'UPDATE') && next.user_id === user.id) {
+        setOrders(prev => {
+          const exists = prev.some(o => o.id === next.id)
+          if (!exists) return eventType === 'BOOTSTRAP' ? [next, ...prev] : prev
+          return prev.map(o => o.id === next.id ? next : o)
         })
       } else if (eventType === 'INSERT' && next.user_id === user.id) {
-        orderService.fetchOrderById(next.id).then(full => {
-          if (full) setOrders(prev => [full, ...prev])
+        setOrders(prev => {
+          const exists = prev.some(o => o.id === next.id)
+          return exists ? prev : [next, ...prev]
         })
       } else if (eventType === 'DELETE') {
         setOrders(prev => prev.filter(o => o.id !== old.id))
