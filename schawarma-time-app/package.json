@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "firebase:seed": "node ./scripts/import-supabase-seed-to-firebase.mjs",
     "cf:build": "npm run build",
     "cf:deploy": "npm run build && npx wrangler deploy",
     "cf:dev": "npx wrangler dev"
