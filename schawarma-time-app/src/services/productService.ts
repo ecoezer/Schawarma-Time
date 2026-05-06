@@ -9,7 +9,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore'
-import { db, timestampToIso } from '@/lib/firebase'
+import { db, timestampToIso, withFirebaseTimeout } from '@/lib/firebase'
 import type { Product, Category } from '@/types'
 
 function mapCategory(id: string, data: Partial<Category>): Category {
@@ -48,7 +48,10 @@ function mapProduct(id: string, data: Partial<Product>): Product {
 }
 
 export async function fetchCategories(): Promise<Category[]> {
-  const snap = await getDocs(query(collection(db, 'categories'), orderBy('position')))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'categories'), orderBy('position'))),
+    'Kategorien laden',
+  )
   return snap.docs.map((item) => mapCategory(item.id, item.data() as Partial<Category>))
 }
 
@@ -76,7 +79,10 @@ export async function deleteCategory(id: string): Promise<void> {
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  const snap = await getDocs(query(collection(db, 'products'), orderBy('position')))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'products'), orderBy('position'))),
+    'Produkte laden',
+  )
   return snap.docs.map((item) => mapProduct(item.id, item.data() as Partial<Product>))
 }
 
@@ -97,4 +103,3 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
 export async function deleteProduct(id: string): Promise<void> {
   await deleteDoc(doc(db, 'products', id))
 }
-

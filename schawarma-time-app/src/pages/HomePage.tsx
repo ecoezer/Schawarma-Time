@@ -136,6 +136,29 @@ export function HomePage() {
     )
   }
 
+  if (!isLoading && !menuError && activeCategories.length === 0 && filteredProducts.length === 0) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="bg-white border-b border-gray-100">
+          <HeroSection settings={settings} />
+          {settings.is_map_mode_active && <MapSection settings={settings} />}
+        </div>
+
+        <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8">
+            <h2 className="text-2xl font-black text-amber-950">Menü ist noch leer</h2>
+            <p className="mt-3 text-sm text-amber-800">
+              Firebase ist erreichbar, aber in `categories` oder `products` sind noch keine sichtbaren Einträge vorhanden.
+            </p>
+            <p className="mt-2 text-sm text-amber-700">
+              Lege zuerst Kategorien und Produkte an oder importiere die bestehenden Daten.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="bg-white border-b border-gray-100">

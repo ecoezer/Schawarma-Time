@@ -1,5 +1,5 @@
 import { collection, doc, getDocs, limit, query, setDoc, updateDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, withFirebaseTimeout } from '@/lib/firebase'
 import type { RestaurantSettings } from '@/types'
 
 function normalizePaymentMethods(value: unknown): RestaurantSettings['payment_methods'] {
@@ -42,7 +42,10 @@ function normalizeSettings(id: string, data: Partial<RestaurantSettings>): Resta
 }
 
 async function getSettingsDoc(): Promise<RestaurantSettings> {
-  const snap = await getDocs(query(collection(db, 'restaurant_settings'), limit(1)))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'restaurant_settings'), limit(1))),
+    'Restaurant-Einstellungen laden',
+  )
   const first = snap.docs[0]
   if (!first) {
     throw new Error('Keine Restaurant-Einstellungen gefunden.')
@@ -61,4 +64,3 @@ export async function fetchSettingsAdmin(): Promise<RestaurantSettings> {
 export async function updateSettings(id: string, updates: Partial<RestaurantSettings>): Promise<void> {
   await setDoc(doc(db, 'restaurant_settings', id), updates as Record<string, unknown>, { merge: true })
 }
-

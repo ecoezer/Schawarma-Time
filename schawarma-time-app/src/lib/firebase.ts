@@ -57,3 +57,23 @@ export function timestampToIso(value: unknown): string {
   return new Date().toISOString()
 }
 
+export async function withFirebaseTimeout<T>(
+  promise: Promise<T>,
+  label: string,
+  timeoutMs = 8000,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${label} reagiert nicht. Bitte Firebase-Verbindung oder Firestore-Regeln prüfen.`))
+        }, timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
