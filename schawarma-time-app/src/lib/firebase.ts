@@ -22,6 +22,8 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const db = getFirestore(app)
 
+auth.languageCode = 'de'
+
 setPersistence(auth, browserLocalPersistence).catch(() => {})
 
 export interface AppSession {
