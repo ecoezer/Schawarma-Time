@@ -128,7 +128,7 @@ export function HomePage() {
         <div className="mx-auto max-w-2xl rounded-3xl border border-gray-200 bg-gray-50 px-6 py-8 text-center">
           <h1 className="text-2xl font-black text-gray-900">Restaurantdaten fehlen</h1>
           <p className="mt-3 text-sm text-gray-600">
-            Die Grundeinstellungen konnten nicht geladen werden. Bitte prüfe, ob in Supabase ein Datensatz für
+            Die Grundeinstellungen konnten nicht geladen werden. Bitte prüfe, ob in Firebase ein Datensatz für
             `restaurant_settings` vorhanden ist.
           </p>
         </div>
@@ -178,6 +178,7 @@ export function HomePage() {
         onCategoryClick={handleCategoryClick}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        settings={settings}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

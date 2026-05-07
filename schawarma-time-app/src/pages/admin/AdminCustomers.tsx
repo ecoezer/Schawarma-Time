@@ -173,6 +173,14 @@ export function AdminCustomers() {
               <div className="w-8 h-8 border-4 border-[#142328] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               Wird geladen...
             </div>
+          ) : error ? (
+            <div className="p-12 text-center text-red-500">
+              {error}
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="p-12 text-center text-gray-400">
+              Keine Kunden gefunden
+            </div>
           ) : filteredCustomers.map((customer) => (
             <div 
               key={customer.id} 

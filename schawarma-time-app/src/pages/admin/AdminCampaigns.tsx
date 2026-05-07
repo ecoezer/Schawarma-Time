@@ -90,17 +90,31 @@ export function AdminCampaigns() {
       return
     }
 
+    const normalizedCode = form.code.toUpperCase().trim()
+    const duplicateCoupon = coupons.find(
+      (coupon) => coupon.code.toUpperCase() === normalizedCode && coupon.id !== editCoupon?.id,
+    )
+    if (duplicateCoupon) {
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Dieser Gutscheincode existiert bereits
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const couponData = {
-        code: form.code.toUpperCase().trim(),
+        code: normalizedCode,
         discount_type: form.discount_type,
         discount_value: parseFloat(form.discount_value),
         min_order_amount: parseFloat(form.min_order_amount) || 0,
         max_uses: form.max_uses ? parseInt(form.max_uses) : null,
         is_first_order_only: form.is_first_order_only,
         is_active: form.is_active,
-        expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+        expires_at: form.expires_at ? new Date(`${form.expires_at}T23:59:59.999`).toISOString() : null,
       }
 
       if (editCoupon) {

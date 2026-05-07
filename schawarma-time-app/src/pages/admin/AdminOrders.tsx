@@ -192,11 +192,18 @@ export function AdminOrders() {
   }
 
   const updateStatus = async (orderId: string, status: OrderStatus, deliveryTime?: number) => {
+    const previousOrder = orders.find((order) => order.id === orderId)
     patchOrder(orderId, { status, ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}) })
     try {
       await orderService.updateOrderStatus(orderId, status, deliveryTime)
       toast.success(`Status: ${getStatusLabel(status)}`)
     } catch (err) {
+      if (previousOrder) {
+        patchOrder(orderId, {
+          status: previousOrder.status,
+          estimated_delivery_time: previousOrder.estimated_delivery_time,
+        })
+      }
       handleError(err, 'Status Error')
     }
   }

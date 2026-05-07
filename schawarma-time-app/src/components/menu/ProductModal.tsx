@@ -22,7 +22,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
   const [showStickyHeader, setShowStickyHeader] = useState(false)
   const [isClosedWarningOpen, setIsClosedWarningOpen] = useState(false)
   const [transformOrigin, setTransformOrigin] = useState('50% 50%')
-  const { addItem } = useCartStore()
+  const { addItem, orderType } = useCartStore()
   const { settings } = useRestaurantStore()
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -125,11 +125,14 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
   const isGroupsValid = product.extra_groups.every((group) => isGroupSatisfied(group))
   const isValid = isSizeValid && isGroupsValid
 
+  const canAcceptOrders = settings
+    ? isRestaurantOpen(settings.hours) && (orderType === 'abholung' || settings.is_delivery_active)
+    : true
+
   const handleAddToCart = () => {
     if (!isValid) return
     
-    const isRestaurantOpenNow = settings ? isRestaurantOpen(settings.hours) : false
-    if (!isRestaurantOpenNow) {
+    if (!canAcceptOrders) {
       setIsClosedWarningOpen(true)
       return
     }
@@ -244,18 +247,13 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                     {product.name}
                   </h1>
                   <div className="text-[18px] md:text-[20px] font-medium text-black mb-3">
-                    {formatPrice(product.price)}
+                    {formatPrice(basePrice)}
                   </div>
                   {product.description && (
                     <div className="text-[15px] md:text-[16px] text-[#545454] leading-relaxed mb-4">
                       {product.description}
                     </div>
                   )}
-                  
-                   {/* Popularity Tag */}
-                  <div className="inline-flex items-center justify-center bg-[#f3f3f3] px-3 py-1.5 rounded-md mt-1">
-                    <span className="text-[13px] font-medium text-black tracking-tight">Beliebtester: 3</span>
-                  </div>
                 </div>
 
                 {/* Sizes Selection */}

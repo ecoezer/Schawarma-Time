@@ -10,16 +10,13 @@ interface RecommendedItemsProps {
 export function RecommendedItems({ products, onProductClick }: RecommendedItemsProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Explicit order matching the user's screenshot exactly
-  // Page 1: Smash Burger, Menü 5, Menü 1, Triple Smash, Chili Cheese Pommes
-  // Page 2: Smash Pastirma Burger, Köfte Baguette, Menü 2, Pommes (groß), Triple Smash Burger 47
-  const exactOrderIds = [
-    'p1', 'p22', 'p18', 'p4', 'p12', // Page 1
-    'p3', 'p10', 'p19', 'p13', 'p5'  // Page 2
-  ]
-  const recommendedProducts = exactOrderIds
-    .map((id) => products.find((p) => p.id === id))
-    .filter(Boolean) as Product[]
+  const recommendedProducts = [...products]
+    .filter((product) => product.is_active)
+    .sort((a, b) => {
+      if (a.is_most_liked !== b.is_most_liked) return a.is_most_liked ? -1 : 1
+      return a.position - b.position
+    })
+    .slice(0, 10)
 
   if (recommendedProducts.length === 0) return null
 
@@ -66,7 +63,7 @@ export function RecommendedItems({ products, onProductClick }: RecommendedItemsP
         className="flex gap-4 overflow-x-auto scrollbar-none pb-4 snap-x snap-mandatory scroll-smooth"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {recommendedProducts.map((product, index) => (
+        {recommendedProducts.map((product) => (
           <div
             key={product.id}
             onClick={() => onProductClick(product)}
@@ -84,10 +81,11 @@ export function RecommendedItems({ products, onProductClick }: RecommendedItemsP
                   <span className="text-gray-400 text-xs text-center px-4">Kein Bild verfügbar</span>
                 </div>
               )}
-              {/* Badge */}
-              <div className="absolute top-2 left-2 bg-[#1b8c4c] text-white text-[12px] px-2 py-0.5 rounded-sm shadow-sm font-semibold tracking-tight z-10">
-                Beliebtester: {index + 1}
-              </div>
+              {product.is_most_liked && (
+                <div className="absolute top-2 left-2 bg-[#1b8c4c] text-white text-[12px] px-2 py-0.5 rounded-sm shadow-sm font-semibold tracking-tight z-10">
+                  Besonders beliebt
+                </div>
+              )}
             </div>
             <div className="mt-3">
               <h3 className="text-[16px] leading-[1.3] font-bold text-[#142328] line-clamp-2 min-h-[42px]">{product.name}</h3>

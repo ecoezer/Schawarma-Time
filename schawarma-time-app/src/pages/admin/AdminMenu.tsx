@@ -285,7 +285,7 @@ export function AdminMenu() {
     if (!catToDelete) return
     try {
       await deleteCategory(catToDelete.id)
-      if (activeCategory === catToDelete.id) setActiveCategory(categories[0]?.id ?? '')
+      if (activeCategory === catToDelete.id) setActiveCategory('')
       toast.success('Kategorie gelöscht')
     } catch (err: any) {
       toast.error((t) => (

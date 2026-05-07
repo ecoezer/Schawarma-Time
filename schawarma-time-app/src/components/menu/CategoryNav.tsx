@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Search, X, List } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Category } from '@/types'
+import type { Category, RestaurantSettings } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface CategoryNavProps {
@@ -10,15 +10,21 @@ interface CategoryNavProps {
   onCategoryClick: (slug: string) => void
   searchQuery: string
   onSearchChange: (query: string) => void
+  settings: RestaurantSettings
 }
 
-export function CategoryNav({ categories, activeCategory, onCategoryClick, searchQuery, onSearchChange }: CategoryNavProps) {
+export function CategoryNav({ categories, activeCategory, onCategoryClick, searchQuery, onSearchChange, settings }: CategoryNavProps) {
   const [isStuck, setIsStuck] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dropdownTop, setDropdownTop] = useState(0)
   const [dropdownLeft, setDropdownLeft] = useState(0)
   const navRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const todayKey = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()]
+  const todayHours = settings.hours?.[todayKey]
+  const openingText = !todayHours || todayHours.is_closed
+    ? 'Heute geschlossen'
+    : `${todayHours.open} – ${todayHours.close}`
 
   // Detect sticky
   useEffect(() => {
@@ -76,7 +82,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryClick, searc
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div>
               <h3 className="text-[17px] font-bold text-[#142328]">Öffnungszeiten</h3>
-              <p className="text-[14px] text-[#545454] mt-0.5">11:30 – 22:00</p>
+              <p className="text-[14px] text-[#545454] mt-0.5">{openingText}</p>
             </div>
 
             {/* Search */}
@@ -84,7 +90,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryClick, searc
               <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#142328]" strokeWidth={2.5} />
               <input
                 type="text"
-                placeholder="Suche in Schawarma-Time"
+                placeholder={`Suche in ${settings.name}`}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="w-full pl-[46px] pr-10 py-3 text-[15px] font-medium bg-[#f6f6f6] border-transparent rounded-full focus:outline-none focus:bg-[#e2e2e2] transition-colors placeholder:text-[#545454]"
@@ -211,4 +217,3 @@ export function CategoryNav({ categories, activeCategory, onCategoryClick, searc
     </>
   )
 }
-

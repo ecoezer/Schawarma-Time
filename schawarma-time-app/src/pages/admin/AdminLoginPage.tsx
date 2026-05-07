@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Eye, EyeOff } from 'lucide-react'
+import { Lock, Eye, EyeOff, Mail } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -88,7 +88,7 @@ export function AdminLoginPage() {
             placeholder="admin@schawarma-time.de"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            leftIcon={<Lock size={15} />}
+            leftIcon={<Mail size={15} />}
             required
           />
           <Input

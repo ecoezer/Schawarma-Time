@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Clock, Truck, Euro, Bell, Save, RefreshCw, Store, X, Plus, ImageIcon, Upload, Map as MapIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -89,6 +90,16 @@ export function AdminSettings() {
   const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (!CLOUD_NAME || !UPLOAD_PRESET) {
+      toast.error((t) => (
+        <span className="flex items-center gap-2">
+          Cloudinary ist nicht konfiguriert
+          <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+        </span>
+      ), { duration: Infinity })
+      if (heroInputRef.current) heroInputRef.current.value = ''
+      return
+    }
     if (!file.type.startsWith('image/')) { 
       toast.error((t) => (
         <span className="flex items-center gap-2">
@@ -352,7 +363,7 @@ export function AdminSettings() {
               type="number"
               step="0.50"
               value={localSettings.delivery_fee}
-              onChange={(e) => update('delivery_fee', parseFloat(e.target.value))}
+              onChange={(e) => update('delivery_fee', e.target.value === '' ? 0 : parseFloat(e.target.value))}
               leftIcon={<Euro size={14} />}
             />
             <Input
@@ -360,7 +371,7 @@ export function AdminSettings() {
               type="number"
               step="1"
               value={localSettings.min_order_amount}
-              onChange={(e) => update('min_order_amount', parseFloat(e.target.value))}
+              onChange={(e) => update('min_order_amount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
               leftIcon={<Euro size={14} />}
             />
           </div>
@@ -368,7 +379,7 @@ export function AdminSettings() {
             label="Geschätzte Lieferzeit (Min.)"
             type="number"
             value={localSettings.estimated_delivery_time}
-            onChange={(e) => update('estimated_delivery_time', parseInt(e.target.value))}
+            onChange={(e) => update('estimated_delivery_time', e.target.value === '' ? 0 : parseInt(e.target.value))}
             leftIcon={<Clock size={14} />}
           />
         </div>
@@ -501,7 +512,7 @@ export function AdminSettings() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="font-bold text-gray-900 mb-2">Gutscheincodes</h2>
         <p className="text-sm text-gray-500 mb-3">Gutscheincodes werden über die Kampagnen-Seite verwaltet.</p>
-        <a href="/admin/kampagnen" className="text-sm font-bold text-[#06c167] hover:underline">→ Zu Kampagnen</a>
+        <Link to="/admin/kampagnen" className="text-sm font-bold text-[#06c167] hover:underline">→ Zu Kampagnen</Link>
       </div>
 
       {/* Floating Save Bar for Mobile/POS */}

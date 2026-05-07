@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, limit, query, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDocs, limit, query, setDoc } from 'firebase/firestore'
 import { db, withFirebaseTimeout } from '@/lib/firebase'
 import type { RestaurantSettings } from '@/types'
 
@@ -94,5 +94,8 @@ export async function fetchSettingsAdmin(): Promise<RestaurantSettings> {
 }
 
 export async function updateSettings(id: string, updates: Partial<RestaurantSettings>): Promise<void> {
-  await setDoc(doc(db, 'restaurant_settings', id), updates as Record<string, unknown>, { merge: true })
+  await withFirebaseTimeout(
+    setDoc(doc(db, 'restaurant_settings', id), updates as Record<string, unknown>, { merge: true }),
+    'Einstellungen speichern',
+  )
 }

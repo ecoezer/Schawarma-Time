@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, MapPin, Copy } from 'lucide-react'
+import toast from 'react-hot-toast'
 import type { RestaurantSettings } from '@/types'
 
 interface RestaurantInfoModalProps {
@@ -19,6 +20,25 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
     { key: 'saturday', name: 'Samstag' },
     { key: 'sunday', name: 'Sonntag' },
   ]
+
+  const addressParts = settings.address
+    ? settings.address.split(',').map((part) => part.trim()).filter(Boolean)
+    : []
+  const primaryAddress = addressParts[0] || 'Adresse nicht hinterlegt'
+  const secondaryAddress = addressParts.slice(1).join(', ')
+  const tags = settings.tags?.length ? settings.tags : ['Restaurant']
+
+  const copyAddress = async () => {
+    const addressToCopy = settings.address || settings.name
+    if (!addressToCopy) return
+
+    try {
+      await navigator.clipboard.writeText(addressToCopy)
+      toast.success('Adresse kopiert')
+    } catch {
+      toast.error('Adresse konnte nicht kopiert werden')
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -44,10 +64,8 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
             <div className="relative h-[220px] bg-[#f3f3f3] shrink-0 overflow-hidden">
               {settings.is_map_mode_active ? (
                 <>
-                  <div 
-                    className="absolute inset-0 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=Hildesheim&zoom=14&size=600x300&maptype=roadmap&client=gme-ubercabinc1&sensor=false&style=feature:poi%7Cvisibility:off&client=gme-ubercabinc1')] bg-cover bg-center opacity-70"
-                  />
-                  {/* Route Indicator graphic (Fake) */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#ece7df] via-[#e5e3df] to-[#d7d1c7]" />
+                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_30%,#ffffff_0,transparent_22%),radial-gradient(circle_at_75%_60%,#ffffff_0,transparent_18%),linear-gradient(120deg,transparent_0%,transparent_42%,#cbd5e1_42%,#cbd5e1_45%,transparent_45%,transparent_100%)]" />
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-24">
                     <svg viewBox="0 0 100 50" className="w-full h-full overflow-visible">
                       <path d="M 10 40 Q 40 10 90 20" fill="transparent" stroke="#2563eb" strokeWidth="4" strokeDasharray="6,6" />
@@ -55,7 +73,7 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
                       <circle cx="90" cy="20" r="5" fill="black" />
                     </svg>
                     <div className="absolute top-[5px] left-[35px] bg-white rounded shadow px-2 py-1 text-[13px] font-bold text-black border border-gray-200">
-                      2.3 Meilen
+                      Standort
                     </div>
                   </div>
                 </>
@@ -80,7 +98,7 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pt-6 pb-8">
               <h2 className="text-[32px] font-bold text-black leading-tight mb-1">{settings.name}</h2>
               <p className="text-[15px] text-[#545454] font-medium mb-6">
-                Food • Burger • Halal • Street Food • Bar • Pub
+                {tags.join(' • ')}
               </p>
 
               {/* Info Rows */}
@@ -91,14 +109,19 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
                     <MapPin size={24} className="text-black mt-0.5" />
                     <div>
                       <p className="text-[16px] font-semibold text-black leading-tight">
-                        {settings.address.split(',')[0]}
+                        {primaryAddress}
                       </p>
-                      <p className="text-[14px] text-[#545454] mt-0.5">
-                        {settings.address.split(',').slice(1).join(',').trim()}, EMEA 31134
-                      </p>
+                      {secondaryAddress && (
+                        <p className="text-[14px] text-[#545454] mt-0.5">
+                          {secondaryAddress}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <button className="p-2 text-gray-400 hover:text-black transition-colors rounded-full hover:bg-gray-100">
+                  <button
+                    onClick={() => void copyAddress()}
+                    className="p-2 text-gray-400 hover:text-black transition-colors rounded-full hover:bg-gray-100"
+                  >
                     <Copy size={20} />
                   </button>
                 </div>
@@ -112,9 +135,9 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
                     <div key={day.key} className="flex justify-between items-center text-[15px]">
                       <span className="text-black font-medium">{day.name}</span>
                       <span className="text-[#545454]">
-                        {(settings.hours as any)[day.key].is_closed 
-                          ? 'Geschlossen' 
-                          : `${(settings.hours as any)[day.key].open} - ${(settings.hours as any)[day.key].close}`}
+                        {!settings.hours?.[day.key] || settings.hours[day.key].is_closed
+                          ? 'Geschlossen'
+                          : `${settings.hours[day.key].open} - ${settings.hours[day.key].close}`}
                       </span>
                     </div>
                   ))}
@@ -127,17 +150,12 @@ export function RestaurantInfoModal({ isOpen, onClose, settings }: RestaurantInf
                 <div className="text-[14px] text-[#545454] leading-relaxed space-y-4">
                   <div>
                     <h4 className="font-bold text-black text-[15px] mb-1">Angaben gemäß § 5 TMG</h4>
-                    <p>Schawarma-Time<br />Bahnhofsallee 14a<br />31134 Hildesheim</p>
+                    <p>{settings.name}<br />{settings.address || 'Adresse nicht hinterlegt'}</p>
                   </div>
                   
                   <div>
                     <h4 className="font-bold text-black text-[15px] mb-1">Kontakt</h4>
-                    <p>Telefon: 05069 8067500<br />E-Mail: info@schawarma-time.de</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-black text-[15px] mb-1">Umsatzsteuer-ID</h4>
-                    <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz: DE000000000</p>
+                    <p>Telefon: {settings.phone || 'Nicht hinterlegt'}<br />E-Mail: {settings.email || 'Nicht hinterlegt'}</p>
                   </div>
                 </div>
               </div>

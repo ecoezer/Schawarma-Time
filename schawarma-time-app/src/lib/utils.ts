@@ -54,12 +54,21 @@ function timeToMinutes(time: string): number {
 }
 
 export function isRestaurantOpen(hours: Record<string, { open: string; close: string; is_closed: boolean }>): boolean {
+  if (!hours || Object.keys(hours).length === 0) return true
   const now = new Date()
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
   const dayHours = hours[days[now.getDay()]]
   if (!dayHours || dayHours.is_closed) return false
   const current = now.getHours() * 60 + now.getMinutes()
-  return current >= timeToMinutes(dayHours.open) && current <= timeToMinutes(dayHours.close)
+  const openMinutes = timeToMinutes(dayHours.open)
+  const closeMinutes = timeToMinutes(dayHours.close)
+
+  // Overnight opening window, e.g. 18:00 -> 02:00
+  if (closeMinutes < openMinutes) {
+    return current >= openMinutes || current <= closeMinutes
+  }
+
+  return current >= openMinutes && current <= closeMinutes
 }
 
 export function toArray<T>(data: T[] | null | undefined): T[] {

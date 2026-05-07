@@ -1,7 +1,21 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
+import { useRestaurantStore } from '@/store/restaurantStore'
 
 export function DatenschutzPage() {
+  const { settings, fetchSettings } = useRestaurantStore()
+
+  useEffect(() => {
+    if (!settings) {
+      void fetchSettings()
+    }
+  }, [settings, fetchSettings])
+
+  const restaurantName = settings?.name || 'Schawarma-Time'
+  const restaurantAddress = settings?.address || 'Adresse auf Anfrage'
+  const restaurantEmail = settings?.email || 'info@schawarma-time.de'
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-10">
@@ -25,11 +39,11 @@ export function DatenschutzPage() {
             </section>
             <section>
               <h2 className="text-lg font-bold text-gray-900">4. Ihre Rechte</h2>
-              <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer Daten. Kontaktieren Sie uns unter: datenschutz@schawarma-time.de</p>
+              <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer Daten. Kontaktieren Sie uns unter: {restaurantEmail}</p>
             </section>
             <section>
               <h2 className="text-lg font-bold text-gray-900">5. Verantwortliche Stelle</h2>
-              <p>Schawarma-Time · Bahnhofsallee 14a · 31134 Hildesheim · info@schawarma-time.de</p>
+              <p>{restaurantName} · {restaurantAddress} · {restaurantEmail}</p>
             </section>
           </div>
         </div>

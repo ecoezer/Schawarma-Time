@@ -26,6 +26,9 @@ export function CartSidebar() {
   const minOrder = isAbholung ? 0 : (settings?.min_order_amount ?? 15.00)
   const isMinOrderMet = total >= minOrder
   const grandTotal = total + (isMinOrderMet ? deliveryFee : 0)
+  const canAcceptOrders = settings
+    ? isRestaurantOpen(settings.hours) && (isAbholung || settings.is_delivery_active)
+    : true
 
   const handleGoToMenu = () => {
     closeCart()
@@ -45,8 +48,7 @@ export function CartSidebar() {
   }
 
   const handleCheckout = () => {
-    const isRestaurantOpenNow = settings ? isRestaurantOpen(settings.hours) : false
-    if (!isRestaurantOpenNow) {
+    if (!canAcceptOrders) {
       setIsClosedWarningOpen(true)
       return
     }
@@ -269,7 +271,7 @@ export function CartSidebar() {
                     variant="primary"
                     fullWidth
                     size="lg"
-                    disabled={!isMinOrderMet}
+                    disabled={!isMinOrderMet || !canAcceptOrders}
                     onClick={handleCheckout}
                   >
                     Zur Kasse · {formatPrice(isMinOrderMet ? grandTotal : total)}

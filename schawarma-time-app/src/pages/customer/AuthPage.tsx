@@ -10,7 +10,7 @@ import { generateId } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import logo from '@/assets/logo.png'
 
-// Alle Supabase-Fehlermeldungen auf Deutsch übersetzen
+// Firebase/Auth-Fehlermeldungen auf Deutsch übersetzen
 function translateAuthError(err: any): string {
   const msg = err?.message ?? ''
   const code = err?.code ?? ''
@@ -159,23 +159,38 @@ export function AuthPage() {
           phone: formData.phone,
         })
 
-        // Save address to profile after signup if provided
-        if (data.user && formData.street) {
-          const address = {
-            id: generateId(),
-            label: 'Zuhause',
-            street: formData.street,
-            city: formData.city,
-            postal_code: formData.postalCode,
-            lat: null,
-            lng: null,
-          }
-          await authService.updateProfile(data.user.id, { addresses: [address] }).catch(() => {})
-        }
-
         if (data.user) {
           setSession(data.session)
           const profile = await authService.fetchProfile(data.user.id)
+          if (!profile) {
+            throw new Error('Profil konnte nach der Registrierung nicht geladen werden.')
+          }
+
+          // Best effort address bootstrap after account creation.
+          if (formData.street) {
+            const address = {
+              id: generateId(),
+              label: 'Zuhause',
+              street: formData.street,
+              city: formData.city,
+              postal_code: formData.postalCode,
+              lat: null,
+              lng: null,
+            }
+            try {
+              await authService.updateProfile(data.user.id, { addresses: [address] })
+              profile.addresses = [address]
+            } catch (addressError) {
+              console.warn('Address bootstrap after signup failed:', addressError)
+              toast((t) => (
+                <span className="flex items-center gap-2">
+                  Konto erstellt, aber Adresse konnte nicht gespeichert werden
+                  <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+                </span>
+              ), { icon: '⚠️', duration: 5000 })
+            }
+          }
+
           setUser(profile)
           toast.success('Konto erfolgreich erstellt!')
           navigate(redirect)

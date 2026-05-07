@@ -120,16 +120,16 @@ function AppContent() {
           <Route element={<CustomerLayout />}>
             <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/admin" replace /> : <HomePage />} />
             <Route path="/login" element={<AuthPage />} />
-            <Route path="/register" element={<AuthPage />} />
-            <Route path="/passwort-zuruecksetzen" element={<ResetPasswordPage />} />
-            <Route path="/impressum" element={<ImpressumPage />} />
-            <Route path="/datenschutz" element={<DatenschutzPage />} />
-            <Route path="/agb" element={<AgbPage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route path="/bestellung" element={<CheckoutPage />} />
+          <Route path="/register" element={<AuthPage />} />
+          <Route path="/passwort-zuruecksetzen" element={<ResetPasswordPage />} />
+          <Route path="/impressum" element={<ImpressumPage />} />
+          <Route path="/datenschutz" element={<DatenschutzPage />} />
+          <Route path="/agb" element={<AgbPage />} />
+          <Route path="/bestellung" element={<CheckoutPage />} />
+          <Route element={<ProtectedRoute />}>
               <Route path="/profil" element={<ProfilePage />} />
-            </Route>
           </Route>
+        </Route>
 
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
@@ -181,4 +181,3 @@ function App() {
 }
 
 export default App
-

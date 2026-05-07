@@ -1,5 +1,5 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, where } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { auth, db, withFirebaseTimeout } from '@/lib/firebase'
 import type { Coupon, Order } from '@/types'
 
 export interface CouponValidationResult {
@@ -11,6 +11,21 @@ export interface CouponValidationResult {
 function normalizePhone(value?: string | null): string | null {
   const normalized = (value || '').replace(/\D/g, '')
   return normalized || null
+}
+
+async function hasNonCancelledOrderByPhone(phone: string): Promise<boolean> {
+  const values = [...new Set([phone, normalizePhone(phone)].filter(Boolean))] as string[]
+  if (values.length === 0) return false
+
+  const checks = await Promise.all(
+    values.map((value) =>
+      getDocs(query(collection(db, 'orders'), where('customer_phone', '==', value))).then((ordersSnap) =>
+        ordersSnap.docs.some((item) => (item.data() as Partial<Order>).status !== 'cancelled'),
+      ),
+    ),
+  )
+
+  return checks.some(Boolean)
 }
 
 function mapCoupon(id: string, data: Partial<Coupon>): Coupon {
@@ -30,7 +45,10 @@ function mapCoupon(id: string, data: Partial<Coupon>): Coupon {
 }
 
 export async function fetchCoupons(): Promise<Coupon[]> {
-  const snap = await getDocs(query(collection(db, 'coupons'), orderBy('created_at', 'desc')))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'coupons'), orderBy('created_at', 'desc'))),
+    'Gutscheine laden',
+  )
   return snap.docs.map((item) => mapCoupon(item.id, item.data() as Partial<Coupon>))
 }
 
@@ -40,7 +58,10 @@ export async function validateCoupon(
   userId?: string,
   customerPhone?: string | null,
 ): Promise<CouponValidationResult> {
-  const snap = await getDocs(query(collection(db, 'coupons'), where('code', '==', code.trim().toUpperCase())))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'coupons'), where('code', '==', code.trim().toUpperCase()))),
+    'Gutschein prüfen',
+  )
   const docSnap = snap.docs[0]
   if (!docSnap) return { valid: false, discount: 0, errorMessage: 'Ungültiger Gutscheincode' }
 
@@ -69,11 +90,7 @@ export async function validateCoupon(
 
     const normalizedPhone = normalizePhone(customerPhone)
     if (normalizedPhone) {
-      checks.push(
-        getDocs(query(collection(db, 'orders'), where('customer_phone', '==', normalizedPhone))).then((ordersSnap) =>
-          ordersSnap.docs.some((item) => (item.data() as Partial<Order>).status !== 'cancelled'),
-        ),
-      )
+      checks.push(hasNonCancelledOrderByPhone(customerPhone || normalizedPhone))
     }
 
     const results = await Promise.all(checks)
@@ -92,14 +109,20 @@ export async function validateCoupon(
 
 export async function createCoupon(data: Omit<Coupon, 'id' | 'created_at' | 'used_count'>): Promise<Coupon> {
   const createdAt = new Date().toISOString()
-  const ref = await addDoc(collection(db, 'coupons'), { ...data, used_count: 0, created_at: createdAt })
+  const ref = await withFirebaseTimeout(
+    addDoc(collection(db, 'coupons'), { ...data, used_count: 0, created_at: createdAt }),
+    'Gutschein erstellen',
+  )
   return mapCoupon(ref.id, { ...data, used_count: 0, created_at: createdAt })
 }
 
 export async function updateCoupon(id: string, data: Partial<Coupon>): Promise<void> {
-  await setDoc(doc(db, 'coupons', id), data as Record<string, unknown>, { merge: true })
+  await withFirebaseTimeout(
+    setDoc(doc(db, 'coupons', id), data as Record<string, unknown>, { merge: true }),
+    'Gutschein aktualisieren',
+  )
 }
 
 export async function deleteCoupon(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'coupons', id))
+  await withFirebaseTimeout(deleteDoc(doc(db, 'coupons', id)), 'Gutschein löschen')
 }

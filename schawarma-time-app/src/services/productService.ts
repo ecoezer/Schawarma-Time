@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -56,26 +57,36 @@ export async function fetchCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(name: string, slug: string, position: number): Promise<Category> {
-  const ref = await addDoc(collection(db, 'categories'), {
-    name,
-    slug,
-    position,
-    is_active: true,
-    created_at: new Date().toISOString(),
-  })
-  return mapCategory(ref.id, { name, slug, position, is_active: true, created_at: new Date().toISOString() })
+  const createdAt = new Date().toISOString()
+  const ref = await withFirebaseTimeout(
+    addDoc(collection(db, 'categories'), {
+      name,
+      slug,
+      position,
+      is_active: true,
+      created_at: createdAt,
+    }),
+    'Kategorie erstellen',
+  )
+  return mapCategory(ref.id, { name, slug, position, is_active: true, created_at: createdAt })
 }
 
 export async function updateCategory(id: string, updates: Partial<Category>): Promise<void> {
-  await updateDoc(doc(db, 'categories', id), updates as Record<string, unknown>)
+  await withFirebaseTimeout(
+    updateDoc(doc(db, 'categories', id), updates as Record<string, unknown>),
+    'Kategorie aktualisieren',
+  )
 }
 
 export async function updateCategoryPositions(updates: { id: string, position: number }[]): Promise<void> {
-  await Promise.all(updates.map((item) => updateDoc(doc(db, 'categories', item.id), { position: item.position })))
+  await withFirebaseTimeout(
+    Promise.all(updates.map((item) => updateDoc(doc(db, 'categories', item.id), { position: item.position }))),
+    'Kategorien neu ordnen',
+  )
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'categories', id))
+  await withFirebaseTimeout(deleteDoc(doc(db, 'categories', id)), 'Kategorie löschen')
 }
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -87,19 +98,28 @@ export async function fetchProducts(): Promise<Product[]> {
 }
 
 export async function createProduct(data: Partial<Product>): Promise<Product> {
-  const ref = await addDoc(collection(db, 'products'), {
-    ...data,
-    created_at: new Date().toISOString(),
-  })
-  return mapProduct(ref.id, { ...data, created_at: new Date().toISOString() })
+  const createdAt = new Date().toISOString()
+  const ref = await withFirebaseTimeout(
+    addDoc(collection(db, 'products'), {
+      ...data,
+      created_at: createdAt,
+    }),
+    'Produkt erstellen',
+  )
+  return mapProduct(ref.id, { ...data, created_at: createdAt })
 }
 
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<Product> {
   const ref = doc(db, 'products', id)
-  await setDoc(ref, updates as Record<string, unknown>, { merge: true })
-  return mapProduct(id, updates)
+  const previousSnap = await withFirebaseTimeout(getDoc(ref), 'Produkt laden')
+  const previousData = previousSnap.exists() ? (previousSnap.data() as Partial<Product>) : {}
+  await withFirebaseTimeout(
+    setDoc(ref, updates as Record<string, unknown>, { merge: true }),
+    'Produkt aktualisieren',
+  )
+  return mapProduct(id, { ...previousData, ...updates })
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'products', id))
+  await withFirebaseTimeout(deleteDoc(doc(db, 'products', id)), 'Produkt löschen')
 }

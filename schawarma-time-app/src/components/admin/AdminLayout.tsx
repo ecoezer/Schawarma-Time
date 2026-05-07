@@ -73,6 +73,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     setIsSavingPw(true)
     try {
       await authService.changePassword(pwForm.newPassword)
+      await signOut()
       toast.success('Passwort erfolgreich geändert!')
       setShowPwModal(false)
       setPwForm({ newPassword: '', confirmPassword: '' })

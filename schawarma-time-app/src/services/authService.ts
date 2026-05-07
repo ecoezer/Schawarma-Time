@@ -12,9 +12,8 @@ import {
   getDoc,
   runTransaction,
   setDoc,
-  updateDoc,
 } from 'firebase/firestore'
-import { auth, db, userToSession, type AppSession } from '@/lib/firebase'
+import { auth, db, userToSession, withFirebaseTimeout, type AppSession } from '@/lib/firebase'
 import type { UserProfile } from '@/types'
 
 interface RateLimitEntry { count: number; windowStart: number }
@@ -106,16 +105,24 @@ export async function signUp(email: string, password: string, metadata: { full_n
 
   const credential = await createUserWithEmailAndPassword(auth, email, password)
   await updateAuthProfile(credential.user, { displayName: metadata.full_name })
-  await setDoc(profileRef(credential.user.uid), normalizeProfile(credential.user.uid, email, {
-    email,
-    full_name: metadata.full_name,
-    phone: metadata.phone,
-    role: 'customer',
-    addresses: [],
-    loyalty_points: 0,
-    total_orders: 0,
-    created_at: new Date().toISOString(),
-  }), { merge: true })
+  try {
+    await withFirebaseTimeout(
+      setDoc(profileRef(credential.user.uid), normalizeProfile(credential.user.uid, email, {
+        email,
+        full_name: metadata.full_name,
+        phone: metadata.phone,
+        role: 'customer',
+        addresses: [],
+        loyalty_points: 0,
+        total_orders: 0,
+        created_at: new Date().toISOString(),
+      }), { merge: true }),
+      'Profil erstellen',
+    )
+  } catch (profileError) {
+    console.warn('Profile bootstrap during signup failed:', profileError)
+  }
+  markEmailActionSent('signup', email)
 
   return {
     user: { id: credential.user.uid, email: credential.user.email },
@@ -155,7 +162,7 @@ export async function changePassword(newPassword: string): Promise<void> {
 }
 
 export async function fetchProfile(userId: string): Promise<UserProfile | null> {
-  const snap = await getDoc(profileRef(userId))
+  const snap = await withFirebaseTimeout(getDoc(profileRef(userId)), 'Profil laden')
   if (!snap.exists()) {
     const currentEmail = auth.currentUser?.uid === userId ? auth.currentUser.email : null
     return normalizeProfile(userId, currentEmail, undefined)
@@ -166,21 +173,23 @@ export async function fetchProfile(userId: string): Promise<UserProfile | null> 
 }
 
 export async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
-  await setDoc(profileRef(userId), updates, { merge: true })
+  await withFirebaseTimeout(setDoc(profileRef(userId), updates, { merge: true }), 'Profil speichern')
 }
 
 export async function incrementCustomerOrderStats(userId: string | null): Promise<void> {
   if (!userId) return
-  await runTransaction(db, async (tx) => {
-    const ref = profileRef(userId)
-    const snap = await tx.get(ref)
-    const current = snap.exists() ? (snap.data() as Partial<UserProfile>) : {}
-    tx.set(ref, {
-      total_orders: (current.total_orders ?? 0) + 1,
-      loyalty_points: current.loyalty_points ?? 0,
-      role: current.role ?? 'customer',
-      created_at: current.created_at ?? new Date().toISOString(),
-    }, { merge: true })
-  })
+  await withFirebaseTimeout(
+    runTransaction(db, async (tx) => {
+      const ref = profileRef(userId)
+      const snap = await tx.get(ref)
+      const current = snap.exists() ? (snap.data() as Partial<UserProfile>) : {}
+      tx.set(ref, {
+        total_orders: (current.total_orders ?? 0) + 1,
+        loyalty_points: current.loyalty_points ?? 0,
+        role: current.role ?? 'customer',
+        created_at: current.created_at ?? new Date().toISOString(),
+      }, { merge: true })
+    }),
+    'Kundenstatistik aktualisieren',
+  )
 }
-

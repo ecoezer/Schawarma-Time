@@ -1,6 +1,6 @@
 /**
  * SoundService - Synthesizes notification sounds using Web Audio API
- * to mimic professional delivery platform alerts (like Lieferando).
+ * for clear, attention-grabbing order alerts.
  */
 
 class SoundService {
@@ -15,7 +15,7 @@ class SoundService {
   }
 
   /**
-   * Synthesizes a single "Lieferando-style" chime
+   * Synthesizes a single alert chime.
    */
   private playChime(frequency: number, startTime: number, duration: number) {
     if (!this.audioContext) return;
@@ -23,7 +23,6 @@ class SoundService {
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
 
-    // Lieferando sound has a clean, electronic feel - 'triangle' or 'sine' works best
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(frequency, startTime);
     
@@ -45,6 +44,9 @@ class SoundService {
   public startNotification() {
     if (this.isPlaying) return;
     this.init();
+    if (this.audioContext?.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
+    }
     this.isPlaying = true;
 
     const playSequence = () => {

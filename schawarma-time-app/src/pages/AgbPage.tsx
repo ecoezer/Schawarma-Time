@@ -1,7 +1,21 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
+import { useRestaurantStore } from '@/store/restaurantStore'
 
 export function AgbPage() {
+  const { settings, fetchSettings } = useRestaurantStore()
+
+  useEffect(() => {
+    if (!settings) {
+      void fetchSettings()
+    }
+  }, [settings, fetchSettings])
+
+  const restaurantName = settings?.name || 'Schawarma-Time'
+  const restaurantAddress = settings?.address || 'Adresse auf Anfrage'
+  const restaurantEmail = settings?.email || 'info@schawarma-time.de'
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-10">
@@ -13,7 +27,7 @@ export function AgbPage() {
           <div className="prose prose-sm max-w-none text-gray-700 space-y-6">
             <section>
               <h2 className="text-lg font-bold text-gray-900">§ 1 Geltungsbereich</h2>
-              <p>Diese AGB gelten für alle Bestellungen, die über die Website von Schawarma-Time aufgegeben werden.</p>
+              <p>Diese AGB gelten für alle Bestellungen, die über die Website von {restaurantName} aufgegeben werden.</p>
             </section>
             <section>
               <h2 className="text-lg font-bold text-gray-900">§ 2 Vertragsschluss</h2>
@@ -25,7 +39,7 @@ export function AgbPage() {
             </section>
             <section>
               <h2 className="text-lg font-bold text-gray-900">§ 4 Lieferung</h2>
-              <p>Die Lieferzeit beträgt ca. 30–50 Minuten nach Bestelleingang. Bei höherem Bestellaufkommen kann sich die Lieferzeit verlängern. Lieferung erfolgt innerhalb des Liefergebiets von Schawarma-Time.</p>
+              <p>Die Lieferzeit beträgt ca. 30–50 Minuten nach Bestelleingang. Bei höherem Bestellaufkommen kann sich die Lieferzeit verlängern. Lieferung erfolgt innerhalb des Liefergebiets von {restaurantName}.</p>
             </section>
             <section>
               <h2 className="text-lg font-bold text-gray-900">§ 5 Widerrufsrecht</h2>
@@ -33,7 +47,7 @@ export function AgbPage() {
             </section>
             <section>
               <h2 className="text-lg font-bold text-gray-900">§ 6 Kontakt</h2>
-              <p>Schawarma-Time · Bahnhofsallee 14a · 31134 Hildesheim · info@schawarma-time.de</p>
+              <p>{restaurantName} · {restaurantAddress} · {restaurantEmail}</p>
             </section>
           </div>
         </div>

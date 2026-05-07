@@ -273,6 +273,7 @@ export function ImageCropModal({ isOpen, imageUrl, onClose, onConfirm, productIn
 
         onConfirm(urlCard, urlModal)
       } else {
+        console.warn('[Schawarma-Time] Cloudinary is not configured, using local preview data URLs.')
         onConfirm(canvasCard.toDataURL('image/jpeg', 0.92), canvasModal.toDataURL('image/jpeg', 0.92))
       }
     } catch (err) {

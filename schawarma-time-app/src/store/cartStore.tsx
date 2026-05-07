@@ -33,9 +33,11 @@ const calculateItemTotal = (price: number, extras: CartExtra[], quantity: number
   return (price + extrasTotal) * quantity
 }
 
-function isStoreOpen(settings?: RestaurantSettings | null): boolean {
+function isStoreOpen(settings?: RestaurantSettings | null, orderType: 'lieferung' | 'abholung' = 'lieferung'): boolean {
   if (!settings) return true // If no settings loaded yet, allow
-  return isRestaurantOpen(settings.hours) && settings.is_delivery_active
+  if (!isRestaurantOpen(settings.hours)) return false
+  if (orderType === 'abholung') return true
+  return settings.is_delivery_active
 }
 
 export const useCartStore = create<CartStore>()(
@@ -49,7 +51,7 @@ export const useCartStore = create<CartStore>()(
       setOrderType: (type) => set({ orderType: type }),
 
       addItem: (item, settings) => {
-        if (!isStoreOpen(settings)) {
+        if (!isStoreOpen(settings, get().orderType)) {
           toast.error((t) => (
             <span className="flex items-center gap-2 text-sm font-medium">
               Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an.
@@ -93,7 +95,7 @@ export const useCartStore = create<CartStore>()(
       },
 
       addItems: (newItems, settings) => {
-        if (!isStoreOpen(settings)) {
+        if (!isStoreOpen(settings, get().orderType)) {
           toast.error((t) => (
             <span className="flex items-center gap-2 text-sm font-medium">
               Wir haben aktuell geschlossen oder nehmen momentan keine Bestellungen an.

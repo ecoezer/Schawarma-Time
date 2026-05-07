@@ -1,5 +1,5 @@
 import { collection, getDocs, query, where } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, withFirebaseTimeout } from '@/lib/firebase'
 import type { Customer, Order } from '@/types'
 
 const CUSTOMERS_PAGE_SIZE = 50
@@ -46,7 +46,10 @@ function mapOrder(id: string, data: Partial<Order>): Order {
 }
 
 export async function fetchCustomers(page = 0): Promise<{ data: Customer[]; hasMore: boolean }> {
-  const snap = await getDocs(query(collection(db, 'profiles'), where('role', '==', 'customer')))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'profiles'), where('role', '==', 'customer'))),
+    'Kunden laden',
+  )
   const rows = snap.docs
     .map((item) => mapCustomer(item.id, item.data() as Partial<Customer>))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -56,12 +59,18 @@ export async function fetchCustomers(page = 0): Promise<{ data: Customer[]; hasM
 }
 
 export async function fetchTotalCustomerCount(): Promise<number> {
-  const snap = await getDocs(query(collection(db, 'profiles'), where('role', '==', 'customer')))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'profiles'), where('role', '==', 'customer'))),
+    'Kundenzahl laden',
+  )
   return snap.size
 }
 
 export async function fetchCustomerOrders(userId: string): Promise<Order[]> {
-  const snap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', userId)))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'orders'), where('user_id', '==', userId))),
+    'Kundenbestellungen laden',
+  )
   return snap.docs
     .map((item) => mapOrder(item.id, item.data() as Partial<Order>))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

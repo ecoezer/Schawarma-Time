@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/Badge'
 import { formatPrice, getStatusLabel } from '@/lib/utils'
 import type { Order, UserAddress } from '@/types'
 import toast from 'react-hot-toast'
+import { handleError } from '@/lib/errorHandler'
 
 type Tab = 'profile' | 'addresses' | 'orders'
 
@@ -57,7 +58,10 @@ export function ProfilePage() {
       navigate('/login')
       return
     }
-    orderService.fetchUserOrders().then(setOrders).catch(() => {})
+    orderService.fetchUserOrders().then(setOrders).catch((err) => {
+      handleError(err, 'Bestellverlauf laden')
+      setOrders([])
+    })
 
     // Realtime: status updates appear instantly without page refresh
     const unsub = orderService.subscribeToOrders((payload) => {

@@ -10,7 +10,7 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ settings }: HeroSectionProps) {
-  const imageUrl = settings.hero_images?.[0] || 'https://via.placeholder.com/1200x400'
+  const imageUrl = settings.hero_images?.[0] || null
   const { orderType, setOrderType } = useCartStore()
   const [showFeesModal, setShowFeesModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
@@ -24,11 +24,24 @@ export function HeroSection({ settings }: HeroSectionProps) {
         {/* Banner Image Container */}
         {settings.is_hero_active && (
           <div className="relative w-full h-[192px] sm:h-[256px] rounded-2xl overflow-hidden bg-gray-100 group">
-            <img 
-              src={imageUrl} 
-              alt={settings.name} 
-              className="w-full h-full object-cover"
-            />
+            {imageUrl ? (
+              <img 
+                src={imageUrl} 
+                alt={settings.name} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-[#142328] via-[#1f343a] to-[#2b4a53] flex items-end">
+                <div className="p-6 sm:p-8 text-white">
+                  <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.2em] text-white/70 mb-2">
+                    Schawarma Time
+                  </p>
+                  <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-none">
+                    {settings.name}
+                  </h2>
+                </div>
+              </div>
+            )}
             
             {/* Top Right Action Buttons */}
             <div className="absolute top-4 right-4 flex items-center gap-3">

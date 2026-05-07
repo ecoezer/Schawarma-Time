@@ -101,7 +101,10 @@ function mapOrder(id: string, data: Partial<Order>): Order {
 }
 
 async function fetchAllOrdersRaw(): Promise<Order[]> {
-  const snap = await getDocs(query(collection(db, 'orders'), orderBy('created_at', 'desc')))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'orders'), orderBy('created_at', 'desc'))),
+    'Bestellungen laden',
+  )
   return snap.docs.map((item) => mapOrder(item.id, item.data() as Partial<Order>))
 }
 
@@ -147,7 +150,10 @@ async function fetchRestaurantSettings(): Promise<RestaurantSettings> {
 }
 
 async function fetchProductsByIds(ids: string[]): Promise<Map<string, Product>> {
-  const all = await getDocs(collection(db, 'products'))
+  const all = await withFirebaseTimeout(
+    getDocs(collection(db, 'products')),
+    'Produkte für Bestellung laden',
+  )
   const map = new Map<string, Product>()
   all.docs.forEach((item) => {
     if (!ids.includes(item.id)) return
@@ -171,7 +177,10 @@ export async function fetchTodayOrders(): Promise<Order[]> {
 
 export async function fetchUserOrders(): Promise<Order[]> {
   if (!auth.currentUser) return []
-  const snap = await getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid)))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'orders'), where('user_id', '==', auth.currentUser.uid))),
+    'Bestellverlauf laden',
+  )
   return snap.docs
     .map((item) => mapOrder(item.id, item.data() as Partial<Order>))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -191,11 +200,14 @@ export async function fetchPendingCount(): Promise<number> {
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus, deliveryTime?: number): Promise<void> {
-  await updateDoc(doc(db, 'orders', orderId), {
-    status,
-    updated_at: new Date().toISOString(),
-    ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}),
-  })
+  await withFirebaseTimeout(
+    updateDoc(doc(db, 'orders', orderId), {
+      status,
+      updated_at: new Date().toISOString(),
+      ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}),
+    }),
+    'Bestellstatus aktualisieren',
+  )
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
@@ -275,18 +287,32 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   })
 
   if (auth.currentUser?.uid) {
-    await incrementCustomerOrderStats(auth.currentUser.uid)
+    try {
+      await incrementCustomerOrderStats(auth.currentUser.uid)
+    } catch (statsError) {
+      console.warn('Customer order stats update failed after order creation:', statsError)
+    }
   }
 
   if (discountCheck.valid && input.coupon_code) {
-    const couponSnap = await getDocs(query(collection(db, 'coupons'), where('code', '==', input.coupon_code.trim().toUpperCase()), limit(1)))
-    const couponDoc = couponSnap.docs[0]
-    if (couponDoc) {
-      await runTransaction(db, async (tx) => {
-        const snapshot = await tx.get(couponDoc.ref)
-        const current = snapshot.data() as { used_count?: number } | undefined
-        tx.set(couponDoc.ref, { used_count: (current?.used_count ?? 0) + 1 }, { merge: true })
-      })
+    try {
+      const couponSnap = await withFirebaseTimeout(
+        getDocs(query(collection(db, 'coupons'), where('code', '==', input.coupon_code.trim().toUpperCase()), limit(1))),
+        'Gutscheinverbrauch aktualisieren',
+      )
+      const couponDoc = couponSnap.docs[0]
+      if (couponDoc) {
+        await withFirebaseTimeout(
+          runTransaction(db, async (tx) => {
+            const snapshot = await tx.get(couponDoc.ref)
+            const current = snapshot.data() as { used_count?: number } | undefined
+            tx.set(couponDoc.ref, { used_count: (current?.used_count ?? 0) + 1 }, { merge: true })
+          }),
+          'Gutscheinverbrauch speichern',
+        )
+      }
+    } catch (couponUsageError) {
+      console.warn('Coupon usage counter update failed after order creation:', couponUsageError)
     }
   }
 
@@ -294,12 +320,15 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 }
 
 export async function fetchOrderById(orderId: string): Promise<Order | null> {
-  const snapshot = await getDoc(doc(db, 'orders', orderId))
+  const snapshot = await withFirebaseTimeout(getDoc(doc(db, 'orders', orderId)), 'Bestellung laden')
   return snapshot.exists() ? mapOrder(snapshot.id, snapshot.data() as Partial<Order>) : null
 }
 
 export async function fetchOrderByNumber(orderNumber: string): Promise<Order | null> {
-  const snap = await getDocs(query(collection(db, 'orders'), where('order_number', '==', orderNumber), limit(1)))
+  const snap = await withFirebaseTimeout(
+    getDocs(query(collection(db, 'orders'), where('order_number', '==', orderNumber), limit(1))),
+    'Bestellung nach Nummer laden',
+  )
   const docSnap = snap.docs[0]
   return docSnap ? mapOrder(docSnap.id, docSnap.data() as Partial<Order>) : null
 }

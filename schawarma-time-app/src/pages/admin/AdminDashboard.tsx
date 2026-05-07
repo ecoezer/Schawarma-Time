@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, ShoppingBag, Users, Euro, Clock, AlertCircle, CheckCircle, Truck, RefreshCw } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { Toggle } from '@/components/ui/Toggle'
 import { useOrderStore } from '@/store/orderStore'
 import * as orderService from '@/services/orderService'
@@ -64,7 +65,8 @@ export function AdminDashboard() {
   const todayRevenue = orders
     .filter((o) => o.status !== 'cancelled')
     .reduce((sum, o) => sum + (o.total || 0), 0)
-  const avgOrderValue = orders.length > 0 ? todayRevenue / orders.filter((o) => o.status !== 'cancelled').length : 0
+  const completedOrdersCount = orders.filter((o) => o.status !== 'cancelled').length
+  const avgOrderValue = completedOrdersCount > 0 ? todayRevenue / completedOrdersCount : 0
   const goal = settings?.revenue_goal_daily || 500
 
   const { pendingCount, confirmedCount } = orders.reduce(
@@ -94,7 +96,7 @@ export function AdminDashboard() {
           <p className="text-sm text-gray-500 mt-0.5">Guten Tag! Hier ist die Übersicht von heute.</p>
         </div>
 
-        {/* Delivery Toggle – connected to Supabase via restaurantStore */}
+        {/* Delivery Toggle – connected via restaurantStore */}
         <div className="bg-white rounded-xl border border-gray-200 px-3 py-2 sm:px-4 sm:py-3 flex items-center gap-3 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
           <div className="flex items-center gap-3">
             <Truck size={18} className={settings?.is_delivery_active ? 'text-[#06c167]' : 'text-gray-400'} />
@@ -186,7 +188,7 @@ export function AdminDashboard() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-gray-900">Letzte Bestellungen</h2>
-            <a href="/admin/bestellungen" className="text-xs text-[#06c167] font-semibold hover:underline">Alle ansehen</a>
+            <Link to="/admin/bestellungen" className="text-xs text-[#06c167] font-semibold hover:underline">Alle ansehen</Link>
           </div>
           <div className="space-y-3">
             {isLoading ? (

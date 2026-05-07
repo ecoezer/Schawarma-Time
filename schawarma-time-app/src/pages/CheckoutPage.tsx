@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, MapPin, Clock, Banknote, CreditCard, Tag, CheckCircle, AlertCircle, Home, Briefcase, Navigation, XCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useCartStore } from '@/store/cartStore'
@@ -70,6 +70,19 @@ export function CheckoutPage() {
   }, [user])
   const [errors, setErrors] = useState<Partial<typeof form>>({})
   const [warningModal, setWarningModal] = useState<{ title: string; message: string; icon?: string } | null>(null)
+
+  useEffect(() => {
+    if (!settings?.payment_methods) return
+
+    const cashAllowed = settings.payment_methods.cash ?? true
+    const cardAllowed = settings.payment_methods.card_on_delivery ?? true
+
+    if (paymentMethod === 'cash' && !cashAllowed && cardAllowed) {
+      setPaymentMethod('card_on_delivery')
+    } else if (paymentMethod === 'card_on_delivery' && !cardAllowed && cashAllowed) {
+      setPaymentMethod('cash')
+    }
+  }, [settings, paymentMethod])
 
   // Realtime: Auf Admin-Bestätigung oder Ablehnung warten
   useEffect(() => {
@@ -232,27 +245,38 @@ export function CheckoutPage() {
       setOrderNumber(result.order_number)
       setStatus('pending_confirmation')
       
-      // Save address to profile if user is logged in and doesn't have this address yet
+      // Best effort profile sync after successful order creation.
+      // This must never flip the whole checkout back into an error state.
       if (user) {
-        const hasAddress = user.addresses?.some(a => 
-          a.street.toLowerCase() === form.street.toLowerCase() && 
-          a.postal_code === form.postalCode
-        )
-        
-        if (!hasAddress) {
-          await addAddress({
-            label: user.addresses?.length === 0 ? 'Zuhause' : `Adresse ${user.addresses.length + 1}`,
-            street: form.street,
-            city: form.city,
-            postal_code: form.postalCode,
-            lat: null,
-            lng: null
-          })
-        }
-        
-        // Also save phone if profile is missing it
-        if (!user.phone && form.phone) {
-          await updateProfile({ phone: form.phone })
+        try {
+          const hasAddress = user.addresses?.some(a => 
+            a.street.toLowerCase() === form.street.toLowerCase() && 
+            a.postal_code === form.postalCode
+          )
+          
+          if (!hasAddress) {
+            await addAddress({
+              label: user.addresses?.length === 0 ? 'Zuhause' : `Adresse ${user.addresses.length + 1}`,
+              street: form.street,
+              city: form.city,
+              postal_code: form.postalCode,
+              lat: null,
+              lng: null
+            })
+          }
+          
+          // Also save phone if profile is missing it
+          if (!user.phone && form.phone) {
+            await updateProfile({ phone: form.phone })
+          }
+        } catch (profileSyncError) {
+          console.warn('Profile sync after order creation failed:', profileSyncError)
+          toast((t) => (
+            <span className="flex items-center gap-2">
+              Bestellung gespeichert, aber Profildaten konnten nicht aktualisiert werden
+              <button onClick={() => toast.dismiss(t.id)} className="ml-2 font-bold opacity-70 hover:opacity-100">✕</button>
+            </span>
+          ), { icon: '⚠️', duration: 5000 })
         }
       }
 
@@ -592,8 +616,8 @@ export function CheckoutPage() {
                 
                 <p className="text-[10px] text-center text-gray-400 font-medium leading-relaxed">
                   Mit der Bestellung stimmst du unseren{' '}
-                  <a href="/agb" className="underline hover:text-gray-600">AGB</a> und{' '}
-                  <a href="/datenschutz" className="underline hover:text-gray-600">Datenschutzbestimmungen</a> zu.
+                  <Link to="/agb" className="underline hover:text-gray-600">AGB</Link> und{' '}
+                  <Link to="/datenschutz" className="underline hover:text-gray-600">Datenschutzbestimmungen</Link> zu.
                 </p>
               </div>
             </div>
