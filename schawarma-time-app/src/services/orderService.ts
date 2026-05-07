@@ -357,6 +357,34 @@ export function subscribeToOrders(callback: (payload: any) => void) {
   })
 }
 
+export function subscribeToUserOrders(userId: string, callback: (payload: any) => void) {
+  let isInitialSnapshot = true
+
+  return onSnapshot(
+    query(collection(db, 'orders'), where('user_id', '==', userId), orderBy('created_at', 'desc')),
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const eventType = isInitialSnapshot && change.type === 'added'
+          ? 'BOOTSTRAP'
+          : change.type === 'added'
+            ? 'INSERT'
+            : change.type === 'modified'
+              ? 'UPDATE'
+              : 'DELETE'
+
+        const payload = {
+          eventType,
+          new: change.type === 'removed' ? null : mapOrder(change.doc.id, change.doc.data() as Partial<Order>),
+          old: { id: change.doc.id },
+        }
+        callback(payload)
+      })
+
+      isInitialSnapshot = false
+    },
+  )
+}
+
 export function subscribeToOrder(orderId: string, callback: (order: Order | null) => void) {
   return onSnapshot(doc(db, 'orders', orderId), (snapshot) => {
     callback(snapshot.exists() ? mapOrder(snapshot.id, snapshot.data() as Partial<Order>) : null)

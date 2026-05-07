@@ -5,6 +5,7 @@ import { formatPrice, getStatusColor, getStatusLabel, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { useOrderStore } from '@/store/orderStore'
 import * as orderService from '@/services/orderService'
+import * as orderEmailService from '@/services/orderEmailService'
 import { handleError } from '@/lib/errorHandler'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { Modal } from '@/components/ui/Modal'
@@ -196,6 +197,13 @@ export function AdminOrders() {
     patchOrder(orderId, { status, ...(deliveryTime !== undefined ? { estimated_delivery_time: deliveryTime } : {}) })
     try {
       await orderService.updateOrderStatus(orderId, status, deliveryTime)
+      if (status === 'confirmed' || status === 'cancelled') {
+        try {
+          await orderEmailService.sendOrderStatusEmail(orderId, status)
+        } catch (mailErr) {
+          handleError(mailErr, 'Status-E-Mail senden')
+        }
+      }
       toast.success(`Status: ${getStatusLabel(status)}`)
     } catch (err) {
       if (previousOrder) {

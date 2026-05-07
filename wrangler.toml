@@ -1,5 +1,11 @@
 name = "schawarmatime"
 compatibility_date = "2026-05-06"
+main = "./worker/index.ts"
+
+[vars]
+FIREBASE_PROJECT_ID = "schawarma-time"
+FIREBASE_API_KEY = "AIzaSyAL7-PGvh0JpWgqWEU3uGXXCda7Hjr7EO0"
+RESEND_FROM_EMAIL = "Schawarma-Time <bestellung@schawarma-time.de>"
 
 [build]
 command = "npm --prefix ./schawarma-time-app install && npm --prefix ./schawarma-time-app run build"

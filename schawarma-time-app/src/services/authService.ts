@@ -122,6 +122,14 @@ export async function signUp(email: string, password: string, metadata: { full_n
   } catch (profileError) {
     console.warn('Profile bootstrap during signup failed:', profileError)
   }
+  if (typeof window !== 'undefined') {
+    await sendEmailVerification(credential.user, {
+      url: `${window.location.origin}/login`,
+      handleCodeInApp: false,
+    })
+  } else {
+    await sendEmailVerification(credential.user)
+  }
   markEmailActionSent('signup', email)
 
   return {

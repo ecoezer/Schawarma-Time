@@ -63,8 +63,8 @@ export function ProfilePage() {
       setOrders([])
     })
 
-    // Realtime: status updates appear instantly without page refresh
-    const unsub = orderService.subscribeToOrders((payload) => {
+    // Realtime: only subscribe to the current user's orders
+    const unsub = orderService.subscribeToUserOrders(user.id, (payload) => {
       const { eventType, new: next, old } = payload
       if ((eventType === 'BOOTSTRAP' || eventType === 'UPDATE') && next.user_id === user.id) {
         setOrders(prev => {

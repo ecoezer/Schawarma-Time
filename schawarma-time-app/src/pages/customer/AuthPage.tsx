@@ -192,7 +192,7 @@ export function AuthPage() {
           }
 
           setUser(profile)
-          toast.success('Konto erfolgreich erstellt!')
+          toast.success('Konto erfolgreich erstellt! Bitte bestätige jetzt deine E-Mail-Adresse.')
           navigate(redirect)
         }
       }
