@@ -75,6 +75,10 @@ export function AuthPage() {
   const [showResend, setShowResend] = useState(false)
   const [isResending, setIsResending] = useState(false)
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [needsEmailVerification, isForgotPassword, resetSent, location.pathname])
+
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!formData.email) errs.email = 'E-Mail ist erforderlich'
