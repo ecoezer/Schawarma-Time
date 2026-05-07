@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import * as authService from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
 import { generateId } from '@/lib/utils'
+import { auth } from '@/lib/firebase'
 import toast from 'react-hot-toast'
 import logo from '@/assets/logo.png'
 
@@ -44,6 +45,7 @@ export function AuthPage() {
   const redirect = searchParams.get('redirect') || '/'
   const { setUser, setSession, user, isInitialized, signOut } = useAuthStore()
   const isAuthenticated = isInitialized && !!user
+  const needsEmailVerification = isAuthenticated && !auth.currentUser?.emailVerified && !['manager', 'cashier', 'kitchen'].includes(user?.role ?? '')
 
   const [isLogin, setIsLogin] = useState(location.pathname !== '/register')
   const [isForgotPassword, setIsForgotPassword] = useState(false)
@@ -151,6 +153,10 @@ export function AuthPage() {
         setSession(data.session)
         setUser(profile)
         const isAdmin = ['manager', 'cashier', 'kitchen'].includes(profile?.role ?? '')
+        if (!isAdmin && !auth.currentUser?.emailVerified) {
+          toast.success('Bitte bestätige zuerst deine E-Mail-Adresse. Danach kannst du dich normal anmelden.')
+          return
+        }
         toast.success(`Willkommen zurück, ${profile?.full_name?.split(' ')[0] || 'Gast'}! 👋`)
         navigate(isAdmin ? '/admin' : redirect, { replace: true })
       } else {
@@ -193,7 +199,7 @@ export function AuthPage() {
 
           setUser(profile)
           toast.success('Konto erfolgreich erstellt! Bitte bestätige jetzt deine E-Mail-Adresse.')
-          navigate(redirect)
+          return
         }
       }
     } catch (err: any) {
@@ -213,6 +219,63 @@ export function AuthPage() {
   if (isAuthenticated) {
     const firstName = user?.full_name?.split(' ')[0] || 'Gast'
     const isStaff = ['manager', 'cashier', 'kitchen'].includes(user?.role ?? '')
+
+    if (needsEmailVerification) {
+      return (
+        <div className="min-h-[calc(100vh-80px)] bg-gray-50 flex items-center justify-center px-4 py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md text-center"
+          >
+            <div className="mb-6 flex justify-center">
+              <img src={logo} alt="Logo" className="h-16 w-auto object-contain" />
+            </div>
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+              <Mail size={28} className="text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-black text-gray-900">Bestätige zuerst deine E-Mail</h1>
+            <p className="mt-2 text-gray-600">
+              Hallo {firstName}. Bevor du weitermachen kannst, musst du dein Konto über den Link in deiner Bestätigungs-E-Mail freischalten.
+            </p>
+
+            <div className="mt-8 space-y-3">
+              <Button
+                type="button"
+                variant="primary"
+                fullWidth
+                size="lg"
+                onClick={handleResendConfirmation}
+                isLoading={isResending}
+              >
+                Bestätigungs-E-Mail erneut senden
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
+                size="lg"
+                onClick={async () => {
+                  setIsLoading(true)
+                  try {
+                    await signOut()
+                    toast.success('Du wurdest abgemeldet.')
+                    navigate('/login', { replace: true })
+                  } catch {
+                    toast.error('Abmeldung fehlgeschlagen. Bitte versuche es erneut.')
+                  } finally {
+                    setIsLoading(false)
+                  }
+                }}
+                isLoading={isLoading}
+              >
+                Abmelden
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )
+    }
 
     return (
       <div className="min-h-[calc(100vh-80px)] bg-gray-50 flex items-center justify-center px-4 py-12">
