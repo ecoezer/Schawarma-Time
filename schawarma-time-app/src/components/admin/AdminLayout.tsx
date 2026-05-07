@@ -77,7 +77,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       toast.success('Passwort erfolgreich geändert!')
       setShowPwModal(false)
       setPwForm({ newPassword: '', confirmPassword: '' })
-      navigate('/admin/login', { replace: true })
+      navigate('/admin', { replace: true })
     } catch (err: any) {
       toast.error((t) => (
         <span className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const handleLogout = async () => {
     await signOut()
     toast.success('Erfolgreich abgemeldet')
-    navigate('/admin/login', { replace: true })
+    navigate('/admin', { replace: true })
   }
 
   const allOrders = useOrderStore(state => state.orders)
